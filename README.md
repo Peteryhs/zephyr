@@ -112,7 +112,7 @@ Zephyr doesn't ask for your location. It works out a nearby city from your syste
 
 Zephyr's sky is heavily inspired by, and designed after, the sky on [hark.com](https://hark.com). I'm grateful I came across that idea, because it's what started this project.
 
-No code from hark.com is borrowed or used here. The sky in Zephyr was written from scratch for this plugin.
+No code from hark.com is borrowed or used here. Zephyr's sky was reimplemented independently, from a written description of how the original behaves.
 
 ## Credits
 
@@ -120,4 +120,4 @@ Weather and sunrise data come from [Open-Meteo](https://open-meteo.com).
 
 ## License
 
-No license has been chosen yet. Add a `LICENSE` file before you share this repository publicly.
+Zephyr is released under the [MIT License](LICENSE). The Hark name and the hark.com sky belong to their owners.

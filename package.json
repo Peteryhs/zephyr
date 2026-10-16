@@ -9,5 +9,6 @@
     "check": "node scripts/check.mjs",
     "test": "node --test tests/engine.test.mjs",
     "rig": "node tests/sky-rig.mjs"
-  }
+  },
+  "license": "MIT"
 }

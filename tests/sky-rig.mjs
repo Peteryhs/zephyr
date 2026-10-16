@@ -21,6 +21,11 @@ const ok = (cond, msg) => { console.log((cond ? '  ok   ' : '  FAIL ') + msg); i
 
 /* ── a WebGL stub that records what the engine asks of it ────────────────── */
 const calls = { shaders: [], texels: 0, draws: 0, uniforms: [], unknown: [], errorCalls: [] }
+/* the driver's answer for a vertex attribute depends on the shader text, so
+   the mock answers the same way: a name the vertex shader never declares
+   resolves to -1, which is how a renamed attribute blacks the sky out */
+const shaderText = new WeakMap()
+const programShaders = new Map()
 const glConst = {
   VERTEX_SHADER: 1, FRAGMENT_SHADER: 2, COMPILE_STATUS: 3, LINK_STATUS: 4, ARRAY_BUFFER: 5,
   STATIC_DRAW: 6, FLOAT: 7, RGBA: 8, UNSIGNED_BYTE: 9, TEXTURE_2D: 10, TEXTURE0: 11, RGB: 12,
@@ -34,12 +39,12 @@ const makeGl = () => new Proxy(Object.assign({}, glConst, {
   checkFramebufferStatus: () => 36053,   // FRAMEBUFFER_COMPLETE
   getParameter: () => 'WebGL 1.0 (rig)',
   createShader: () => ({}),
-  shaderSource: (_s, src) => calls.shaders.push(src.length),
+  shaderSource: (_s, src) => { shaderText.set(_s, src); calls.shaders.push(src.length) },
   compileShader: () => {},
   getShaderParameter: () => true,
   getShaderInfoLog: () => '',
-  createProgram: () => ({}),
-  attachShader: () => {},
+  createProgram: () => { const p = {}; programShaders.set(p, []); return p },
+  attachShader: (p, s) => { (programShaders.get(p) || []).push(s) },
   linkProgram: () => {},
   getProgramParameter: () => true,
   getProgramInfoLog: () => '',
@@ -61,7 +66,8 @@ const makeGl = () => new Proxy(Object.assign({}, glConst, {
   createBuffer: () => ({}),
   bindBuffer: () => {},
   bufferData: () => {},
-  getAttribLocation: () => 0,
+  getAttribLocation: (p, name) => (programShaders.get(p) || []).some(s =>
+    new RegExp('attribute\\s+\\w+\\s+' + name + '\\b').test(shaderText.get(s) || '')) ? 0 : -1,
   enableVertexAttribArray: () => {},
   vertexAttribPointer: () => {},
   viewport: () => {},

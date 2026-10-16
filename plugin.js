@@ -2467,6 +2467,10 @@ function zDrawParams(gl, U, f, opts) {
   gl.drawArrays(gl.TRIANGLES, 0, 3)
 }
 
+/* The engine's vertex shader names its attribute aPosition; the vendored sky
+   this replaced said aPos, and the plugin binds the slot by name. */
+const ATTRIB = 'aPosition'
+
 /* The shader declares 47 uniforms. The plugin's field-cache variant adds
    uDriftOff (the integrated drift it feeds instead of t × drift), so the
    location list carries it too. */
@@ -2490,6 +2494,7 @@ return {
   FRAG: FRAG,
   VERT: VERT,
   UNIFORM_NAMES: SKY_UNIFORM_NAMES,
+  ATTRIB: ATTRIB,
   SCENE: zScene,
   LIFT_BASE: LIFT_BASE,
   cloneScene: zCloneScene,
@@ -2670,7 +2675,15 @@ const createSky = (opts = {}) => {
   const buffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
-  const aPos = gl.getAttribLocation(program, 'aPos')
+  /* the engine's vertex shader names its attribute aPosition (the vendored one
+     said aPos). Without this the slot is -1, nothing rasterizes and the sky is
+     a black canvas with the CSS backdrop switched off — so say so and fall back
+     to the gradient instead. */
+  const aPos = gl.getAttribLocation(program, HS.ATTRIB || 'aPos')
+  if (aPos < 0) {
+    opts.onError?.('[zephyr] sky vertex attribute "' + (HS.ATTRIB || 'aPos') + '" not found, no sky')
+    return null
+  }
   gl.enableVertexAttribArray(aPos)
   gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
 

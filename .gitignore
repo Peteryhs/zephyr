@@ -1,0 +1,4 @@
+# Backups and scratch copies stay out of the repo.
+*.bak
+*.pre-*-backup
+*.log

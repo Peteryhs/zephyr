@@ -1,0 +1,245 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  /* Measurement aid only: the slide's 220ms is the thing being verified, so the
+     probe reads the TARGET halt, not an interpolated frame of it. */
+  #track::after { transition: none !important; }
+  :root {
+    --dt-card: rgba(22, 22, 24, 0.92);
+    --ui-base: #101014;
+    --ui-accent: #9dc4e8;
+    --sidebar-edge-border: rgba(255, 255, 255, 0.18);
+    --ui-text-primary: #e6eefa;
+    --ui-text-tertiary: #a9bccf;
+  }
+  /* The app's own strip geometry, reduced to what the switch keys on. */
+  #strip { display: flex; width: 400px; }
+  #track { display: flex; }
+</style>
+<style id="zephyr">
+/* Zephyr sky. Blended for 16:11, exposure 0.70. */
+html {
+  background-color: rgb(68 50 64);
+}
+body { background: transparent; }
+img[src*='filler-bg0'] { display: none; }
+html::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(150% 80% at 50% 0%, transparent 42%, rgba(0, 0, 0, 0.34) 100%),
+    radial-gradient(120% 55% at 28% 98%, rgba(186, 127, 97, 0.28) 0%, transparent 70%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.060), rgba(0, 0, 0, 0.060)),
+    linear-gradient(180deg, rgb(38 34 60) 0%, rgb(68 49 71) 32%, rgb(122 76 83) 62%, rgb(186 127 97) 88%, rgb(186 127 97) 100%);
+}
+#zephyr-clouds {
+  position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+}
+.zc { position: absolute; will-change: transform, opacity; }
+@keyframes zephyr-cloud-1 {
+  0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.210; }
+  50% { transform: translate3d(14vw, 5vh, 0) scale(1.18); opacity: 0.300; }
+  100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.225; }
+}
+@keyframes zephyr-cloud-2 {
+  0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.182; }
+  50% { transform: translate3d(-12vw, 6vh, 0) scale(1.24); opacity: 0.260; }
+  100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.195; }
+}
+@keyframes zephyr-cloud-3 {
+  0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.154; }
+  50% { transform: translate3d(10vw, -4vh, 0) scale(1.3); opacity: 0.220; }
+  100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.165; }
+}
+@keyframes zephyr-cloud-4 {
+  0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.140; }
+  50% { transform: translate3d(-9vw, -6vh, 0) scale(1.16); opacity: 0.200; }
+  100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.150; }
+}
+@keyframes zephyr-cloud-5 {
+  0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.126; }
+  50% { transform: translate3d(8vw, 7vh, 0) scale(1.22); opacity: 0.180; }
+  100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.135; }
+}
+body::before {
+  content: ''; position: fixed; left: 50%; width: 62vmax; height: 62vmax;
+  transform: translateX(-50%); pointer-events: none; z-index: -1;
+  top: calc(var(--zephyr-sun, 40) * 1%);
+  transition: top 240s linear;
+  background: radial-gradient(circle, rgba(255, 177, 119, 0.24346133414621757) 0%, transparent 62%);
+}
+:root.dark {
+  --theme-neutral-chrome: rgba(13, 13, 14, 0.794);
+  --theme-neutral-sidebar: rgba(10, 10, 11, 0.794);
+  --theme-neutral-card: rgba(22, 22, 24, 0.794);
+}
+:root.dark {
+  --sidebar-edge-border: color-mix(in srgb, var(--ui-base) 18%, transparent);
+}
+[data-tour='sessions-sidebar'] {
+  background: transparent;
+  border-color: transparent;
+  backdrop-filter: blur(0.75rem) saturate(1.08);
+  -webkit-backdrop-filter: blur(0.75rem) saturate(1.08);
+}
+[data-slot='sidebar-content'] {
+  gap: 0.5rem;
+  padding-top: var(--titlebar-height, 2.25rem);
+  padding-bottom: 0.5rem;
+}
+[data-slot='sidebar-content'] > [data-slot='sidebar-group'] { padding-top: 0.375rem; }
+[data-slot='sidebar-content'] > [data-slot='sidebar-group'],
+[data-slot='sidebar-content'] > [data-sessions-mode],
+[data-slot='sidebar-content'] > div:has(input),
+[data-slot='sidebar-content'] > div:last-child {
+  background: color-mix(in srgb, var(--dt-card) 88%, transparent);
+  border: 1px solid var(--sidebar-edge-border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+[data-tree-group],
+[data-chat-surface],
+[data-slot='composer-bounds'] {
+  background: transparent;
+}
+[data-panel-header],
+[class~='group/pane-header'],
+[class~='bg-(--ui-sidebar-surface-background)']:has(> [role='tablist']) {
+  background: transparent;
+  border: none;
+  --pane-tab-active-bg: transparent;
+  --pane-tab-strip-bg: transparent;
+  --pane-tab-active-accent: transparent;
+}
+[class~='bg-(--ui-sidebar-surface-background)']:has(> [role='tablist']) {
+  height: auto;
+  padding: 0.25rem 0.5rem 0.75rem;
+}
+[class~='bg-(--ui-sidebar-surface-background)']:has(> [role='tablist']):has(> [role='tablist'] > [data-slot='pane-tab']:nth-child(2):last-child) > [role='tablist'] {
+  position: relative;
+  width: 100%;
+  max-width: 22rem;
+  min-height: 2.25rem;
+  margin-inline: auto;
+  padding: 0.25rem;
+  border: 1px solid var(--sidebar-edge-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dt-card) 55%, transparent);
+  backdrop-filter: blur(0.75rem) saturate(1.08);
+  -webkit-backdrop-filter: blur(0.75rem) saturate(1.08);
+  overflow: hidden;
+}
+[class~='bg-(--ui-sidebar-surface-background)']:has(> [role='tablist']):has(> [role='tablist'] > [data-slot='pane-tab']:nth-child(2):last-child) > [role='tablist']::after {
+  content: '';
+  position: absolute;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  left: 0.25rem;
+  width: calc(50% - 0.25rem);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dt-card) 88%, transparent);
+  box-shadow: inset 0 0 0 1px var(--sidebar-edge-border);
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+  pointer-events: none;
+}
+[class~='bg-(--ui-sidebar-surface-background)']:has(> [role='tablist']):has(> [role='tablist'] > [data-slot='pane-tab']:nth-child(2):last-child) > [role='tablist']:has(> [data-slot='pane-tab']:last-child[data-active='true'])::after {
+  transform: translateX(100%);
+}
+[class~='bg-(--ui-sidebar-surface-background)']:has(> [role='tablist']):has(> [role='tablist'] > [data-slot='pane-tab']:nth-child(2):last-child) > [role='tablist'] > [data-slot='pane-tab'] {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+}
+[class~='bg-(--ui-sidebar-surface-background)']:has(> [role='tablist']):has(> [role='tablist'] > [data-slot='pane-tab']:nth-child(2):last-child) > [role='tablist'] > [data-slot='pane-tab']:hover,
+[class~='bg-(--ui-sidebar-surface-background)']:has(> [role='tablist']):has(> [role='tablist'] > [data-slot='pane-tab']:nth-child(2):last-child) > [role='tablist'] > [data-slot='pane-tab'][data-active='true'] {
+  background: transparent;
+  box-shadow: none;
+}
+[class~='bg-(--ui-sidebar-surface-background)']:has(> [role='tablist']):has(> [role='tablist'] > [data-slot='pane-tab']:nth-child(2):last-child) > [role='tablist'] > [data-slot='pane-tab'] [class~='pane-tab-content'] {
+  justify-content: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  [class~='bg-(--ui-sidebar-surface-background)']:has(> [role='tablist']):has(> [role='tablist'] > [data-slot='pane-tab']:nth-child(2):last-child) > [role='tablist']::after { transition: none; }
+}
+[data-sessions-mode],
+[data-sessions-mode] [class~="scrollbar-fade"] {
+  scrollbar-gutter: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+[data-sessions-mode]::-webkit-scrollbar,
+[data-sessions-mode] [class~="scrollbar-fade"]::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+@media (prefers-reduced-motion: reduce) { body::before { transition: none; } .zc { animation: none !important; } }
+</style>
+</head>
+<body>
+<p style="color:#a9bccf;font:12px system-ui">SESSIONS active (near halt)</p>
+<div id="strip" class="bg-(--ui-sidebar-surface-background) group/pane-header">
+  <div id="track" role="tablist">
+    <div id="t1" data-slot="pane-tab" data-active="true"><span class="pane-tab-content">SESSIONS</span></div>
+    <div id="t2" data-slot="pane-tab" data-active="false"><span class="pane-tab-content">BOTS</span></div>
+  </div>
+</div>
+<p style="color:#a9bccf;font:12px system-ui;margin-top:18px">BOTS active (far halt)</p>
+<div id="stripB" class="bg-(--ui-sidebar-surface-background) group/pane-header" style="display:flex;width:400px">
+  <div role="tablist" style="display:flex">
+    <div data-slot="pane-tab" data-active="false"><span class="pane-tab-content">SESSIONS</span></div>
+    <div data-slot="pane-tab" data-active="true"><span class="pane-tab-content">BOTS</span></div>
+  </div>
+</div>
+<pre id="out"></pre>
+<script>
+  const out = []
+  const ok = (cond, label) => out.push((cond ? 'PASS  ' : 'FAIL  ') + label)
+
+  const strip = document.getElementById('strip')
+  const track = document.getElementById('track')
+  const t1 = document.getElementById('t1')
+  const t2 = document.getElementById('t2')
+  const cs = el => getComputedStyle(el)
+  const pill = () => getComputedStyle(track, '::after')
+
+  const s = cs(strip)
+  ok(s.paddingBottom === '12px' && s.paddingTop === '4px', 'strip pads 12px below the switch, 4px above (' + s.paddingBottom + ' / ' + s.paddingTop + ')')
+  ok(parseFloat(s.height) > 28, 'strip height follows the track, not the old 28px bar (' + s.height + ')')
+
+  const t = cs(track)
+  ok(t.borderTopLeftRadius === '999px', 'the tablist is a pill-shaped track (' + t.borderTopLeftRadius + ')')
+  ok(t.backgroundColor !== 'rgba(0, 0, 0, 0)', 'the track is filled with the recessed card material (' + t.backgroundColor + ')')
+  ok(t.width === '352px', 'the track is long, capped at 22rem (' + t.width + ')')
+  ok(t.marginLeft === t.marginRight, 'the track is centred on the strip (' + t.marginLeft + ' / ' + t.marginRight + ')')
+  ok(t.overflow === 'hidden', 'the track clips, so the pill cannot bleed out')
+
+  const p = pill()
+  ok(p.content !== 'none' && p.content !== '', 'the pill exists as the track\'s own ::after (' + p.content + ')')
+  ok(Math.abs(parseFloat(p.width) - parseFloat(cs(t1).width)) <= 2, 'the pill is exactly one halt of the track (' + p.width + ' vs a label's ' + cs(t1).width + ')')
+  ok(p.backgroundColor !== 'rgba(0, 0, 0, 0)', 'the pill wears the raised card material (' + p.backgroundColor + ')')
+  ok(p.transitionProperty.includes('transform'), 'the pill animates transform, so it slides')
+
+  const near = pill().transform
+  ok(near === 'none' || near === 'matrix(1, 0, 0, 1, 0, 0)', 'SESSIONS active: the pill rests in the near halt (' + near + ')')
+
+  t1.setAttribute('data-active', 'false')
+  t2.setAttribute('data-active', 'true')
+  const far = pill().transform
+  ok(/matrix\(1, 0, 0, 1, 172, 0\)/.test(far), 'BOTS active: the same pill slides to the far halt (' + far + ')')
+
+  const w1 = cs(t1).width
+  const w2 = cs(t2).width
+  ok(w1 === w2 && parseFloat(w1) > parseFloat(t.width) / 2 - 4, 'each label owns exactly one halt of the track (' + w1 + ' / ' + w2 + ')')
+  ok(cs(t1).zIndex === '1', 'the labels paint above the pill (z-index ' + cs(t1).zIndex + ')')
+  ok(cs(t1).backgroundColor === 'rgba(0, 0, 0, 0)' && cs(t1).boxShadow === 'none', 'the labels are bare: no box, no underline')
+  ok(cs(t1.querySelector('.pane-tab-content')).justifyContent === 'center', 'each label is centred inside its half')
+
+  document.getElementById('out').textContent = out.join('\n') + '\n'
+</script>
+</body></html>

@@ -20,6 +20,10 @@ It's one JavaScript file. There's no build step, and it doesn't modify Hermes it
 
 **Live weather.** Clouds follow your local weather. If you prefer one look, you can hold the sky on a fixed type: clear, cumulus, cirrus, overcast, rain, storm, fog and more.
 
+<p align="center">
+  <img src="assets/sky-weather.png" alt="The same sky under clear, cloudy, stormy and foggy weather" width="100%">
+</p>
+
 **Time-of-day themes.** Hermes switches between dawn, day, dusk and night themes as the sun moves. The accent colour (links, buttons, selection) can shift too.
 
 **Glass panels.** The panels pick up a soft tint from the sky behind them, and they go darker at night so text stays easy to read.
@@ -62,6 +66,10 @@ Open **Settings > Zephyr**.
 | Snippet library | Shows the Snippets card in the sidebar with everything you've pinned. |
 
 ## Snippet cards
+
+<p align="center">
+  <img src="assets/snippets.png" alt="Three snippet cards over the dusk sky" width="100%">
+</p>
 
 An agent shows a snippet card by writing a line like this in its reply:
 

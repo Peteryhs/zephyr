@@ -1,0 +1,13 @@
+{
+  "name": "zephyr",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zephyr: a better UI for Hermes Agent, lit by the real sky",
+  "scripts": {
+    "build:sky": "node scripts/build-sky.mjs",
+    "check": "node scripts/check.mjs",
+    "test": "node --test tests/engine.test.mjs",
+    "rig": "node tests/sky-rig.mjs"
+  }
+}

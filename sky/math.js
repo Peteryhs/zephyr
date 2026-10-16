@@ -1,0 +1,14 @@
+export const clamp = (x, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, x));
+export const smooth = x => { x = clamp(x); return x * x * (3 - 2 * x); };
+export const ramp = (a, b, x) => smooth((x - a) / (b - a));
+export const mix = (a, b, t) => a + (b - a) * t;
+export const mod = (x, n) => ((x % n) + n) % n;
+export const rad = x => x * Math.PI / 180;
+export const deg = x => x * 180 / Math.PI;
+export const luminance = c => c[0] * .299 + c[1] * .587 + c[2] * .114;
+export const linearY = c => c[0] * .2126729 + c[1] * .7151522 + c[2] * .0721750;
+export const blend = (a, b, t) => a.map((v, i) => mix(v, b[i], t));
+export const scale = (c, k) => c.map(v => v * k);
+export const bounded = c => c.map(v => clamp(v));
+export const screen = (c, tint, k) => c.map((v, i) => v + tint[i] * k * (1 - v));
+export const gaussian = (x, center, sigma) => Math.exp(-.5 * ((x - center) / sigma) ** 2);

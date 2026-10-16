@@ -1,0 +1,64 @@
+PASS Fixed time is pixel deterministic
+PASS Increasing time moves coherent cloud fields — 30190 pixels changed
+PASS Straight alpha remains separate from RGB
+PASS Identity finishing LUT preserves display colors — maximum channel error 1/255
+PASS Photographic grain is stationary in pixel space
+PASS All 47 shader uniforms are linked
+PASS Custom finishing LUT is sampled
+PASS GPU resources can be disposed and recreated
+PASS No WebGL errors after all finish paths
+PASS Lost WebGL context restores to identical pixels
+PASS Clear noon 1920×1080 — RGB range 1–250
+PASS Partly cloudy noon 1920×1080 — RGB range 8–255
+PASS Sunny code · 100% cover 1920×1080 — RGB range 36–255
+PASS Overcast 1920×1080 — RGB range 103–255
+PASS Storm 1920×1080 — RGB range 94–239
+PASS Fog banks 1920×1080 — RGB range 144–255
+PASS Rain curtains 1920×1080 — RGB range 112–255
+PASS Snow overcast 1920×1080 — RGB range 140–255
+PASS Low sun · 4° 1920×1080 — RGB range 26–247
+PASS Gray dip · −1.5° 1920×1080 — RGB range 71–245
+PASS Rose afterglow · −3.5° 1920×1080 — RGB range 81–231
+PASS Forced purple · −5.5° 1920×1080 — RGB range 76–235
+PASS Moonlit night 1920×1080 — RGB range 15–156
+PASS Moonless morning 1920×1080 — RGB range 11–94
+PASS Humid air 1920×1080 — RGB range 35–255
+PASS Smoke at low sun 1920×1080 — RGB range 64–239
+PASS Low-sun sundogs 1920×1080 — RGB range 20–252
+PASS Lunar corona 1920×1080 — RGB range 15–156
+PASS Clear noon 1080×1920 — RGB range 0–254
+PASS Partly cloudy noon 1080×1920 — RGB range 0–253
+PASS Sunny code · 100% cover 1080×1920 — RGB range 26–255
+PASS Overcast 1080×1920 — RGB range 108–255
+PASS Storm 1080×1920 — RGB range 101–236
+PASS Fog banks 1080×1920 — RGB range 146–255
+PASS Rain curtains 1080×1920 — RGB range 113–255
+PASS Snow overcast 1080×1920 — RGB range 137–255
+PASS Low sun · 4° 1080×1920 — RGB range 32–237
+PASS Gray dip · −1.5° 1080×1920 — RGB range 91–238
+PASS Rose afterglow · −3.5° 1080×1920 — RGB range 96–235
+PASS Forced purple · −5.5° 1080×1920 — RGB range 77–234
+PASS Moonlit night 1080×1920 — RGB range 14–155
+PASS Moonless morning 1080×1920 — RGB range 10–90
+PASS Humid air 1080×1920 — RGB range 24–252
+PASS Smoke at low sun 1080×1920 — RGB range 75–228
+PASS Low-sun sundogs 1080×1920 — RGB range 27–236
+PASS Lunar corona 1080×1920 — RGB range 14–155
+PASS Clear noon 1000×1000 — RGB range 2–250
+PASS Partly cloudy noon 1000×1000 — RGB range 7–253
+PASS Sunny code · 100% cover 1000×1000 — RGB range 37–255
+PASS Overcast 1000×1000 — RGB range 112–255
+PASS Storm 1000×1000 — RGB range 101–239
+PASS Fog banks 1000×1000 — RGB range 144–255
+PASS Rain curtains 1000×1000 — RGB range 114–255
+PASS Snow overcast 1000×1000 — RGB range 140–255
+PASS Low sun · 4° 1000×1000 — RGB range 34–245
+PASS Gray dip · −1.5° 1000×1000 — RGB range 79–244
+PASS Rose afterglow · −3.5° 1000×1000 — RGB range 92–234
+PASS Forced purple · −5.5° 1000×1000 — RGB range 78–235
+PASS Moonlit night 1000×1000 — RGB range 17–156
+PASS Moonless morning 1000×1000 — RGB range 13–91
+PASS Humid air 1000×1000 — RGB range 36–254
+PASS Smoke at low sun 1000×1000 — RGB range 75–239
+PASS Low-sun sundogs 1000×1000 — RGB range 21–248
+PASS Lunar corona 1000×1000 — RGB range 17–156

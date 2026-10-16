@@ -97,12 +97,21 @@ Zephyr doesn't ask for your location. It works out a nearby city from your syste
 
 - Everything lives in `plugin.js`, a plain ES module. The Hermes loader reads only that file and allows imports from `@hermes/plugin-sdk` and `react` only.
 - The file is split into numbered sections (`§1` to `§9`). The contents list at the top says what each one covers. Search for `══ §6` to jump to a section.
-- The sky shader is vendored code. Please don't edit it by hand. Tune the sky through the settings objects around it instead.
-- Before you open a pull request, run `node --check` on a `.mjs` copy of the file and test the change in the app.
+- §6 is generated: the sky engine's sources live in `sky/`, and `node scripts/build-sky.mjs` writes them into `plugin.js` between the engine banner and its closing line. Edit `sky/`, run the build, commit both. `node scripts/check.mjs` fails when the two have drifted apart.
+- Before you open a pull request, run `npm test` (the engine's 29 CPU checks), `npm run check`, and `node tests/sky-rig.mjs` (the engine wired inside the plugin, against a mock driver), then test the change in the app.
+
+## The sky engine
+
+The sky is an independent implementation of an observed dynamic sky, written from
+[docs/rebuild-specification.md](docs/rebuild-specification.md) rather than from anyone else's
+source. The atmospheric colours come from an independent Rayleigh/Mie bake in `scripts/`, not from a
+shared asset. `docs/sky-engine.md` covers the modules, the frame API and the bake,
+`docs/compatibility.md` lists the deliberate differences, and
+[docs/verification.md](docs/verification.md) records what was checked and what was not.
 
 ## Credits
 
-The sky shader is adapted from the [Hark](https://hark.com) wallpaper. Weather and sunrise data come from [Open-Meteo](https://open-meteo.com).
+Weather and sunrise data come from [Open-Meteo](https://open-meteo.com).
 
 ## License
 

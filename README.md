@@ -105,17 +105,14 @@ Zephyr doesn't ask for your location. It works out a nearby city from your syste
 
 - Everything lives in `plugin.js`, a plain ES module. The Hermes loader reads only that file and allows imports from `@hermes/plugin-sdk` and `react` only.
 - The file is split into numbered sections (`§1` to `§9`). The contents list at the top says what each one covers. Search for `══ §6` to jump to a section.
-- §6 is generated: the sky engine's sources live in `sky/`, and `node scripts/build-sky.mjs` writes them into `plugin.js` between the engine banner and its closing line. Edit `sky/`, run the build, commit both. `node scripts/check.mjs` fails when the two have drifted apart.
-- Before you open a pull request, run `npm test` (the engine's 29 CPU checks), `npm run check`, and `node tests/sky-rig.mjs` (the engine wired inside the plugin, against a mock driver), then test the change in the app.
+- The sky section (§6) is generated from `sky/`. Edit those files, run `npm run build:sky`, and commit both.
+- Before you open a pull request, run `npm test`, `npm run check` and `npm run rig`, then try the change in the app.
 
-## The sky engine
+## Where the sky comes from
 
-The sky is an independent implementation of an observed dynamic sky, written from
-[docs/rebuild-specification.md](docs/rebuild-specification.md) rather than from anyone else's
-source. The atmospheric colours come from an independent Rayleigh/Mie bake in `scripts/`, not from a
-shared asset. `docs/sky-engine.md` covers the modules, the frame API and the bake,
-`docs/compatibility.md` lists the deliberate differences, and
-[docs/verification.md](docs/verification.md) records what was checked and what was not.
+Zephyr's sky is heavily inspired by, and designed after, the sky on [hark.com](https://hark.com). I'm grateful I came across that idea, because it's what started this project.
+
+No code from hark.com is borrowed or used here. The sky in Zephyr was written from scratch for this plugin.
 
 ## Credits
 

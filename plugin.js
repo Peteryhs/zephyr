@@ -1190,10 +1190,45 @@ const skyStyleFor = (date, gl = false) => {
     '  z-index: 40 !important;',
     '}',
     // Work progress collapse on finished turns: hide intermediate scaffolding & tool blocks, clamp gap to response text
+    // The fold fades rather than snaps: everything it hides gets a compositor-only
+    // opacity + 3px drift (never a layout property). `display` joins the same
+    // transition via allow-discrete so the hide keeps a box to paint its fade on
+    // and the reveal needs the @starting-style below for its from-state.
+    // Engines without allow-discrete simply get the old instant snap.
     "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] [data-conversation-scaffold],",
     "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] > :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]),",
+    // Prose said between tool calls folds with them; only the reply that
+    // follows the last work block is exempt (marked by markInterimProse).
+    "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] .aui-md[data-zephyr-work-interim='true'],",
     "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] > *:not(.zephyr-work-summary):not(.aui-md):not([data-slot*='actions']):not([data-slot*='feedback']):not([data-slot*='composer']) {",
     '  display: none !important;',
+    '  opacity: 0;',
+    '  transform: translateY(-0.1875rem);',
+    '}',
+    ":root {",
+    '  --zf-fold-ms: 180ms;',
+    '}',
+    '@media (prefers-reduced-motion: reduce) {',
+    '  :root { --zf-fold-ms: 1ms; }',
+    '}',
+    "[data-slot='aui_assistant-message-content'] [data-conversation-scaffold],",
+    "[data-slot='aui_assistant-message-content'] > :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]),",
+    "[data-slot='aui_assistant-message-content'] > *:not(.zephyr-work-summary):not(.aui-md):not([data-slot*='actions']):not([data-slot*='feedback']):not([data-slot*='composer']),",
+    ".aui-md[data-zephyr-work-interim='true'] {",
+    '  transition: opacity var(--zf-fold-ms) cubic-bezier(0.32, 0.72, 0, 1), transform var(--zf-fold-ms) cubic-bezier(0.32, 0.72, 0, 1), display var(--zf-fold-ms) allow-discrete;',
+    '}',
+    // The reveal needs its from-state declared: transitions never start from
+    // display:none on their own, so without this the fold-in would snap even
+    // with the transition above. Blocks born inside a collapsed turn stream in
+    // hidden, so this only ever fires when a fold actually opens.
+    '@starting-style {',
+    "  [data-slot='aui_assistant-message-content'] [data-conversation-scaffold],",
+    "  [data-slot='aui_assistant-message-content'] > :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]),",
+    "  [data-slot='aui_assistant-message-content'] > *:not(.zephyr-work-summary):not(.aui-md):not([data-slot*='actions']):not([data-slot*='feedback']):not([data-slot*='composer']),",
+    "  .aui-md[data-zephyr-work-interim='true'] {",
+    '    opacity: 0;',
+    '    transform: translateY(-0.1875rem);',
+    '  }',
     '}',
     "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] {",
     '  row-gap: 0.25rem !important;',
@@ -5560,6 +5595,62 @@ export default {
       toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false')
     }
 
+    /* Hermes renders every assistant prose segment — the ones said between
+       tool calls included — as .aui-md, so the CSS exemption that keeps the
+       final reply visible would keep the middle chatter too. A segment that
+       precedes the last work block is interim and folds with the tools; the
+       prose that follows all the work is the reply and stays. */
+    const WORK_MARKERS = "[data-conversation-scaffold], [data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]"
+    const markInterimProse = contentEl => {
+      const work = contentEl.querySelectorAll?.(WORK_MARKERS) || []
+      const lastWork = work.length ? work[work.length - 1] : null
+      const following = typeof Node !== 'undefined' ? Node.DOCUMENT_POSITION_FOLLOWING : 4
+      const contained = typeof Node !== 'undefined' ? Node.DOCUMENT_POSITION_CONTAINED_BY : 16
+      for (const md of contentEl.querySelectorAll?.('.aui-md') || []) {
+        // strictly before the last work block: follows it in document order,
+        // without containing it (a wrapper holding the work is not before it)
+        const interim = Boolean(lastWork) &&
+          (md.compareDocumentPosition(lastWork) & (following | contained)) === following
+        if (interim) md.setAttribute('data-zephyr-work-interim', 'true')
+        else if (md.hasAttribute?.('data-zephyr-work-interim')) md.removeAttribute('data-zephyr-work-interim')
+      }
+    }
+
+    /* The nearest ancestor that actually scrolls; null means the page does. */
+    const scrollParentOf = node => {
+      if (typeof getComputedStyle !== 'function') return null
+      let n = node
+      while (n && n !== document.documentElement) {
+        const s = getComputedStyle(n)
+        if (s && s.overflowY !== 'visible' && s.overflowY !== 'clip') return n
+        n = n.parentElement
+      }
+      return null
+    }
+
+    /* Opening a fold used to shove the transcript below it down: the revealed
+       work lands between the summary and the reply, so every later turn paid
+       for the height. Pin the bottom of the turn across the flip instead —
+       the work eats the space above it, and only what sits above moves. At
+       the end of the conversation (or with nothing but padding left under the
+       turn) there is no chat below to protect, so the fold grows down and the
+       chat above stays put. */
+    const FOLD_END_SLACK = 96
+    const pinWhileFolding = anchorEl => {
+      const bottom = () => anchorEl.getBoundingClientRect?.().bottom ?? 0
+      const before = bottom()
+      const box = scrollParentOf(anchorEl) || (typeof document !== 'undefined' ? document.scrollingElement || document.documentElement : null)
+      const scrollTop = box?.scrollTop || 0
+      const scrollHeight = box?.scrollHeight || 0
+      const atEnd = Boolean(box) && scrollTop + (box?.clientHeight || 0) >= scrollHeight - FOLD_END_SLACK
+      const slackUnderTurn = scrollHeight - (before + scrollTop)
+      return () => {
+        const delta = bottom() - before
+        if (!box || !delta || atEnd || slackUnderTurn <= FOLD_END_SLACK) return
+        box.scrollTop += delta
+      }
+    }
+
     const processAssistantMessage = (root, isEnabled) => {
       if (!root || !root.querySelector) return
       const contentEl = root.querySelector("[data-slot='aui_assistant-message-content']")
@@ -5568,6 +5659,7 @@ export default {
       if (!isEnabled) {
         if (contentEl.hasAttribute?.('data-zephyr-work-collapsed')) contentEl.removeAttribute('data-zephyr-work-collapsed')
         contentEl.querySelector?.('.zephyr-work-summary')?.remove()
+        contentEl.querySelectorAll?.('[data-zephyr-work-interim]').forEach(el => el.removeAttribute?.('data-zephyr-work-interim'))
         return
       }
 
@@ -5586,13 +5678,19 @@ export default {
         toggle.addEventListener('click', e => {
           e.preventDefault()
           e.stopPropagation()
+          const settle = pinWhileFolding(root)
           setToggleExpanded(toggle, contentEl, contentEl.getAttribute('data-zephyr-work-collapsed') === 'true')
+          settle()
         })
         contentEl.insertBefore(toggle, contentEl.firstChild)
         setToggleExpanded(toggle, contentEl, false)
       } else if (contentEl.firstChild !== toggle) {
         contentEl.insertBefore(toggle, contentEl.firstChild)
       }
+
+      // Both live and finished turns keep the fold honest: prose that already
+      // precedes the newest tool call is interim the moment that call appears.
+      markInterimProse(contentEl)
 
       if (live) {
         toggle.setAttribute('data-live', 'true')
@@ -6279,6 +6377,7 @@ export default {
         }
         document.querySelectorAll?.('.zephyr-work-summary').forEach(el => el.remove?.())
         document.querySelectorAll?.('[data-zephyr-work-collapsed]').forEach(el => el.removeAttribute?.('data-zephyr-work-collapsed'))
+        document.querySelectorAll?.('[data-zephyr-work-interim]').forEach(el => el.removeAttribute?.('data-zephyr-work-interim'))
         document.removeEventListener?.('click', onDocClick, true)
       }
       if (typeof window !== 'undefined') {

@@ -22,6 +22,7 @@
  *   §3  STATUS STACK FILLETS
  *   §4  SIDEBAR SWITCH HOOKS & HORIZON OPTICS
  *   §5  APP CSS (skyStyleFor: layout, glass material, every surface)
+ *   §5b APP MOTION (always-on interface animation: fold, menus, chat slide)
  *   §6  SKY ENGINE (weather presets, shader, createSky)
  *   §7  SKY PAINTING, THEMES, SOLAR & WEATHER SYNC
  *   §8  SNIPPET CARDS & PHASE CHIP
@@ -36,7 +37,7 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 const THEMES_AREA = 'themes'
 const DIRECTIVE_AREA = 'transcript.directives'
 
-const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', margins: 'margins', collapseWork: 'collapseWork', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen' }
+const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen' }
 
 // ── Theme palettes ─────────────────────────────────────────────────────────
 // Hermes keeps its amber; the ground shifts with the hour. Four phases, four
@@ -1071,21 +1072,8 @@ const skyStyleFor = (date, gl = false) => {
     '  align-items: center;',
     '  vertical-align: middle;',
     '}',
-    // Chat slide transition on switch
-    '.zephyr-chat-slide {',
-    '  animation: zephyr-chat-enter 220ms cubic-bezier(0.16, 1, 0.3, 1) both;',
-    '  will-change: transform, opacity;',
-    '}',
-    '@keyframes zephyr-chat-enter {',
-    '  0% {',
-    '    opacity: 0.25;',
-    '    transform: translateY(12px);',
-    '  }',
-    '  100% {',
-    '    opacity: 1;',
-    '    transform: translateY(0);',
-    '  }',
-    '}',
+    // The chat slide on session switch lives in the always-on motion sheet
+    // (§5b) with the rest of the interface motion, so it survives Sky off.
     // Spacious chat margins setting: apply margins symmetrically from both sides,
     // keeping composer-bounds and thread full-width so the quick-jump timeline is never compressed,
     // and make the input bar short and centered to match the spacious layout.
@@ -1189,151 +1177,9 @@ const skyStyleFor = (date, gl = false) => {
     '  right: 0.5rem !important;',
     '  z-index: 40 !important;',
     '}',
-    // Work progress collapse on finished turns: hide intermediate scaffolding & tool blocks, clamp gap to response text
-    // The fold fades rather than snaps: everything it hides gets a compositor-only
-    // opacity + 3px drift (never a layout property). `display` joins the same
-    // transition via allow-discrete so the hide keeps a box to paint its fade on
-    // and the reveal needs the @starting-style below for its from-state.
-    // Engines without allow-discrete simply get the old instant snap.
-    "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] [data-conversation-scaffold],",
-    "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] > :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]),",
-    // Prose said between tool calls folds with them; only the reply that
-    // follows the last work block is exempt (marked by markInterimProse).
-    "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] .aui-md[data-zephyr-work-interim='true'],",
-    "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] > *:not(.zephyr-work-summary):not(.aui-md):not([data-slot*='actions']):not([data-slot*='feedback']):not([data-slot*='composer']) {",
-    '  display: none !important;',
-    '  opacity: 0;',
-    '  transform: translateY(-0.1875rem);',
-    '}',
-    ":root {",
-    '  --zf-fold-ms: 180ms;',
-    '}',
-    '@media (prefers-reduced-motion: reduce) {',
-    '  :root { --zf-fold-ms: 1ms; }',
-    '}',
-    "[data-slot='aui_assistant-message-content'] [data-conversation-scaffold],",
-    "[data-slot='aui_assistant-message-content'] > :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]),",
-    "[data-slot='aui_assistant-message-content'] > *:not(.zephyr-work-summary):not(.aui-md):not([data-slot*='actions']):not([data-slot*='feedback']):not([data-slot*='composer']),",
-    ".aui-md[data-zephyr-work-interim='true'] {",
-    '  transition: opacity var(--zf-fold-ms) cubic-bezier(0.32, 0.72, 0, 1), transform var(--zf-fold-ms) cubic-bezier(0.32, 0.72, 0, 1), display var(--zf-fold-ms) allow-discrete;',
-    '}',
-    // The reveal needs its from-state declared: transitions never start from
-    // display:none on their own, so without this the fold-in would snap even
-    // with the transition above. Blocks born inside a collapsed turn stream in
-    // hidden, so this only ever fires when a fold actually opens.
-    '@starting-style {',
-    "  [data-slot='aui_assistant-message-content'] [data-conversation-scaffold],",
-    "  [data-slot='aui_assistant-message-content'] > :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]),",
-    "  [data-slot='aui_assistant-message-content'] > *:not(.zephyr-work-summary):not(.aui-md):not([data-slot*='actions']):not([data-slot*='feedback']):not([data-slot*='composer']),",
-    "  .aui-md[data-zephyr-work-interim='true'] {",
-    '    opacity: 0;',
-    '    transform: translateY(-0.1875rem);',
-    '  }',
-    '}',
-    "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] {",
-    '  row-gap: 0.25rem !important;',
-    '  gap: 0.25rem !important;',
-    '}',
-    // Tight natural margin between work summary and model response text
-    "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] > .aui-md,",
-    "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] .aui-md {",
-    '  margin-top: 0.25rem !important;',
-    '  padding-top: 0 !important;',
-    '}',
-    "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] > .aui-md > *:first-child,",
-    "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] .aui-md > *:first-child {",
-    '  margin-top: 0 !important;',
-    '  padding-top: 0 !important;',
-    '}',
-    ".zephyr-work-summary[data-live] .zephyr-work-summary-label {",
-    // no pulse animation: it would re-composite the glass window every frame;
-    // the once-a-second count is the sign of life
-    '  color: var(--zf-ink-1, currentColor);',
-    '}',
-    '.zephyr-work-summary {',
-    '  display: inline-flex;',
-    '  align-items: center;',
-    '  gap: 0.25rem;',
-    '  padding: 0.125rem 0 !important;',
-    '  margin: 0 0 0.15rem 0 !important;',
-    '  border: none !important;',
-    '  background: transparent !important;',
-    '  box-shadow: none !important;',
-    '  font-family: inherit;',
-    '  font-size: var(--conversation-tool-font-size, 0.75rem);',
-    '  line-height: var(--conversation-line-height, 1.4);',
-    '  color: var(--conversation-scaffold-text, var(--ui-text-tertiary, var(--zf-ink-3)));',
-    '  cursor: pointer;',
-    '  user-select: none;',
-    '  transition: color 140ms ease;',
-    '  vertical-align: middle;',
-    // A <button> centres its own text (user-agent default), so a label that
-    // wrapped to a second line centred that line under the first and the row
-    // read as two ragged halves. The button is the only box here, so one
-    // declaration on it puts every line flush left (Peter, 10-12).
-    '  text-align: left;',
-    '}',
-    '.zephyr-work-summary:hover {',
-    '  color: var(--ui-text-primary, var(--zf-ink-0));',
-    '}',
-    '.zephyr-work-icon-stack {',
-    '  display: inline-flex;',
-    '  align-items: center;',
-    '  flex-direction: row;',
-    '  gap: 4px;',
-    '  margin-right: 0.35rem;',
-    '  vertical-align: middle;',
-    '}',
-    '.zephyr-work-icon-item {',
-    '  display: inline-flex;',
-    '  align-items: center;',
-    '  justify-content: center;',
-    '  width: 14px;',
-    '  height: 14px;',
-    '  margin: 0 !important;',
-    '  position: relative;',
-    '  color: #ffffff !important;',
-    '  fill: #ffffff !important;',
-    '  opacity: 1 !important;',
-    '  flex-shrink: 0;',
-    '  border: none !important;',
-    '  border-radius: 0 !important;',
-    '  background: transparent !important;',
-    '  box-shadow: none !important;',
-    '  filter: none !important;',
-    '}',
-    '.zephyr-work-icon-item svg {',
-    '  display: block;',
-    '  width: 14px;',
-    '  height: 14px;',
-    '  fill: #ffffff !important;',
-    '  color: #ffffff !important;',
-    '}',
-    '.zephyr-work-summary-caret {',
-    '  display: inline-block;',
-    '  margin-left: 0.2rem;',
-    '  font-size: 0.75rem;',
-    '  opacity: 0.5;',
-    '  transition: transform 150ms ease, opacity 150ms ease;',
-    '}',
-    '.zephyr-work-summary:hover .zephyr-work-summary-caret {',
-    '  opacity: 0.9;',
-    '}',
-    ".zephyr-work-summary[data-expanded='true'] .zephyr-work-summary-caret {",
-    '  transform: rotate(90deg);',
-    '}',
-    ".zephyr-work-summary[data-expanded='true'] {",
-    '  margin-bottom: 0.25rem !important;',
-    '}',
-    'html:not([data-theme*="night"]):not([data-theme*="dark"]) .zephyr-work-summary {',
-    '  color: var(--conversation-scaffold-text, var(--ui-text-tertiary, #64748b));',
-    '}',
-    'html:not([data-theme*="night"]):not([data-theme*="dark"]) .zephyr-work-summary:hover {',
-    '  color: var(--ui-text-primary, #0f172a);',
-    '}',
-    "html:not([data-zephyr-collapse-work='on']) .zephyr-work-summary {",
-    '  display: none !important;',
-    '}',
+    // Work progress collapse on finished turns lives in the always-on motion
+    // sheet (§5b), not here: folding is an interface behaviour, not a sky
+    // visual, so it must survive Sky being off. Search for "THE WORK FOLD".
     // Night mode: opaque black-ish grey surface across panels, toggle, and input bar
     // (2026-10-10, Peter: too light at night) one notch darker, with a breath
     // of the night-sky navy so they sit in the sky instead of on it.
@@ -1419,7 +1265,7 @@ const skyStyleFor = (date, gl = false) => {
           '}'
         ]
       : []),
-    '@media (prefers-reduced-motion: reduce) { body::before { transition: none; } .zephyr-chat-slide { animation: none !important; } }',
+    '@media (prefers-reduced-motion: reduce) { body::before { transition: none; } }',
     // ── Tool output on the sky ──────────────────────────────────────────────
     // An open tool block (a command, its output, a payload) sat straight on
     // the backdrop with tertiary ink, and vanished under a bright day sky
@@ -1651,6 +1497,423 @@ const skyStyleFor = (date, gl = false) => {
     // Scrollbars everywhere: thin and tinted, never the platform grey slab.
     '* { scrollbar-color: rgba(255, 255, 255, 0.14) transparent; scrollbar-width: thin; }',
   ].join('\n')
+}
+
+// ══ §5b APP MOTION (fold + interface animation, independent of the sky) ════
+
+// Interface motion is not a sky visual: it must survive Sky being off, so it
+// lives in its own always-on <style> (like the snippet sheet), never in
+// skyStyleFor — that sheet is rewritten every few minutes as the light drifts
+// (which would restart keyframes) and is removed entirely with the sky.
+//
+// The rules are deliberately cheap: opacity and transform only (compositor),
+// plus paint-only colour swaps for hover and press. Nothing here animates a
+// layout property, nothing runs continuously, and every duration is a token,
+// so "Motion off" and reduced-motion both collapse the whole sheet to 1ms.
+const MOTION_CSS = [
+  // ── Tokens ──────────────────────────────────────────────────────────────
+  // Three beats: t-1 for exits and presses, t-2 for hovers and small
+  // entrances, t-3 for the moments worth watching (the fold, dialogs).
+  // The pacing is deliberately unhurried: at 90ms an exit read as a hard cut,
+  // so the floor is ~140ms everywhere and nothing exceeds 280ms.
+  ':root {',
+  '  --zf-t-1: 140ms;',
+  '  --zf-t-2: 200ms;',
+  '  --zf-t-3: 280ms;',
+  // A calmer deceleration than a fast-start curve: eases reach their settle
+  // without the initial snap that read as jarring on hovers and exits.
+  '  --zf-ease: cubic-bezier(0.33, 1, 0.68, 1);',
+  '  --zf-ease-out: cubic-bezier(0.16, 1, 0.3, 1);',
+  '}',
+  // The Motion switch (Settings > Zephyr) and the OS setting both zero the
+  // tokens; @starting-style and allow-discrete still apply instantly, so
+  // nothing is left half-faded.
+  "html[data-zephyr-motion='off'] {",
+  '  --zf-t-1: 1ms;',
+  '  --zf-t-2: 1ms;',
+  '  --zf-t-3: 1ms;',
+  '}',
+  '@media (prefers-reduced-motion: reduce) {',
+  '  :root {',
+  '    --zf-t-1: 1ms;',
+  '    --zf-t-2: 1ms;',
+  '    --zf-t-3: 1ms;',
+  '  }',
+  '}',
+  // ── THE WORK FOLD (opening and closing the reasoning chain) ─────────────
+  // A pure dissolve: compositor-only opacity, no drift. Motion that fought
+  // the layout snap read as ghosting — the geometry now moves either before
+  // the fade (opening) or after it (closing), never during. `display` joins
+  // through allow-discrete so the box survives its own fade; the reveal
+  // declares its from-state with @starting-style. Engines without
+  // allow-discrete simply get the old instant snap.
+  //
+  // The duration split is what makes one transition read per direction: the
+  // collapsed destination carries fast (t-1, the close), the base state slow
+  // (t-3, the open). On close the shape only collapses when the fade ends,
+  // so the settle that keeps the transcript still is deferred to that moment
+  // (see pinWhileFolding in §9).
+  "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] [data-conversation-scaffold],",
+  "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] > :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]),",
+  // Prose said between tool calls folds with them; only the reply that
+  // follows the last work block is exempt (marked by markInterimProse).
+  "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] .aui-md[data-zephyr-work-interim='true'],",
+  "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] > *:not(.zephyr-work-summary):not(.aui-md):not([data-slot*='actions']):not([data-slot*='feedback']):not([data-slot*='composer']) {",
+  '  display: none !important;',
+  '  opacity: 0;',
+  // the fading work must not take a click meant for what is below it
+  '  pointer-events: none;',
+  '  transition-duration: var(--zf-t-1);',
+  '}',
+  "[data-slot='aui_assistant-message-content'] [data-conversation-scaffold],",
+  "[data-slot='aui_assistant-message-content'] > :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]),",
+  "[data-slot='aui_assistant-message-content'] > *:not(.zephyr-work-summary):not(.aui-md):not([data-slot*='actions']):not([data-slot*='feedback']):not([data-slot*='composer']),",
+  ".aui-md[data-zephyr-work-interim='true'] {",
+  '  transition: opacity var(--zf-t-3) var(--zf-ease), display var(--zf-t-3) allow-discrete;',
+  '}',
+  // Transitions never start from display:none on their own, so the reveal
+  // needs its from-state declared. It only ever fires when a fold opens.
+  '@starting-style {',
+  "  [data-slot='aui_assistant-message-content'] [data-conversation-scaffold],",
+  "  [data-slot='aui_assistant-message-content'] > :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]),",
+  "  [data-slot='aui_assistant-message-content'] > *:not(.zephyr-work-summary):not(.aui-md):not([data-slot*='actions']):not([data-slot*='feedback']):not([data-slot*='composer']),",
+  "  .aui-md[data-zephyr-work-interim='true'] {",
+  '    opacity: 0;',
+  '  }',
+  '}',
+  "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] {",
+  '  row-gap: 0.25rem !important;',
+  '  gap: 0.25rem !important;',
+  '}',
+  // Tight natural margin between work summary and model response text
+  "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] > .aui-md,",
+  "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] .aui-md {",
+  '  margin-top: 0.25rem !important;',
+  '  padding-top: 0 !important;',
+  '}',
+  "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] > .aui-md > *:first-child,",
+  "html[data-zephyr-collapse-work='on'] [data-zephyr-work-collapsed='true'] .aui-md > *:first-child {",
+  '  margin-top: 0 !important;',
+  '  padding-top: 0 !important;',
+  '}',
+  ".zephyr-work-summary[data-live] .zephyr-work-summary-label {",
+  // no pulse animation: it would re-composite the glass window every frame;
+  // the once-a-second count is the sign of life
+  '  color: var(--zf-ink-1, currentColor);',
+  '}',
+  '.zephyr-work-summary {',
+  '  display: inline-flex;',
+  '  align-items: center;',
+  '  gap: 0.25rem;',
+  '  padding: 0.125rem 0 !important;',
+  '  margin: 0 0 0.15rem 0 !important;',
+  '  border: none !important;',
+  '  background: transparent !important;',
+  '  box-shadow: none !important;',
+  '  font-family: inherit;',
+  '  font-size: var(--conversation-tool-font-size, 0.75rem);',
+  '  line-height: var(--conversation-line-height, 1.4);',
+  '  color: var(--conversation-scaffold-text, var(--ui-text-tertiary, var(--zf-ink-3)));',
+  '  cursor: pointer;',
+  '  user-select: none;',
+  '  transition: color var(--zf-t-2) var(--zf-ease);',
+  '  vertical-align: middle;',
+  // A <button> centres its own text (user-agent default), so a label that
+  // wrapped to a second line centred that line under the first and the row
+  // read as two ragged halves. The button is the only box here, so one
+  // declaration on it puts every line flush left (Peter, 10-12).
+  '  text-align: left;',
+  '}',
+  '.zephyr-work-summary:hover {',
+  '  color: var(--ui-text-primary, var(--zf-ink-0));',
+  '}',
+  '.zephyr-work-icon-stack {',
+  '  display: inline-flex;',
+  '  align-items: center;',
+  '  flex-direction: row;',
+  '  gap: 4px;',
+  '  margin-right: 0.35rem;',
+  '  vertical-align: middle;',
+  '}',
+  '.zephyr-work-icon-item {',
+  '  display: inline-flex;',
+  '  align-items: center;',
+  '  justify-content: center;',
+  '  width: 14px;',
+  '  height: 14px;',
+  '  margin: 0 !important;',
+  '  position: relative;',
+  '  color: #ffffff !important;',
+  '  fill: #ffffff !important;',
+  '  opacity: 1 !important;',
+  '  flex-shrink: 0;',
+  '  border: none !important;',
+  '  border-radius: 0 !important;',
+  '  background: transparent !important;',
+  '  box-shadow: none !important;',
+  '  filter: none !important;',
+  '}',
+  '.zephyr-work-icon-item svg {',
+  '  display: block;',
+  '  width: 14px;',
+  '  height: 14px;',
+  '  fill: #ffffff !important;',
+  '  color: #ffffff !important;',
+  '}',
+  '.zephyr-work-summary-caret {',
+  '  display: inline-block;',
+  '  margin-left: 0.2rem;',
+  '  font-size: 0.75rem;',
+  '  opacity: 0.5;',
+  '  transition: transform var(--zf-t-2) var(--zf-ease), opacity var(--zf-t-2) var(--zf-ease);',
+  '}',
+  '.zephyr-work-summary:hover .zephyr-work-summary-caret {',
+  '  opacity: 0.9;',
+  '}',
+  ".zephyr-work-summary[data-expanded='true'] .zephyr-work-summary-caret {",
+  '  transform: rotate(90deg);',
+  '}',
+  ".zephyr-work-summary[data-expanded='true'] {",
+  '  margin-bottom: 0.25rem !important;',
+  '}',
+  'html:not([data-theme*="night"]):not([data-theme*="dark"]) .zephyr-work-summary {',
+  '  color: var(--conversation-scaffold-text, var(--ui-text-tertiary, #64748b));',
+  '}',
+  'html:not([data-theme*="night"]):not([data-theme*="dark"]) .zephyr-work-summary:hover {',
+  '  color: var(--ui-text-primary, #0f172a);',
+  '}',
+  "html:not([data-zephyr-collapse-work='on']) .zephyr-work-summary {",
+  '  display: none !important;',
+  '}',
+  // ── [motion:switch] ─────────────────────────────────────────────────────
+  // Session switch: core holds data-session-switching on [data-chat-surface]
+  // until rows are placed and scroll is restored. The transcript stays
+  // invisible for that window (the plugin folds and formats behind it) and
+  // the attribute lifting is the single fade-in. Only the attribute is read;
+  // core owns toggling it.
+  "[data-chat-surface] :is([data-slot='aui_thread-viewport'], [data-slot='thread']) {",
+  '  transition: opacity var(--zf-t-2) var(--zf-ease-out);',
+  '}',
+  "[data-chat-surface][data-session-switching] :is([data-slot='aui_thread-viewport'], [data-slot='thread']) {",
+  '  opacity: 0;',
+  '  transition: none;',
+  '}',
+  // ── [motion:menus] ──────────────────────────────────────────────────────
+  // Mechanism: Radix Presence holds closing content mounted until its exit
+  // animation's `animationend`; exits must therefore stay keyframes (never
+  // transitions), and closed rules must keep the `both` fill mode plus
+  // `pointer-events: none`. The app's animate-in/out classes emit no CSS.
+  //
+  // Menus, selects, popovers, dialogs and tooltips. Floating surfaces enter
+  // 6px from the trigger at a hair under full size, leave along the same path
+  // faster; rows and triggers only tint. Every duration is a token, so the
+  // Motion switch and reduced-motion collapse the whole kit to 1ms.
+  //
+  // The direction comes from data-side: a surface anchored below its trigger
+  // starts 6px above and settles down onto it, and so on around the ring.
+  ":is([data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content'], [data-slot='context-menu-content'], [data-slot='context-menu-sub-content'], [data-slot='popover-content'], [data-slot='select-content'], [data-slot='menubar-content']) {",
+  '  --zf-pop-dx: 0px;',
+  '  --zf-pop-dy: 0px;',
+  '  transform-origin: center;',
+  '}',
+  ":is([data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content'], [data-slot='context-menu-content'], [data-slot='context-menu-sub-content'], [data-slot='popover-content'], [data-slot='select-content'], [data-slot='menubar-content'])[data-side='bottom'] {",
+  '  --zf-pop-dy: -6px;',
+  '  transform-origin: top;',
+  '}',
+  ":is([data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content'], [data-slot='context-menu-content'], [data-slot='context-menu-sub-content'], [data-slot='popover-content'], [data-slot='select-content'], [data-slot='menubar-content'])[data-side='top'] {",
+  '  --zf-pop-dy: 6px;',
+  '  transform-origin: bottom;',
+  '}',
+  ":is([data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content'], [data-slot='context-menu-content'], [data-slot='context-menu-sub-content'], [data-slot='popover-content'], [data-slot='select-content'], [data-slot='menubar-content'])[data-side='left'] {",
+  '  --zf-pop-dx: 6px;',
+  '  transform-origin: right;',
+  '}',
+  ":is([data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content'], [data-slot='context-menu-content'], [data-slot='context-menu-sub-content'], [data-slot='popover-content'], [data-slot='select-content'], [data-slot='menubar-content'])[data-side='right'] {",
+  '  --zf-pop-dx: -6px;',
+  '  transform-origin: left;',
+  '}',
+  ":is([data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content'], [data-slot='context-menu-content'], [data-slot='context-menu-sub-content'], [data-slot='popover-content'], [data-slot='select-content'], [data-slot='menubar-content'])[data-state='open'] {",
+  '  animation: zf-pop-in var(--zf-t-2) var(--zf-ease-out) both;',
+  '}',
+  ":is([data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content'], [data-slot='context-menu-content'], [data-slot='context-menu-sub-content'], [data-slot='popover-content'], [data-slot='select-content'], [data-slot='menubar-content'])[data-state='closed'] {",
+  '  animation: zf-pop-out var(--zf-t-1) var(--zf-ease) both;',
+  '  pointer-events: none;',
+  '}',
+  // Submenus open on hover, so their entrance stays out of the pointer's way;
+  // at t-1 their exit matches their entrance rather than beating it.
+  ":is([data-slot='dropdown-menu-sub-content'], [data-slot='context-menu-sub-content'])[data-state='open'] {",
+  '  animation-duration: var(--zf-t-1);',
+  '}',
+  '@keyframes zf-pop-in {',
+  '  from {',
+  '    opacity: 0;',
+  '    transform: translate(var(--zf-pop-dx), var(--zf-pop-dy)) scale(0.97);',
+  '  }',
+  '}',
+  '@keyframes zf-pop-out {',
+  '  to {',
+  '    opacity: 0;',
+  '    transform: translate(var(--zf-pop-dx), var(--zf-pop-dy)) scale(0.97);',
+  '  }',
+  '}',
+  // Rows: hover and highlight are a paint swap, never a move.
+  ":is([role='menuitem'], [role='option'], [role='menuitemcheckbox'], [role='menuitemradio'], [cmdk-item], [data-slot='command-item']) {",
+  '  transition: background-color var(--zf-t-2) var(--zf-ease), color var(--zf-t-2) var(--zf-ease);',
+  '}',
+  // Dialogs, alert dialogs and sheets: a beat slower than a menu, a whisker
+  // under full size, and the same path out at exit speed.
+  ":is([data-slot='dialog-content'], [data-slot='alert-dialog-content'], [data-slot='sheet-content'])[data-state='open'] {",
+  '  animation: zf-dlg-in var(--zf-t-3) var(--zf-ease-out) both;',
+  '}',
+  ":is([data-slot='dialog-content'], [data-slot='alert-dialog-content'], [data-slot='sheet-content'])[data-state='closed'] {",
+  '  animation: zf-dlg-out var(--zf-t-1) var(--zf-ease) both;',
+  '  pointer-events: none;',
+  '}',
+  '@keyframes zf-dlg-in {',
+  '  from {',
+  '    opacity: 0;',
+  '    transform: scale(0.985);',
+  '  }',
+  '}',
+  '@keyframes zf-dlg-out {',
+  '  to {',
+  '    opacity: 0;',
+  '    transform: scale(0.985);',
+  '  }',
+  '}',
+  // Scrims fade only; harmless on installs where a slot is never emitted.
+  ":is([data-slot='dialog-overlay'], [data-slot='alert-dialog-overlay'], [data-slot='sheet-overlay'])[data-state='open'] {",
+  '  animation: zf-ovl-in var(--zf-t-2) var(--zf-ease-out) both;',
+  '}',
+  ":is([data-slot='dialog-overlay'], [data-slot='alert-dialog-overlay'], [data-slot='sheet-overlay'])[data-state='closed'] {",
+  '  animation: zf-ovl-out var(--zf-t-1) var(--zf-ease) both;',
+  '  pointer-events: none;',
+  '}',
+  '@keyframes zf-ovl-in {',
+  '  from {',
+  '    opacity: 0;',
+  '  }',
+  '}',
+  '@keyframes zf-ovl-out {',
+  '  to {',
+  '    opacity: 0;',
+  '  }',
+  '}',
+  // Tooltips and hover cards follow the pointer, so they only dissolve.
+  ":is([data-slot='tooltip-content'], [data-slot='hover-card-content'])[data-state='open'] {",
+  '  animation: zf-tip-in var(--zf-t-1) var(--zf-ease-out) both;',
+  '}',
+  ":is([data-slot='tooltip-content'], [data-slot='hover-card-content'])[data-state='closed'] {",
+  '  animation: zf-tip-out var(--zf-t-1) var(--zf-ease) both;',
+  '  pointer-events: none;',
+  '}',
+  '@keyframes zf-tip-in {',
+  '  from {',
+  '    opacity: 0;',
+  '  }',
+  '}',
+  '@keyframes zf-tip-out {',
+  '  to {',
+  '    opacity: 0;',
+  '  }',
+  '}',
+  // Select triggers wear the tint of the menu they opened; !important sits on
+  // the two colour properties only, to beat app styles without touching motion.
+  ":is([data-slot='select-trigger'], [data-slot='searchable-select-trigger']) {",
+  '  transition: background-color var(--zf-t-2) var(--zf-ease), border-color var(--zf-t-2) var(--zf-ease);',
+  '}',
+  ":is([data-slot='select-trigger'], [data-slot='searchable-select-trigger']):is([data-state='open'], [aria-expanded='true']) {",
+  "  background-color: color-mix(in srgb, var(--zf-accent, var(--ui-accent, #9dc4e8)) 14%, transparent) !important;",
+  "  border-color: color-mix(in srgb, var(--zf-accent, var(--ui-accent, #9dc4e8)) 30%, transparent) !important;",
+  '}',
+  // ── [motion:history] ────────────────────────────────────────────────────
+  // History panel rows, search and switch (owner: motion-history agent).
+  // §5 already owns the hover/active paints; these rules only let the colour
+  // swap breathe. No entrance fades on rows: the list is virtualized, so an
+  // entry animation would replay on every scroll re-render.
+  ":is([data-tour='sessions-sidebar'], [data-slot='sidebar-content'], [data-sessions-mode]) :is([data-slot='sidebar-menu-button'], [data-slot='sidebar-menu-action'], [data-slot='sidebar-menu-sub-button'], button, a, [role='button']) {",
+  '  transition: background-color var(--zf-t-2) var(--zf-ease), color var(--zf-t-2) var(--zf-ease);',
+  '}',
+  // Press: a slightly stronger accent wash while the pointer is down. The
+  // html prefix buys one specificity step over §5's hover/active fills, which
+  // are equally important and can land after this sheet once the sky sheet is
+  // re-created (toggle Sky off and on), so order alone must not decide.
+  "html :is([data-tour='sessions-sidebar'], [data-slot='sidebar-content'], [data-sessions-mode]) :is([data-slot='sidebar-menu-button'], [data-slot='sidebar-menu-action'], [data-slot='sidebar-menu-sub-button'], button, a, [role='button']):active {",
+  '  background-color: color-mix(in srgb, var(--zf-accent, #9dc4e8) 18%, transparent) !important;',
+  '}',
+  // Row icons and the kebab/mini-actions.
+  ":is([data-tour='sessions-sidebar'], [data-slot='sidebar-content'], [data-sessions-mode]) :is([data-row-actions] button, [data-slot='sidebar-menu-action'], [data-row-actions] button svg, [data-slot='sidebar-menu-action'] svg) {",
+  '  transition: color var(--zf-t-2) var(--zf-ease), background-color var(--zf-t-2) var(--zf-ease);',
+  '}',
+  // Search: the app's focus ring is already stripped, so the accent halo is
+  // the focus indicator.
+  "[data-slot='sidebar-content'] input {",
+  '  transition: background-color var(--zf-t-2) var(--zf-ease), box-shadow var(--zf-t-2) var(--zf-ease);',
+  '}',
+  "[data-slot='sidebar-content'] input:focus-visible {",
+  '  box-shadow: 0 0 0 3px color-mix(in srgb, var(--zf-accent, #9dc4e8) 14%, transparent) !important;',
+  '}',
+  // SESSIONS | BOTS labels: colour only; the sliding pill is not touched.
+  `${SWITCH_HOOK} > [role='tablist'] > [data-slot='pane-tab'] {`,
+  '  transition: color var(--zf-t-2) var(--zf-ease);',
+  '}',
+  // ── [motion:composer] ───────────────────────────────────────────────────
+  // Composer, status bar and status dock (owner: motion-composer agent).
+  ":is([data-slot='composer-root'], [data-slot='composer-surface'], form[data-slot='composer']) :is(button, [role='button']) {",
+  '  transition: background-color var(--zf-t-2) var(--zf-ease), color var(--zf-t-2) var(--zf-ease), transform var(--zf-t-1) var(--zf-ease);',
+  '}',
+  ":is([data-slot='composer-root'], [data-slot='composer-surface'], form[data-slot='composer']) :is(button, [role='button']):not([aria-haspopup]):not([data-slot='select-trigger']):not([data-slot='searchable-select-trigger']):active {",
+  '  transform: scale(0.96);',
+  '}',
+  ":is([data-slot='composer-root'], [data-slot='composer-status-stack'], [data-slot='statusbar']) :is([data-slot='select-trigger'], [data-slot='searchable-select-trigger'], button[aria-haspopup], [role='button'][aria-haspopup]) {",
+  // border-color included: this rule outranks the menus block's trigger rule,
+  // so a shorter list here would snap the open-state border instead of fading.
+  '  transition: background-color var(--zf-t-2) var(--zf-ease), border-color var(--zf-t-2) var(--zf-ease), color var(--zf-t-2) var(--zf-ease);',
+  '}',
+  ":is([data-slot='composer-root'], [data-slot='composer-status-stack'], [data-slot='statusbar']) :is([data-slot='select-trigger'], [data-slot='searchable-select-trigger'], button[aria-haspopup], [role='button'][aria-haspopup]):is([data-state='open'], [aria-expanded='true']) {",
+  '  background-color: color-mix(in srgb, var(--zf-accent, var(--ui-accent, #9dc4e8)) 14%, transparent) !important;',
+  '  color: var(--zf-ink-0, #ffffff) !important;',
+  '}',
+  ":is([data-slot='statusbar'], [data-slot='composer-status-stack']) :is(button, [role='button'], a) {",
+  '  transition: background-color var(--zf-t-2) var(--zf-ease), color var(--zf-t-2) var(--zf-ease);',
+  '}',
+  // The Simple-mode dock tab is styled by DOCK_CSS, which is written after
+  // this sheet: its transitions are tokenized there instead of duplicated
+  // here, where they would lose the cascade anyway.
+  // ── [motion:tools] ──────────────────────────────────────────────────────
+  // Tool blocks, thinking disclosure, message actions (owner: motion-tools agent).
+  // Chrome only: an open/close eases paint (bg, border, shadow), never size.
+  // Deliberately absent until a live DOM sample lands: any content-expand or
+  // caret-rotate (the disclosure's open state may announce via aria-expanded
+  // or data-state — unverified), and the exact assistant action-cluster class
+  // (the selector below follows the proven user-message convention and is
+  // inert when that class is not emitted).
+  "[data-slot='tool-block'] {",
+  '  transition: background-color var(--zf-t-2) var(--zf-ease), border-color var(--zf-t-2) var(--zf-ease), box-shadow var(--zf-t-2) var(--zf-ease);',
+  '}',
+  "[data-slot='tool-block'] :is(button, [role='button'], summary) {",
+  '  transition: background-color var(--zf-t-2) var(--zf-ease), color var(--zf-t-2) var(--zf-ease);',
+  '}',
+  "[data-slot='aui_thinking-disclosure'] {",
+  '  transition: background-color var(--zf-t-2) var(--zf-ease), border-color var(--zf-t-2) var(--zf-ease), box-shadow var(--zf-t-2) var(--zf-ease);',
+  '}',
+  "[data-slot='aui_thinking-disclosure'] :is(button, [role='button'], summary) {",
+  '  transition: background-color var(--zf-t-2) var(--zf-ease), color var(--zf-t-2) var(--zf-ease);',
+  '}',
+  ":is([data-slot='aui_assistant-message-root'], [data-slot='assistant-message']) :is(button, [role='button'], a) {",
+  '  transition: background-color var(--zf-t-2) var(--zf-ease), color var(--zf-t-2) var(--zf-ease), opacity var(--zf-t-2) var(--zf-ease);',
+  '}',
+  ":is([data-slot='aui_assistant-message-root'], [data-slot='assistant-message']) :is([class*='group-hover/assistant-message'], [class*='group-hover/message']) {",
+  '  transition: opacity var(--zf-t-2) var(--zf-ease);',
+  '}',
+].join('\n')
+
+const ensureMotionStyle = () => {
+  if (typeof document === 'undefined' || document.getElementById('zephyr-motion-style')) return
+  const el = document.createElement('style')
+  el.id = 'zephyr-motion-style'
+  el.textContent = MOTION_CSS
+  document.head.appendChild(el)
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -3714,6 +3977,7 @@ export default {
     const sky = atom(stored(STORE_KEYS.sky) !== false)
     const margins = atom(stored(STORE_KEYS.margins) === true)
     const collapseWork = atom(stored(STORE_KEYS.collapseWork) !== false)
+    const motion = atom(stored(STORE_KEYS.motion) !== false)
     const phase = atom(phaseAt(new Date()))
     const glOn = atom(stored(STORE_KEYS.glSky) !== false)
     const weatherMode = atom(WEATHER_LABEL[stored(STORE_KEYS.weather)] ? stored(STORE_KEYS.weather) : 'live')
@@ -3729,6 +3993,7 @@ export default {
       ctx.storage.set(STORE_KEYS.sky, sky.get())
       ctx.storage.set(STORE_KEYS.margins, margins.get())
       ctx.storage.set(STORE_KEYS.collapseWork, collapseWork.get())
+      ctx.storage.set(STORE_KEYS.motion, motion.get())
       ctx.storage.set(STORE_KEYS.glSky, glOn.get())
       ctx.storage.set(STORE_KEYS.weather, weatherMode.get())
       ctx.storage.set(STORE_KEYS.quality, quality.get())
@@ -3744,6 +4009,14 @@ export default {
       } else {
         delete document.documentElement.dataset.zephyrMargins
       }
+    }
+    // The Motion switch: every duration in the always-on sheet (§5b) reads a
+    // token, so one attribute zeroes the whole app's animation.
+    const applyMotion = on => {
+      if (typeof document === 'undefined' || !document.documentElement) return
+      if (!document.documentElement.dataset) document.documentElement.dataset = {}
+      if (on) delete document.documentElement.dataset.zephyrMotion
+      else document.documentElement.dataset.zephyrMotion = 'off'
     }
     // ── Wordmark keeps its size in spacious mode ─────────────────────────────
     // The HERMES AGENT wordmark sizes itself from its container (container
@@ -3891,11 +4164,11 @@ export default {
       '  border-radius: var(--zf-radius-lg, 0.9rem);',
       '  box-shadow: var(--zf-lift-high, inset 0 0 0 1px rgba(255,255,255,.1));',
       '  transform: translate(calc(-100% - 1rem), -50%); opacity: 0; visibility: hidden; pointer-events: none;',
-      '  transition: transform 220ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease, visibility 0s linear 220ms;',
+      '  transition: transform var(--zf-t-3, 220ms) var(--zf-ease, ease), opacity var(--zf-t-2, 180ms) var(--zf-ease, ease), visibility 0s linear var(--zf-t-3, 220ms);',
       '}',
       `footer[data-slot='statusbar'][${DOCK_ATTR}][${DOCK_OPEN_ATTR}] {`,
       '  transform: translate(0, -50%); opacity: 1; visibility: visible; pointer-events: auto;',
-      '  transition: transform 220ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease, visibility 0s;',
+      '  transition: transform var(--zf-t-3, 220ms) var(--zf-ease, ease), opacity var(--zf-t-2, 180ms) var(--zf-ease, ease), visibility 0s;',
       '}',
       // the bar's two halves become two stacked lists of full-width rows
       `footer[data-slot='statusbar'][${DOCK_ATTR}] > div {`,
@@ -3908,6 +4181,7 @@ export default {
       `footer[data-slot='statusbar'][${DOCK_ATTR}] > div > * {`,
       '  height: auto !important; min-height: var(--zf-sd-rowh, 1.75rem); width: 100%; justify-content: flex-start !important; box-sizing: border-box;',
       '  padding: 0 0.5rem !important; border-radius: calc(var(--zf-radius, 0.6rem) - 0.25rem) !important;',
+      '  transition: background-color var(--zf-t-2, 140ms) var(--zf-ease, ease), color var(--zf-t-2, 140ms) var(--zf-ease, ease);',
       // same face as the session rows (read off them at layout time)
       '  font-size: var(--zf-sd-font, 0.8125rem) !important; gap: 0.5rem !important; color: var(--zf-ink-1, #dfe5ee); background: transparent; border: 0;',
       '}',
@@ -3923,11 +4197,11 @@ export default {
       '  display: flex; flex-direction: column; align-items: center; justify-content: space-between; color: var(--zf-ink-2, #b6c0d0);',
       '  background: var(--zf-glass, rgba(14, 16, 22, 0.8));',
       '  border-radius: 0 0.6rem 0.6rem 0; box-shadow: var(--zf-lift, inset 0 0 0 1px rgba(255,255,255,.07));',
-      '  opacity: 0.9; transition: opacity 150ms ease, width 150ms ease, left 220ms cubic-bezier(.2,.8,.2,1), color 150ms ease;',
+      '  opacity: 0.9; transition: opacity var(--zf-t-2, 150ms) var(--zf-ease, ease), width var(--zf-t-2, 150ms) var(--zf-ease, ease), left var(--zf-t-3, 220ms) var(--zf-ease, ease), color var(--zf-t-2, 150ms) var(--zf-ease, ease);',
       '}',
       '#zephyr-statusdock-tab:hover, #zephyr-statusdock-tab:focus-visible { opacity: 1; width: 1.5rem; color: var(--zf-ink-0, #fff); outline: none; }',
       '#zephyr-statusdock-tab svg { width: 0.8rem; height: 0.8rem; flex: none; }',
-      '#zephyr-statusdock-tab .zf-tab-chev { width: 0.65rem; height: 0.65rem; transition: transform 220ms ease; }',
+      '#zephyr-statusdock-tab .zf-tab-chev { width: 0.65rem; height: 0.65rem; transition: transform var(--zf-t-3, 220ms) var(--zf-ease, ease); }',
       "#zephyr-statusdock-tab[aria-expanded='true'] { left: 15.75rem; opacity: 0.85; border-radius: 0.6rem; }",
       "#zephyr-statusdock-tab[aria-expanded='true'] .zf-tab-chev { transform: rotate(180deg); }",
       '#zephyr-statusdock-tab[hidden] { display: none; }',
@@ -3941,21 +4215,23 @@ export default {
       '  box-sizing: border-box !important; padding: 0 0.3rem 0.35rem !important; z-index: 41;',
       '  overflow: hidden auto !important; scrollbar-width: none;',
       '  clip-path: inset(0 0 100% 0);',
-      '  transition: clip-path var(--zf-sd-dur) var(--zf-sd-ease), opacity 200ms ease 40ms, visibility 0s linear var(--zf-sd-dur) !important;',
+      '  transition: clip-path var(--zf-sd-dur) var(--zf-sd-ease), opacity var(--zf-t-2, 200ms) var(--zf-ease, ease) 40ms, visibility 0s linear var(--zf-sd-dur) !important;',
       '}',
       `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}]::-webkit-scrollbar { display: none; }`,
       // opening unrolls the rows from under the header, top to bottom
-      `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}][${DOCK_OPEN_ATTR}] { transform: none !important; clip-path: inset(0 0 0 0); transition: clip-path var(--zf-sd-dur) var(--zf-sd-ease), opacity 180ms ease, visibility 0s !important; }`,
-      `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}] > div > * { transition: transform var(--zf-sd-dur) var(--zf-sd-ease), opacity 200ms ease, background-color 120ms ease; }`,
+      `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}][${DOCK_OPEN_ATTR}] { transform: none !important; clip-path: inset(0 0 0 0); transition: clip-path var(--zf-sd-dur) var(--zf-sd-ease), opacity var(--zf-t-2, 180ms) var(--zf-ease, ease), visibility 0s !important; }`,
+      `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}] > div > * { transition: transform var(--zf-sd-dur) var(--zf-sd-ease), opacity var(--zf-t-2, 200ms) var(--zf-ease, ease), background-color var(--zf-t-2, 120ms) var(--zf-ease, ease); }`,
       `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}]:not([${DOCK_OPEN_ATTR}]) > div > * { transform: translateY(-0.4rem); opacity: 0; }`,
       ':root { --zf-sd-dur: 280ms; --zf-sd-ease: cubic-bezier(.32,.72,0,1); }',
+      // the Motion switch reaches the dock's own duration token too
+      "html[data-zephyr-motion='off'] { --zf-sd-dur: 0ms; }",
       `[${DOCK_ROOM_ATTR}] { margin-top: calc(var(--zf-sd-room, 0px) + var(--zf-lib-room, 0px)) !important; transition: margin-top var(--zf-sd-dur) var(--zf-sd-ease); }`,
       '#zephyr-statusdock-head {',
       '  position: fixed; z-index: 40; left: var(--zf-sd-x); top: var(--zf-sd-y-head); width: var(--zf-sd-w); height: var(--zf-sd-h);',
       '  display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch;',
       '  padding: 0; margin: 0; border: 0; text-align: left; cursor: pointer; color: var(--zf-ink-3, #8c98ac);',
       '  font: inherit; background: var(--zf-side-card, rgba(14, 16, 22, 0.8)); border-radius: var(--zf-radius, 0.6rem); overflow: hidden;',
-      '  transition: height var(--zf-sd-dur) var(--zf-sd-ease), color 150ms ease, box-shadow 150ms ease;',
+      '  transition: height var(--zf-sd-dur) var(--zf-sd-ease), color var(--zf-t-2, 150ms) var(--zf-ease, ease), box-shadow var(--zf-t-2, 150ms) var(--zf-ease, ease);',
       '  user-select: none;',
       '}',
       '#zephyr-statusdock-head[hidden] { display: none; }',
@@ -5679,8 +5955,29 @@ export default {
           e.preventDefault()
           e.stopPropagation()
           const settle = pinWhileFolding(root)
-          setToggleExpanded(toggle, contentEl, contentEl.getAttribute('data-zephyr-work-collapsed') === 'true')
-          settle()
+          const collapsed = contentEl.getAttribute('data-zephyr-work-collapsed') === 'true'
+          setToggleExpanded(toggle, contentEl, collapsed)
+          if (collapsed) {
+            // Opening: the space arrives immediately, so pin now.
+            settle()
+            return
+          }
+          // Closing: the shape only collapses when the display fade ends, so
+          // the pin has to wait for that moment or the transcript lurches.
+          // The fade runs on --zf-t-1; read it so Motion off settles at once,
+          // and keep a timeout fallback in case transitionend is swallowed.
+          const ms = parseFloat(getComputedStyle?.(contentEl)?.getPropertyValue('--zf-t-1')) || 90
+          let done = false
+          const finish = () => {
+            if (done) return
+            done = true
+            contentEl.removeEventListener?.('transitionend', onEnd)
+            clearTimeout(fallback)
+            settle()
+          }
+          const onEnd = event => { if (event.propertyName === 'display') finish() }
+          contentEl.addEventListener?.('transitionend', onEnd)
+          const fallback = setTimeout(finish, ms + 80)
         })
         contentEl.insertBefore(toggle, contentEl.firstChild)
         setToggleExpanded(toggle, contentEl, false)
@@ -5765,15 +6062,43 @@ export default {
       }
     }
 
+    // The shared body for both scheduling paths below: fold the transcript,
+    // re-measure the pinned wordmark, and re-fit the composer column. The
+    // fold pass is skipped entirely while the feature is off (the off-switch
+    // already ran one cleanup pass), so a long history is not re-walked on
+    // every mutation for nothing.
+    const runScanWork = () => {
+      if (collapseWork.get()) scanWorkProgress()
+      pinWordmark()
+      fitColumn()
+    }
+
+    const hasRaf = typeof requestAnimationFrame === 'function'
     let workThrottle = null
+    let workFrame = null
+    const flushWork = () => {
+      workFrame = null
+      runScanWork()
+    }
     const scheduleScanWork = () => {
+      // While core holds the session-switch curtain on the chat surface the
+      // transcript is invisible, so the 60ms throttle only delays the fold
+      // toward the reveal. Coalesce to the next frame instead; normal
+      // streaming keeps the throttle below. A throttle already pending from
+      // just before the switch is dropped, so the frame is the only run.
+      if (typeof document !== 'undefined' && hasRaf && document.querySelector?.('[data-chat-surface][data-session-switching]')) {
+        if (workFrame !== null) return
+        if (workThrottle) {
+          clearTimeout(workThrottle)
+          workThrottle = null
+        }
+        workFrame = requestAnimationFrame(flushWork)
+        return
+      }
       if (workThrottle) return
       workThrottle = setTimeout(() => {
         workThrottle = null
-        checkChatSwitch()
-        scanWorkProgress()
-        pinWordmark()
-        fitColumn()
+        runScanWork()
       }, 60)
     }
 
@@ -5788,66 +6113,59 @@ export default {
       scanWorkProgress()
     }
     applyCollapseWork(collapseWork.get())
+    applyMotion(motion.get())
 
-    // ── Slide animation on chat switch ──────────────────────────────────────
-    let activeSessionKey = null
+    // ── Chat switch ─────────────────────────────────────────────────────────
+    // The switch is animated by core's own data-session-switching window on
+    // [data-chat-surface]: the transcript stays hidden while rows land and
+    // the scroll restores, and the plugin does its folding behind that
+    // curtain (see the [motion:switch] CSS and the scan scheduling below).
+    // The old JS slide was retired: it raced this window and animated a
+    // transcript the user was not looking at yet.
+    const onDocClick = () => scheduleScanWork()
 
-    const triggerChatSlide = () => {
-      if (typeof document === 'undefined') return
-      const target =
-        document.querySelector("[data-slot='aui_thread-content']") ||
-        document.querySelector("[data-slot='thread']") ||
-        document.querySelector("[data-chat-surface]")
-      if (!target) return
-      target.classList.remove('zephyr-chat-slide')
-      void target.offsetWidth
-      target.classList.add('zephyr-chat-slide')
-      scheduleScanWork()
-    }
+    const onNavChange = () => scheduleScanWork()
 
-    const checkChatSwitch = () => {
-      if (typeof document === 'undefined') return
-      const activeEl = document.querySelector("[data-sessions-mode] [data-active='true'], [data-sessions-mode] [aria-selected='true']")
-      const key = activeEl
-        ? activeEl.textContent || activeEl.getAttribute('href') || activeEl.id
-        : typeof location !== 'undefined'
-          ? location.pathname + location.search + location.hash
-          : ''
-      if (key && key !== activeSessionKey) {
-        activeSessionKey = key
-        requestAnimationFrame(() => triggerChatSlide())
-      }
-    }
-
-    const onDocClick = event => {
-      const isSessionClick = event.target?.closest?.(
-        "[data-sessions-mode], [data-slot='sidebar-menu-button'], button:has([data-slot*='plus']), button:has([data-slot*='new-chat']), [data-slot='pane-tab']"
-      )
-      if (isSessionClick) {
-        setTimeout(checkChatSwitch, 30)
-        setTimeout(triggerChatSlide, 60)
-      }
-      scheduleScanWork()
-    }
-
-    const onNavChange = () => {
-      checkChatSwitch()
-      triggerChatSlide()
-      scheduleScanWork()
+    // Core lifts data-session-switching once the new transcript's rows are
+    // placed and the scroll has settled. Attribute MutationObserver callbacks
+    // run before the browser paints, so this is the one chance to fold and
+    // re-anchor the transcript in the frame the curtain opens.
+    const settleSwitch = surface => {
+      if (!surface) return
+      const viewport = surface.querySelector?.("[data-slot='aui_thread-viewport']") || surface
+      // Measure first: scanWorkProgress changes the transcript height, so only
+      // the pre-fold geometry can say whether the session was anchored to the
+      // bottom. Re-pin after the fold so the reveal does not jump.
+      const atBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 24
+      runScanWork()
+      if (atBottom) viewport.scrollTop = viewport.scrollHeight
     }
 
     let chatObserver = null
     if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
       // Streaming fires this on every token; all the real work is batched
-      // into one throttled pass.
-      chatObserver = new MutationObserver(() => scheduleScanWork())
+      // into one throttled pass. The session-switch attribute is observed too,
+      // so its removal is caught pre-paint and settled in that same frame.
+      chatObserver = new MutationObserver(mutations => {
+        let settled = false
+        for (const mutation of mutations) {
+          if (mutation?.type !== 'attributes' || mutation.attributeName !== 'data-session-switching') continue
+          const surface = mutation.target
+          if (!surface?.hasAttribute?.('data-chat-surface') || surface.hasAttribute('data-session-switching')) continue
+          settled = true
+          settleSwitch(surface)
+        }
+        // settleSwitch ran the pass synchronously for this frame; everything
+        // else (streaming tokens, menus) still gets the throttled one.
+        if (!settled) scheduleScanWork()
+      })
       const observeTarget = document.body || document.documentElement
       if (observeTarget) {
         chatObserver.observe(observeTarget, {
           childList: true,
           subtree: true,
           attributes: true,
-          attributeFilter: ['data-active', 'aria-selected', 'data-state', 'class', 'data-message-streaming']
+          attributeFilter: ['data-active', 'aria-selected', 'data-state', 'class', 'data-message-streaming', 'data-session-switching']
         })
       }
     }
@@ -6040,6 +6358,7 @@ export default {
 
     // ── snippet cards: the medium for "small boxes I can copy and pin" ──
     ensureSnippetStyle()
+    ensureMotionStyle()
     ctx.register({
       id: 'snippet',
       area: DIRECTIVE_AREA,
@@ -6111,6 +6430,7 @@ export default {
         const isSky = useValue(sky)
         const isMargins = useValue(margins)
         const isCollapseWork = useValue(collapseWork)
+        const isMotion = useValue(motion)
         const isStatusDock = useValue(statusDock)
         const isLibrary = useValue(library)
         const isGl = useValue(glOn)
@@ -6293,6 +6613,16 @@ export default {
             }
           }),
           jsx(ToggleRow, {
+            checked: isMotion,
+            description: 'Short fades and slides on menus, the history list, the composer, message actions and opening the folded work. Off makes every interaction instant. Also follows your system\'s reduced-motion setting.',
+            label: 'App animations',
+            onChange: on => {
+              motion.set(on)
+              persist()
+              applyMotion(on)
+            }
+          }),
+          jsx(ToggleRow, {
             checked: isStatusDock,
             description: 'In Simple mode, the status bar (model, context, agents, radio) becomes a card at the foot of the sessions sidebar. It opens when there is room for at least six sessions, and a click on its header opens or closes it. With the sidebar hidden it sits behind a tab on the left edge. Advanced mode keeps the bar at the bottom.',
             label: 'Status panel in Simple mode',
@@ -6357,7 +6687,7 @@ export default {
       clearInterval(flareTimer)
       clearInterval(dockTimer)
       iconStyle?.remove()
-      if (typeof document !== 'undefined') { document.removeEventListener('keydown', onDockKey); document.removeEventListener('pointerdown', onRowPointerDown, true); endPinDrag(); undock(); dock.ro?.disconnect(); dock.popObs?.disconnect(); document.querySelectorAll(`[${DOCK_POP_ATTR}]`).forEach(el => el.removeAttribute(DOCK_POP_ATTR)); dock.tab?.remove(); dock.head?.remove(); dock.style?.remove(); document.getElementById('zephyr-snippet-style')?.remove(); closePreview(); unlib(); lib.el?.remove(); SHELF_SLOTS.forEach(sl => shelfEls[sl]?.remove()); shelf$.ro?.disconnect(); try { pinsUnsub?.() } catch {}; document.documentElement.removeAttribute('data-zf-dragging') }
+      if (typeof document !== 'undefined') { document.removeEventListener('keydown', onDockKey); document.removeEventListener('pointerdown', onRowPointerDown, true); endPinDrag(); undock(); dock.ro?.disconnect(); dock.popObs?.disconnect(); document.querySelectorAll(`[${DOCK_POP_ATTR}]`).forEach(el => el.removeAttribute(DOCK_POP_ATTR)); dock.tab?.remove(); dock.head?.remove(); dock.style?.remove(); document.getElementById('zephyr-snippet-style')?.remove(); document.getElementById('zephyr-motion-style')?.remove(); closePreview(); unlib(); lib.el?.remove(); SHELF_SLOTS.forEach(sl => shelfEls[sl]?.remove()); shelf$.ro?.disconnect(); try { pinsUnsub?.() } catch {}; document.documentElement.removeAttribute('data-zf-dragging') }
       clearInterval(liveTimer)
       colObs?.disconnect()
       if (typeof document !== 'undefined') unfitColumn()
@@ -6369,11 +6699,13 @@ export default {
       unpinWordmark()
       if (typeof window !== 'undefined') window.removeEventListener?.('resize', onResize)
       if (workThrottle) clearTimeout(workThrottle)
+      if (workFrame) cancelAnimationFrame?.(workFrame)
       if (typeof document !== 'undefined' && document.documentElement) {
         document.documentElement.style.removeProperty('--zephyr-sun')
         if (document.documentElement.dataset) {
           delete document.documentElement.dataset.zephyrMargins
           delete document.documentElement.dataset.zephyrCollapseWork
+          delete document.documentElement.dataset.zephyrMotion
         }
         document.querySelectorAll?.('.zephyr-work-summary').forEach(el => el.remove?.())
         document.querySelectorAll?.('[data-zephyr-work-collapsed]').forEach(el => el.removeAttribute?.('data-zephyr-work-collapsed'))

@@ -62,6 +62,7 @@ Open **Settings > Zephyr**.
 | Tint the accent | Shifts the accent colour to match the time of day. |
 | Spacious margins | A narrower reading column with wide margins. |
 | Fold finished work | Folds finished replies' steps into one line. |
+| App animations | Short fades and slides on menus, the history list, the composer and folded steps. Off makes every interaction instant. Follows your system's reduced-motion setting. |
 | Status panel in Simple mode | Moves the status bar into the sessions sidebar. |
 | Snippet library | Shows the Snippets card in the sidebar with everything you've pinned. |
 

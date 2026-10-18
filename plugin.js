@@ -500,10 +500,12 @@ const skyStyleFor = (date, gl = false) => {
     `    linear-gradient(180deg, ${cssRgb(sky.top)} 0%, ${cssRgb(sky.mid)} 32%, ${cssRgb(sky.low)} 62%, ${cssRgb(sky.horizon)} 88%, ${cssRgb(sky.horizon)} 100%);`,
     '}',
     'body::before {',
-    "  content: ''; position: fixed; left: 50%; width: 62vmax; height: 62vmax;",
-    '  transform: translateX(-50%); pointer-events: none; z-index: -1;',
-    '  top: calc(var(--zephyr-sun, 40) * 1%);',
-    '  transition: top 240s linear;',
+    "  content: ''; position: fixed; left: 50%; top: 0; width: 62vmax; height: 62vmax;",
+    '  pointer-events: none; z-index: -1;',
+    // translateY in vh matches the old top percentage, but rides the
+    // compositor during the 240s drift instead of triggering layout.
+    '  transform: translate(-50%, calc(var(--zephyr-sun, 40) * 1vh));',
+    '  transition: transform 240s linear;',
     `  background: radial-gradient(circle, ${cssRgba(sky.orb, sky.orbAlpha)} 0%, transparent 62%);`,
     '}',
         ]),
@@ -837,20 +839,29 @@ const skyStyleFor = (date, gl = false) => {
     '  border: none !important;',
     '  box-shadow: 0 0 6px rgba(59, 130, 246, 0.6) !important;',
     '  opacity: 1 !important;',
+    '  position: relative !important;',
     '  animation: zephyr-running-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;',
     '}',
+    // The pulse ring rides a pseudo-element: transform and opacity only, so it
+    // animates on the compositor instead of repainting the dot's box-shadow on
+    // the main thread while the history list scrolls.
+    ":is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) [class*='place-items-center'] span[role='status']:is([class*='ui-accent'], [aria-label*='session running' i])::after,",
+    ":is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) :is(div, li):has(> .arc-row) [class*='place-items-center'] span[class*='rounded-full']::after {",
+    "  content: ''; position: absolute; inset: 0; border-radius: 9999px; pointer-events: none;",
+    '  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.6) !important;',
+    '  animation: zephyr-running-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;',
+    '}',
     '@keyframes zephyr-running-dot {',
-    '  0%, 100% {',
-    '    transform: scale(1);',
-    '    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6);',
-    '  }',
-    '  50% {',
-    '    transform: scale(1.15);',
-    '    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0);',
-    '  }',
+    '  0%, 100% { transform: scale(1); }',
+    '  50% { transform: scale(1.15); }',
+    '}',
+    '@keyframes zephyr-running-ring {',
+    '  0%, 100% { transform: scale(0.8); opacity: 0.7; }',
+    '  50% { transform: scale(1.5); opacity: 0; }',
     '}',
     '@media (prefers-reduced-motion: reduce) {',
-    "  :is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) span[role='status'] {",
+    "  :is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) span[role='status'],",
+    "  :is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) span[role='status']::after {",
     '    animation: none !important;',
     '  }',
     '}',
@@ -1697,6 +1708,41 @@ const MOTION_CSS = [
   "[data-chat-surface][data-session-switching] :is([data-slot='aui_thread-viewport'], [data-slot='thread']) {",
   '  opacity: 0;',
   '  transition: none;',
+  '}',
+  // The plugin's own settle curtain, held after core's marker lifts until the
+  // transcript stops changing (the backfill commits, highlighting and font
+  // swaps all land after core's two quiet frames). Same paint-only hide.
+  "[data-chat-surface][data-zephyr-settling] :is([data-slot='aui_thread-viewport'], [data-slot='thread']) {",
+  '  opacity: 0;',
+  '  transition: none;',
+  '}',
+  // ── [motion:ghosts] ─────────────────────────────────────────────────────
+  // Exit ghosts for floating surfaces the app unmounts before their exit can
+  // play. A clone of the closed surface is positioned at its last rect and
+  // runs the same exit keyframes; it is inert and never interactive.
+  //
+  // Measured on the Hermes desktop build: a React commit unmounts a closing
+  // floating surface ~45-60ms after data-state flips to closed, cutting the
+  // 140ms exit mid-fade; a Presence-managed close keeps the node for the full
+  // keyframes (>=140ms before removal). The JS ghosting has already filtered
+  // by that timing, so this sheet only has to replay the exit. The clone is
+  // normalised to data-state='closed' by the JS, so the sheet's own exit rules
+  // match it too; these declarations are byte-identical to those, and the
+  // cascade order between the two does not matter. No keyframes are redefined
+  // here. The JS may set a negative animation-delay to resume the exit at the
+  // phase it had reached when the real node vanished.
+  '.zf-ghost { position: fixed !important; margin: 0 !important; pointer-events: none !important; z-index: 2147483000 !important; }',
+  ":is(.zf-ghost[data-slot='dropdown-menu-content'], .zf-ghost[data-slot='dropdown-menu-sub-content'], .zf-ghost[data-slot='context-menu-content'], .zf-ghost[data-slot='context-menu-sub-content'], .zf-ghost[data-slot='popover-content'], .zf-ghost[data-slot='select-content'], .zf-ghost[data-slot='menubar-content']) {",
+  '  animation: zf-pop-out var(--zf-t-1) var(--zf-ease) both;',
+  '}',
+  ":is(.zf-ghost[data-slot='dialog-content'], .zf-ghost[data-slot='alert-dialog-content'], .zf-ghost[data-slot='sheet-content']) {",
+  '  animation: zf-dlg-out var(--zf-t-1) var(--zf-ease) both;',
+  '}',
+  ":is(.zf-ghost[data-slot='tooltip-content'], .zf-ghost[data-slot='hover-card-content']) {",
+  '  animation: zf-tip-out var(--zf-t-1) var(--zf-ease) both;',
+  '}',
+  ".zf-ghost[data-slot$='-overlay'] {",
+  '  animation: zf-ovl-out var(--zf-t-1) var(--zf-ease) both;',
   '}',
   // ── [motion:menus] ──────────────────────────────────────────────────────
   // Mechanism: Radix Presence holds closing content mounted until its exit
@@ -4038,12 +4084,19 @@ export default {
 
     const pinWordmark = () => {
       if (typeof document === 'undefined' || typeof window === 'undefined' || !document.documentElement) return
-      const root = document.documentElement
-      const mark = document.querySelector?.(WORDMARK_SEL)
-      if (!margins.get() || !mark) {
+      // The margins check comes first: the wordmark query below uses a
+      // substring class match, which Blink cannot hash, and this runs on
+      // every scan (up to ~16x/s while the transcript streams).
+      if (!margins.get()) {
         if (wordmarkKey) unpinWordmark()
         return
       }
+      const mark = document.querySelector?.(WORDMARK_SEL)
+      if (!mark) {
+        if (wordmarkKey) unpinWordmark()
+        return
+      }
+      const root = document.documentElement
       // Re-measure only when the window size changes or a new wordmark mounts.
       const key = `${window.innerWidth}x${window.innerHeight}`
       if (wordmarkKey === key && mark.hasAttribute('data-zephyr-wordmark-pinned')) return
@@ -4097,11 +4150,15 @@ export default {
     }
     const fitColumn = () => {
       if (typeof document === 'undefined') return
+      if (!margins.get()) {
+        if (colKey) unfitColumn()
+        return
+      }
       const content = document.querySelector?.("[data-slot='aui_thread-content']")
       const viewport = content?.closest?.("[data-slot='aui_thread-viewport']")
       const surface = document.querySelector?.("[data-slot='composer-dock']:not([data-popped-out]) [data-slot='composer-surface']")
       const intro = content?.querySelector?.("[data-slot='aui_intro'], .wordmark, [class*='wordmark']")
-      if (!margins.get() || !content || !viewport || !surface || intro) {
+      if (!content || !viewport || !surface || intro) {
         if (colKey) unfitColumn()
         return
       }
@@ -4317,6 +4374,11 @@ export default {
       }
     }
     const unside = () => {
+      // The 1s dock timer calls this every second while the panel is not
+      // sided; only a real un-side changes the geometry, so only then is the
+      // library's layout cache dropped (otherwise layoutLibrary() re-measures
+      // the sidebar — forced layout — once a second for nothing).
+      const wasSided = Boolean(dock.side || dock.room)
       document.querySelectorAll(`[${DOCK_SIDE_ATTR}]`).forEach(el => {
         el.removeAttribute(DOCK_SIDE_ATTR)
         ;['--zf-sd-x', '--zf-sd-y', '--zf-sd-w', '--zf-sd-max'].forEach(v => el.style.removeProperty(v))
@@ -4331,7 +4393,7 @@ export default {
       dock.side = null
       dock.room = null
       dock.sideKey = ''
-      lib.key = ''
+      if (wasSided) lib.key = ''
     }
     const undock = () => {
       unside()
@@ -4699,7 +4761,7 @@ export default {
       }
     }
     const onRowPointerDown = e => {
-      if (pinDrag.replay) return
+      if (pinDrag.replay || !dock.side) return
       const row = e.target?.closest?.(`footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}][${DOCK_OPEN_ATTR}] > div > *`)
       if (row) startPinDrag(e, row)
     }
@@ -4969,7 +5031,9 @@ export default {
       const list = pins.get()
       const ph = lib.phantom && !list.some(p => p.id === lib.phantom.id) ? lib.phantom : null
       const sig = JSON.stringify(list.map(p => p.id)) + (ph ? '+' + ph.id : '')
-      el.querySelector('.zf-lib-count').textContent = list.length ? String(list.length) : ''
+      const count = list.length ? String(list.length) : ''
+      const countEl = el.querySelector('.zf-lib-count')
+      if (countEl && countEl.textContent !== count) countEl.textContent = count
       if (sig === lib.sig) return
       lib.sig = sig
       const rows = el.querySelector('.zf-lib-rows')
@@ -5705,7 +5769,20 @@ export default {
           !document.querySelector("[data-slot$='-content'][data-state='open']")) setDockOpen(false)
     }
     if (typeof document !== 'undefined') document.addEventListener('keydown', onDockKey)
-    const dockTimer = setInterval(() => { if (typeof document !== 'undefined' && !document.hidden) { syncStatusDock(); if (!pinDrag.moving) { layoutLibrary(); layoutShelf() } } }, 1000)
+    // Maintenance passes that measure layout (the dock, the snippet library,
+    // the status stack's fillets) pause while a scroll is in flight: a forced
+    // layout landing mid-gesture is exactly the hitch they would cause, and the
+    // next tick after the gesture recomputes everything anyway.
+    let lastScrollAt = 0
+    if (typeof document !== 'undefined') {
+      document.addEventListener?.('scroll', () => { lastScrollAt = Date.now() }, { capture: true, passive: true })
+    }
+    const scrollSettled = () => Date.now() - lastScrollAt >= 150
+    const dockTimer = setInterval(() => {
+      if (typeof document === 'undefined' || document.hidden || !scrollSettled()) return
+      syncStatusDock()
+      if (!pinDrag.moving) { layoutLibrary(); layoutShelf() }
+    }, 1000)
     setTimeout(syncStatusDock, 600)
 
     let resizeRaf = 0
@@ -6122,7 +6199,13 @@ export default {
     // curtain (see the [motion:switch] CSS and the scan scheduling below).
     // The old JS slide was retired: it raced this window and animated a
     // transcript the user was not looking at yet.
-    const onDocClick = () => scheduleScanWork()
+    // Only clicks inside the chat surface can change what the scan measures
+    // (expanding a fold, a new message); a click in the sidebar must not walk
+    // the transcript.
+    const onDocClick = event => {
+      const target = event?.target
+      if (target?.nodeType === 1 && target.closest?.('[data-chat-surface]')) scheduleScanWork()
+    }
 
     const onNavChange = () => scheduleScanWork()
 
@@ -6130,6 +6213,113 @@ export default {
     // placed and the scroll has settled. Attribute MutationObserver callbacks
     // run before the browser paints, so this is the one chance to fold and
     // re-anchor the transcript in the frame the curtain opens.
+    //
+    // But that early stability is not completion: the render-budget backfill
+    // commits more pages, Shiki highlights after mount, the code plugin
+    // re-renders markdown, fonts swap and tables apply widths — all after
+    // core's two quiet frames. So the plugin holds its own curtain
+    // (data-zephyr-settling, paint-only via CSS) until the transcript is
+    // actually quiet, bounded by SETTLE_MAX_MS and lifted on any user input.
+    const SETTLE_QUIET_MS = 160
+    const SETTLE_MAX_MS = 1400
+    const SETTLE_INPUT = ['wheel', 'pointerdown', 'keydown', 'touchstart']
+    const settleRunners = new Map()
+
+    const finishSettle = surface => {
+      const runner = settleRunners.get(surface)
+      if (runner) {
+        settleRunners.delete(surface)
+        try { runner.stop() } catch {}
+      }
+      surface?.removeAttribute?.('data-zephyr-settling')
+    }
+
+    const finishAllSettles = () => {
+      for (const surface of [...settleRunners.keys()]) finishSettle(surface)
+    }
+
+    const startSettleCurtain = (surface, viewport, atBottom) => {
+      if (!surface || !viewport) return
+      // A re-armed switch restarts clean rather than stacking runners.
+      finishSettle(surface)
+      surface.setAttribute?.('data-zephyr-settling', '')
+      if (typeof requestAnimationFrame !== 'function' || viewport.isConnected === false) {
+        finishSettle(surface)
+        return
+      }
+      const now = () => performance.now?.() ?? Date.now()
+      const started = now()
+      let lastChange = started
+      let frames = 0
+      let frame = 0
+      let stopped = false
+      let resizeObserver = null
+      let mutationObserver = null
+      const content = surface.querySelector?.("[data-slot='aui_thread-content']")
+      const onChange = () => { lastChange = now() }
+      // A running turn never goes quiet; the curtain would hold until the cap.
+      // It only exists to hide the load's parse and backfill, so a streaming
+      // transcript gets a much shorter leash.
+      const streaming = Boolean(surface.querySelector?.("[data-message-streaming='true'], [data-slot='aui_message-streaming-marker'][data-message-streaming], [data-slot='aui_response-loading'], [data-slot='aui_turn-activity'][data-state='active']"))
+      const quietMs = streaming ? 80 : SETTLE_QUIET_MS
+      const maxMs = streaming ? 500 : SETTLE_MAX_MS
+
+      const runner = {
+        stop() {
+          if (stopped) return
+          stopped = true
+          if (frame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(frame)
+          frame = 0
+          resizeObserver?.disconnect?.()
+          mutationObserver?.disconnect?.()
+          viewport.removeEventListener?.('scroll', onChange)
+        }
+      }
+      settleRunners.set(surface, runner)
+
+      if (typeof ResizeObserver === 'function') {
+        resizeObserver = new ResizeObserver(onChange)
+        if (content) resizeObserver.observe?.(content)
+        if (viewport !== content) resizeObserver.observe?.(viewport)
+      }
+      if (typeof MutationObserver !== 'undefined' && content) {
+        mutationObserver = new MutationObserver(onChange)
+        mutationObserver.observe(content, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+          attributes: true,
+          attributeFilter: ['class', 'style', 'data-status', 'data-streaming', 'data-state', 'data-message-streaming']
+        })
+      }
+      viewport.addEventListener?.('scroll', onChange, { passive: true })
+
+      const tick = () => {
+        frame = 0
+        if (stopped) return
+        frames += 1
+        // No scrollHeight compare here: reading it forces a layout flush on a
+        // transcript that is still committing, every frame, for the whole
+        // settle. The ResizeObserver, the mutation observer and the scroll
+        // listener are the witnesses that already reset lastChange — the
+        // per-frame read only duplicated them at full layout cost.
+        const t = now()
+        const fontsReady =
+          typeof document === 'undefined' ||
+          typeof document.fonts?.status !== 'string' ||
+          document.fonts.status === 'loaded' ||
+          t - started >= 350
+        const quiet = t - lastChange >= quietMs && frames >= 2 && fontsReady
+        if (quiet || t - started >= maxMs) {
+          finishSettle(surface)
+          if (atBottom) viewport.scrollTop = viewport.scrollHeight
+          return
+        }
+        frame = requestAnimationFrame(tick)
+      }
+      frame = requestAnimationFrame(tick)
+    }
+
     const settleSwitch = surface => {
       if (!surface) return
       const viewport = surface.querySelector?.("[data-slot='aui_thread-viewport']") || surface
@@ -6137,8 +6327,17 @@ export default {
       // the pre-fold geometry can say whether the session was anchored to the
       // bottom. Re-pin after the fold so the reveal does not jump.
       const atBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 24
+      // A frame-coalesced pass armed just before the switch would duplicate
+      // this synchronous one; drop it.
+      if (workFrame !== null) {
+        cancelAnimationFrame?.(workFrame)
+        workFrame = null
+      }
       runScanWork()
       if (atBottom) viewport.scrollTop = viewport.scrollHeight
+      // The curtain keeps the transcript hidden past the fold until the late
+      // work lands; its lift re-pins a bottom-anchored viewport again.
+      startSettleCurtain(surface, viewport, atBottom)
     }
 
     let chatObserver = null
@@ -6148,16 +6347,38 @@ export default {
       // so its removal is caught pre-paint and settled in that same frame.
       chatObserver = new MutationObserver(mutations => {
         let settled = false
+        let relevant = false
+        // One batch can carry the removal record once per observed holder;
+        // settling a surface twice in the same batch is wasted work.
+        const settledSurfaces = new Set()
         for (const mutation of mutations) {
-          if (mutation?.type !== 'attributes' || mutation.attributeName !== 'data-session-switching') continue
-          const surface = mutation.target
-          if (!surface?.hasAttribute?.('data-chat-surface') || surface.hasAttribute('data-session-switching')) continue
-          settled = true
-          settleSwitch(surface)
+          if (mutation?.type === 'attributes') {
+            const name = mutation.attributeName
+            if (name === 'data-session-switching') {
+              const surface = mutation.target
+              if (!surface?.hasAttribute?.('data-chat-surface') || surface.hasAttribute('data-session-switching')) continue
+              if (settledSurfaces.has(surface)) continue
+              settledSurfaces.add(surface)
+              settled = true
+              settleSwitch(surface)
+            } else if (name === 'data-message-streaming') {
+              relevant = true
+            }
+            continue
+          }
+          if (mutation?.type !== 'childList' || relevant) continue
+          // The history list is virtualized: scrolling mounts and unmounts a
+          // row at a time, and a scan per row would walk the whole transcript
+          // for a change none of it cares about. Only churn inside the chat
+          // surface (or a body-level portal mount, e.g. the composer popout)
+          // can change what the scan measures.
+          const target = mutation.target
+          if (target === document.body) relevant = true
+          else if (target?.nodeType === 1 && target.closest?.('[data-chat-surface]')) relevant = true
         }
         // settleSwitch ran the pass synchronously for this frame; everything
-        // else (streaming tokens, menus) still gets the throttled one.
-        if (!settled) scheduleScanWork()
+        // else inside the transcript still gets the throttled one.
+        if (!settled && relevant) scheduleScanWork()
       })
       const observeTarget = document.body || document.documentElement
       if (observeTarget) {
@@ -6165,10 +6386,209 @@ export default {
           childList: true,
           subtree: true,
           attributes: true,
-          attributeFilter: ['data-active', 'aria-selected', 'data-state', 'class', 'data-message-streaming', 'data-session-switching']
+          attributeFilter: ['data-message-streaming', 'data-session-switching']
         })
       }
     }
+
+    // ── Exit ghosts ─────────────────────────────────────────────────────────
+    // Measured on the Hermes desktop build: React commits the unmount of a
+    // closing floating surface ~45-60ms after its data-state flips to closed,
+    // so the 140ms exit keyframes are cut mid-fade. A Presence-managed close
+    // holds the node >=140ms before removal and has already animated fully,
+    // so only the fast removals (or those removed while still open) get a
+    // ghost: a deep clone fixed at the last rect, running the same exit
+    // keyframes, inert. The clone continues from the phase the real exit had
+    // reached via a matching negative animation-delay. Hidden windows may
+    // never deliver animationend, so a timeout fallback removes the ghost.
+    const GHOST_SLOTS = "[data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content'], [data-slot='context-menu-content'], [data-slot='context-menu-sub-content'], [data-slot='popover-content'], [data-slot='select-content'], [data-slot='menubar-content'], [data-slot='dialog-content'], [data-slot='alert-dialog-content'], [data-slot='sheet-content'], [data-slot='tooltip-content'], [data-slot='hover-card-content'], [data-slot$='-overlay']"
+    const ghostInfo = new WeakMap()
+    const liveGhosts = []
+    // Open surfaces are tracked every frame: the app can commit the close and
+    // the unmount in one batch, so by the time the observer runs the node is
+    // already detached and unmeasurable — the last frame's rect is the only
+    // truthful geometry a ghost can be pinned to. Surfaces are few and
+    // short-lived, so one getBoundingClientRect per frame is cheap.
+    const trackedSurfaces = new Set()
+    let surfaceTracker = 0
+    let ghostObserver = null
+
+    const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
+
+    const boxOf = el => {
+      try {
+        const box = el.getBoundingClientRect?.()
+        if (box && box.width > 0.5 && box.height > 0.5) return { left: box.left, top: box.top, width: box.width, height: box.height }
+      } catch {}
+      return null
+    }
+
+    const rememberGhostSource = el => {
+      if (!el || el.nodeType !== 1) return
+      const prev = ghostInfo.get(el)
+      const rect = boxOf(el) || prev?.rect || null
+      const closedAt = el.getAttribute?.('data-state') === 'closed' ? (prev?.closedAt ?? nowMs()) : null
+      try { ghostInfo.set(el, { rect, closedAt }) } catch {}
+    }
+
+    const trackSurfaces = () => {
+      if (surfaceTracker || typeof requestAnimationFrame !== 'function') return
+      const step = () => {
+        surfaceTracker = 0
+        if (!trackedSurfaces.size) return
+        for (const el of trackedSurfaces) {
+          // Disconnected entries are dropped here (the removal branch below
+          // consumes them; a removal we never saw still stops the loop).
+          if (!el.isConnected) { trackedSurfaces.delete(el); continue }
+          const rect = boxOf(el)
+          if (rect) {
+            const prev = ghostInfo.get(el)
+            try { ghostInfo.set(el, { rect, closedAt: prev?.closedAt ?? null }) } catch {}
+          }
+        }
+        if (!trackedSurfaces.size) return
+        surfaceTracker = requestAnimationFrame(step)
+      }
+      surfaceTracker = requestAnimationFrame(step)
+    }
+
+    const dropGhost = ghost => {
+      if (!ghost) return
+      const at = liveGhosts.indexOf(ghost)
+      if (at !== -1) liveGhosts.splice(at, 1)
+      try { ghost.removeEventListener?.('animationend', ghost.__zfOnEnd) } catch {}
+      if (ghost.__zfTimeout != null) clearTimeout(ghost.__zfTimeout)
+      try { ghost.remove?.() } catch {}
+      try { ghost.parentNode?.removeChild?.(ghost) } catch {}
+    }
+
+    const spawnGhost = (el, info, sinceClose) => {
+      let ghost = null
+      try { ghost = el.cloneNode(true) } catch {}
+      if (!ghost || ghost.nodeType !== 1) return
+      ghost.classList?.add('zf-ghost')
+      try { ghost.removeAttribute('id') } catch {}
+      try { ghost.removeAttribute('tabindex') } catch {}
+      try { ghost.querySelectorAll?.('[id], [tabindex]').forEach(node => { node.removeAttribute('id'); node.removeAttribute('tabindex') }) } catch {}
+      try { ghost.setAttribute('aria-hidden', 'true') } catch {}
+      // Normalise to the closed state: a surface removed while it was still
+      // open would otherwise replay the ENTRANCE keyframes (the open rules
+      // match the clone), and the whole clone is inert for keyboard too.
+      try { ghost.setAttribute('data-state', 'closed') } catch {}
+      try { ghost.setAttribute('inert', '') } catch {}
+      const rect = info?.rect
+      if (rect && rect.width > 0.5 && rect.height > 0.5) {
+        ghost.style.left = Math.round(rect.left) + 'px'
+        ghost.style.top = Math.round(rect.top) + 'px'
+        ghost.style.width = Math.round(rect.width) + 'px'
+        ghost.style.height = Math.round(rect.height) + 'px'
+      } else {
+        ghost.style.inset = '0'
+      }
+      if (sinceClose > 0) ghost.style.animationDelay = '-' + Math.round(sinceClose) + 'ms'
+      const body = document.body
+      if (!body || typeof body.appendChild !== 'function') return
+      body.appendChild(ghost)
+      liveGhosts.push(ghost)
+      while (liveGhosts.length > 6) dropGhost(liveGhosts[0])
+      let ms = 0.14
+      try {
+        const raw = getComputedStyle(ghost).animationDuration || '0.14s'
+        const value = parseFloat(raw) || 0.14
+        ms = /ms/.test(raw) ? value / 1000 : value
+      } catch {}
+      const durMs = Math.max(120, ms * 1000 + 80)
+      ghost.__zfOnEnd = event => {
+        // A descendant's own animation ending bubbles up; only the ghost's
+        // exit (fired on the ghost itself) may drop it.
+        if (event && event.target !== ghost) return
+        if (ghost.__zfTimeout != null) { clearTimeout(ghost.__zfTimeout); ghost.__zfTimeout = null }
+        dropGhost(ghost)
+      }
+      ghost.__zfDrop = () => {
+        if (ghost.__zfTimeout != null) { clearTimeout(ghost.__zfTimeout); ghost.__zfTimeout = null }
+        dropGhost(ghost)
+      }
+      ghost.addEventListener?.('animationend', ghost.__zfOnEnd, { once: true })
+      ghost.__zfTimeout = setTimeout(ghost.__zfDrop, durMs)
+    }
+
+    if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined' && document.body) {
+      ghostObserver = new MutationObserver(records => {
+        let removedAny = false
+        for (const record of records) {
+          if (record?.type === 'attributes') {
+            const target = record.target
+            if (!target?.matches?.(GHOST_SLOTS)) continue
+            if (target.getAttribute?.('data-state') === 'closed') rememberGhostSource(target)
+            else {
+              const info = ghostInfo.get(target)
+              if (info) info.closedAt = null
+            }
+            continue
+          }
+          if (record?.type !== 'childList') continue
+          const target = record.target
+          // Floating surfaces are portaled to <body> or into a portal wrapper
+          // (`data-slot$="-portal"`, e.g. a popover opened inside a dialog), so
+          // a subtree added anywhere else — a virtualized history row scrolling
+          // into view, say — is never scanned for them. The node itself is
+          // still checked: a surface added in place matches directly.
+          const portalMount = target === document.body ||
+            (target?.nodeType === 1 && Boolean(target.closest?.('[data-slot$="-portal"]')))
+          for (const node of record.addedNodes || []) {
+            if (node?.nodeType !== 1) continue
+            // Our own ghosts are clones of surfaces; never track them.
+            if (node.classList?.contains?.('zf-ghost')) continue
+            const hits = []
+            if (node.matches?.(GHOST_SLOTS)) hits.push(node)
+            else if (portalMount) {
+              // Only a subtree that could contain a floating surface is worth
+              // the look, and only its hits are measured (getBoundingClientRect).
+              try { node.querySelectorAll?.(GHOST_SLOTS).forEach(el => hits.push(el)) } catch {}
+            }
+            for (const el of hits) {
+              rememberGhostSource(el)
+              trackedSurfaces.add(el)
+            }
+            if (hits.length) trackSurfaces()
+          }
+          if (record.removedNodes?.length) removedAny = true
+        }
+        // Removals are matched against the surfaces we tracked rather than
+        // against every removed subtree. Added records come before removal
+        // records in a batch, so a same-batch mount-and-unmount is already
+        // tracked and its last measured rect is on hand.
+        if (!removedAny || !trackedSurfaces.size) return
+        const now = nowMs()
+        for (const el of [...trackedSurfaces]) {
+          if (el.isConnected) continue
+          trackedSurfaces.delete(el)
+          const info = ghostInfo.get(el)
+          const sinceClose = info?.closedAt != null ? now - info.closedAt : null
+          if (sinceClose === null || sinceClose < 110) spawnGhost(el, info, sinceClose)
+          ghostInfo.delete(el)
+        }
+      })
+      ghostObserver?.observe?.(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state'] })
+      // A surface that was already open when the plugin loaded (a hot reload,
+      // or the plugin enabled while a menu is up) never fires an add record;
+      // pick it up so its close still gets a ghost.
+      try {
+        document.querySelectorAll(GHOST_SLOTS).forEach(el => {
+          rememberGhostSource(el)
+          trackedSurfaces.add(el)
+        })
+        if (trackedSurfaces.size) trackSurfaces()
+      } catch {}
+    }
+    ctx.onDispose?.(() => {
+      ghostObserver?.disconnect?.()
+      if (surfaceTracker) cancelAnimationFrame?.(surfaceTracker)
+      surfaceTracker = 0
+      trackedSurfaces.clear()
+      for (const ghost of liveGhosts.slice()) ghost.__zfDrop?.()
+    })
 
     if (typeof window !== 'undefined') {
       window.addEventListener?.('popstate', onNavChange)
@@ -6177,6 +6597,23 @@ export default {
     if (typeof document !== 'undefined') {
       document.addEventListener?.('click', onDocClick, true)
     }
+
+    // Any input means the user is engaged with the transcript now: drop every
+    // curtain immediately rather than hold it for quiet that may never come.
+    const onSettleInput = () => finishAllSettles()
+    if (typeof document !== 'undefined') {
+      for (const type of SETTLE_INPUT) {
+        document.addEventListener?.(type, onSettleInput, { capture: true, passive: true })
+      }
+    }
+    ctx.onDispose?.(() => {
+      if (typeof document !== 'undefined') {
+        for (const type of SETTLE_INPUT) {
+          document.removeEventListener?.(type, onSettleInput, { capture: true, passive: true })
+        }
+      }
+      finishAllSettles()
+    })
 
     // The sky needs a position, not just a phase: a straight descent from 05:00
     // (above the fold) to 21:00 (below it), written as the CSS var the orb
@@ -6190,7 +6627,10 @@ export default {
 
     const writeSun = date => {
       if (typeof document === 'undefined') return
-      document.documentElement.style.setProperty('--zephyr-sun', String(sunTopAt(date)))
+      const style = document.documentElement.style
+      const value = String(sunTopAt(date))
+      if (typeof style.getPropertyValue === 'function' && style.getPropertyValue('--zephyr-sun') === value) return
+      style.setProperty('--zephyr-sun', value)
     }
 
     // ── GL sky lifecycle ──────────────────────────────────────────────────
@@ -6341,7 +6781,7 @@ export default {
       if (all && all.length) roots.add(all[all.length - 1])
       roots.forEach(r => processAssistantMessage(r, true))
     }, 1000)
-    const flareTimer = setInterval(() => { if (typeof document !== 'undefined' && !document.hidden) fitStatusStack() }, 1000)
+    const flareTimer = setInterval(() => { if (typeof document !== 'undefined' && !document.hidden && scrollSettled()) fitStatusStack() }, 1000)
     apply(new Date())
     syncSolar(ctx)
       .then(() => {

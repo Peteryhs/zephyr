@@ -271,6 +271,15 @@ test('the session switch fades the transcript while core flags the surface', () 
   assert.match(switchingRule.body, /transition:\s*none/, `switching should not animate the held fade; got:\n${switchingRule.body}`)
 })
 
+test('the settle curtain hides the transcript without animating', () => {
+  const settlingRule = flat.find(rule => /\[data-chat-surface\]\[data-zephyr-settling\]/.test(rule.selector))
+  assert.ok(settlingRule, 'the sheet should carry a [data-chat-surface][data-zephyr-settling] rule')
+  assert.match(settlingRule.selector, /\[data-slot=['"]aui_thread-viewport['"]\]/, `the settle curtain should target the thread viewport; got:\n${settlingRule.selector}`)
+  assert.match(settlingRule.selector, /\[data-slot=['"]thread['"]\]/, `the settle curtain should target the thread; got:\n${settlingRule.selector}`)
+  assert.match(settlingRule.body, /opacity:\s*0(?:[;}\s]|$)/, `settling should hide the transcript; got:\n${settlingRule.body}`)
+  assert.match(settlingRule.body, /transition:\s*none/, `settling should not animate the held hide; got:\n${settlingRule.body}`)
+})
+
 test('menus, selects and dialogs animate through direction-aware keyframes', () => {
   assert.ok(flat.some(rule => /\[data-state=['"]open['"]\]/.test(rule.selector)), "[data-state='open'] rules should exist")
   assert.ok(flat.some(rule => /\[data-state=['"]closed['"]\]/.test(rule.selector)), "[data-state='closed'] rules should exist")
@@ -320,6 +329,26 @@ test('every animated floating surface has a real exit', () => {
   }
 })
 
+test('exit ghosts replay the exits from a fixed, inert clone', () => {
+  const base = flat.find(rule => rule.selector.trim() === '.zf-ghost')
+  assert.ok(base, 'the sheet should define a .zf-ghost base rule')
+  assert.match(base.body, /position:\s*fixed/, `.zf-ghost should be position: fixed; got:\n${base.body}`)
+  assert.match(base.body, /pointer-events:\s*none/, `.zf-ghost should be pointer-events: none; got:\n${base.body}`)
+  const groups = [
+    ['zf-pop-out', ['dropdown-menu-content', 'dropdown-menu-sub-content', 'context-menu-content', 'context-menu-sub-content', 'popover-content', 'select-content', 'menubar-content']],
+    ['zf-dlg-out', ['dialog-content', 'alert-dialog-content', 'sheet-content']],
+    ['zf-tip-out', ['tooltip-content', 'hover-card-content']]
+  ]
+  for (const [keyframes, slots] of groups) {
+    const rule = flat.find(candidate => slots.every(slot => candidate.selector.includes(`.zf-ghost[data-slot='${slot}']`)))
+    assert.ok(rule, `the ghost group for ${slots.join(', ')} should exist; got:\n${flat.filter(candidate => candidate.selector.includes('.zf-ghost')).map(candidate => candidate.selector).join('\n')}`)
+    assert.match(rule.body, new RegExp(`animation:\\s*${escapeRegExp(keyframes)}\\s+var\\(--zf-t-1\\)\\s+var\\(--zf-ease\\)\\s+both`), `the ghost group for ${slots.join(', ')} should replay @keyframes ${keyframes} over var(--zf-t-1); got:\n${rule.body}`)
+  }
+  const overlay = flat.find(rule => /\.zf-ghost\[data-slot\$\s*=\s*['"]-overlay['"]\]/.test(rule.selector))
+  assert.ok(overlay, "the ghost rule for .zf-ghost[data-slot$='-overlay'] should exist")
+  assert.match(overlay.body, /animation:\s*zf-ovl-out\s+var\(--zf-t-1\)\s+var\(--zf-ease\)\s+both/, `the overlay ghost should replay @keyframes zf-ovl-out over var(--zf-t-1); got:\n${overlay.body}`)
+})
+
 test('history/composer/tools markers are comments over real transitions', () => {
   for (const marker of ['motion:history', 'motion:composer', 'motion:tools']) {
     const line = new RegExp('//[^\\n]*\\[' + escapeRegExp(marker) + '\\]')
@@ -330,7 +359,7 @@ test('history/composer/tools markers are comments over real transitions', () => 
   const end = pluginSource.indexOf('].join', start)
   assert.ok(start >= 0 && end > start, 'plugin.js should define the MOTION_CSS array')
   const motionSource = pluginSource.slice(start, end)
-  const markers = ['motion:menus', 'motion:switch', 'motion:history', 'motion:composer', 'motion:tools']
+  const markers = ['motion:menus', 'motion:switch', 'motion:ghosts', 'motion:history', 'motion:composer', 'motion:tools']
   const placed = markers.map(marker => ({ marker, at: motionSource.indexOf(`[${marker}]`) }))
   for (const entry of placed) assert.ok(entry.at >= 0, `MOTION_CSS should carry the [${entry.marker}] marker`)
   placed.sort((a, b) => a.at - b.at)

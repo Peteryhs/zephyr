@@ -5894,7 +5894,10 @@ export default {
     }
 
     const readBadgeSecs = root => {
-      const durEl = root.querySelector?.("[data-slot='aui_turn-duration']")
+      // The last badge in the container is the settled turn's: earlier
+      // messages of a multi-message turn can carry their own step badges.
+      const durEls = root.querySelectorAll?.("[data-slot='aui_turn-duration']") || []
+      const durEl = durEls.length ? durEls[durEls.length - 1] : null
       if (!durEl) return null
       const durRaw = (durEl.getAttribute?.('title') || durEl.textContent || '').trim()
       // Hermes prints anything past a minute as m:ss ("1:20"), not "1m 20s"
@@ -5971,8 +5974,10 @@ export default {
       root.querySelector?.("[aria-label='Running'], [data-slot='glyph-spinner']")
     )
 
-    const setToggleExpanded = (toggle, contentEl, expanded) => {
-      contentEl.setAttribute('data-zephyr-work-collapsed', expanded ? 'false' : 'true')
+    const setToggleExpanded = (toggle, contentEls, expanded) => {
+      for (const contentEl of contentEls) {
+        if (contentEl) contentEl.setAttribute('data-zephyr-work-collapsed', expanded ? 'false' : 'true')
+      }
       toggle.setAttribute('data-expanded', expanded ? 'true' : 'false')
       toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false')
     }
@@ -5983,18 +5988,22 @@ export default {
        precedes the last work block is interim and folds with the tools; the
        prose that follows all the work is the reply and stays. */
     const WORK_MARKERS = "[data-conversation-scaffold], [data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]"
-    const markInterimProse = contentEl => {
-      const work = contentEl.querySelectorAll?.(WORK_MARKERS) || []
-      const lastWork = work.length ? work[work.length - 1] : null
+    // The turn's last work block anchors the interim marking across every
+    // root of the group: prose before it is chatter, prose after it is the
+    // reply. One root's markers are compared against the whole turn, so a
+    // later message's tool call also folds an earlier message's chatter.
+    const markInterimProse = (parts, lastWork) => {
       const following = typeof Node !== 'undefined' ? Node.DOCUMENT_POSITION_FOLLOWING : 4
       const contained = typeof Node !== 'undefined' ? Node.DOCUMENT_POSITION_CONTAINED_BY : 16
-      for (const md of contentEl.querySelectorAll?.('.aui-md') || []) {
-        // strictly before the last work block: follows it in document order,
-        // without containing it (a wrapper holding the work is not before it)
-        const interim = Boolean(lastWork) &&
-          (md.compareDocumentPosition(lastWork) & (following | contained)) === following
-        if (interim) md.setAttribute('data-zephyr-work-interim', 'true')
-        else if (md.hasAttribute?.('data-zephyr-work-interim')) md.removeAttribute('data-zephyr-work-interim')
+      for (const { content } of parts) {
+        for (const md of content.querySelectorAll?.('.aui-md') || []) {
+          // strictly before the last work block: follows it in document order,
+          // without containing it (a wrapper holding the work is not before it)
+          const interim = Boolean(lastWork) &&
+            (md.compareDocumentPosition(lastWork) & (following | contained)) === following
+          if (interim) md.setAttribute('data-zephyr-work-interim', 'true')
+          else if (md.hasAttribute?.('data-zephyr-work-interim')) md.removeAttribute('data-zephyr-work-interim')
+        }
       }
     }
 
@@ -6033,25 +6042,60 @@ export default {
       }
     }
 
-    const processAssistantMessage = (root, isEnabled) => {
-      if (!root || !root.querySelector) return
-      const contentEl = root.querySelector("[data-slot='aui_assistant-message-content']")
-      if (!contentEl) return
+    const contentOf = root => root?.querySelector?.("[data-slot='aui_assistant-message-content']") || null
+    const groupContainerOf = root =>
+      root?.closest?.("[data-slot='aui_response-group']") ||
+      root?.closest?.("[data-slot='aui_turn-pair']") ||
+      root ||
+      null
+    const partsOf = container => {
+      if (!container?.querySelectorAll) return []
+      const roots = container.getAttribute?.('data-slot') === 'aui_assistant-message-root'
+        ? [container]
+        : Array.from(container.querySelectorAll("[data-slot='aui_assistant-message-root']"))
+      return roots.map(root => ({ root, content: contentOf(root) })).filter(part => part.content)
+    }
+
+    /* One turn can arrive as several assistant messages (one per model step),
+       each with its own content root. The fold is a turn-level idea, so a
+       single summary lives in the last part that carries work (or is live)
+       and controls every root of the response group; otherwise a turn whose
+       thinking and tools land in different messages shows two stacked tiles. */
+    const processTurn = (container, isEnabled) => {
+      const parts = partsOf(container)
+      if (!parts.length) return
 
       if (!isEnabled) {
-        if (contentEl.hasAttribute?.('data-zephyr-work-collapsed')) contentEl.removeAttribute('data-zephyr-work-collapsed')
-        contentEl.querySelector?.('.zephyr-work-summary')?.remove()
-        contentEl.querySelectorAll?.('[data-zephyr-work-interim]').forEach(el => el.removeAttribute?.('data-zephyr-work-interim'))
+        for (const { content } of parts) {
+          if (content.hasAttribute?.('data-zephyr-work-collapsed')) content.removeAttribute('data-zephyr-work-collapsed')
+          content.querySelector?.('.zephyr-work-summary')?.remove()
+          content.querySelectorAll?.('[data-zephyr-work-interim]').forEach(el => el.removeAttribute?.('data-zephyr-work-interim'))
+        }
         return
       }
 
-      const live = isStreamingRoot(root)
-      const scaffolds = Array.from(contentEl.querySelectorAll?.('[data-conversation-scaffold]') || [])
+      const info = parts.map(part => ({
+        ...part,
+        live: isStreamingRoot(part.root),
+        scaffolds: Array.from(part.content.querySelectorAll?.('[data-conversation-scaffold]') || []),
+        toggle: part.content.querySelector?.('.zephyr-work-summary') || null
+      }))
+      const scaffolds = info.flatMap(part => part.scaffolds)
+      // The owner is the last part with something to fold: work, a live
+      // stream, or the tile the turn already wears.
+      let owner = null
+      for (const part of info) if (part.live || part.scaffolds.length || part.toggle) owner = part
       // A finished reply with no work to fold needs no tile; a live one gets
       // it from the first moment, so the work never flashes open and shut.
-      if (!live && scaffolds.length === 0 && !contentEl.querySelector?.('.zephyr-work-summary')) return
+      if (!owner) return
 
-      let toggle = contentEl.querySelector?.('.zephyr-work-summary')
+      // Both live and finished turns keep the fold honest across the whole
+      // response: prose that precedes the turn's newest tool call is interim
+      // the moment that call appears, even when it sat in an earlier message.
+      const work = container.querySelectorAll?.(WORK_MARKERS) || []
+      markInterimProse(parts, work.length ? work[work.length - 1] : null)
+
+      let toggle = owner.toggle
       if (!toggle) {
         toggle = document.createElement('button')
         toggle.type = 'button'
@@ -6060,9 +6104,10 @@ export default {
         toggle.addEventListener('click', e => {
           e.preventDefault()
           e.stopPropagation()
-          const settle = pinWhileFolding(root)
-          const collapsed = contentEl.getAttribute('data-zephyr-work-collapsed') === 'true'
-          setToggleExpanded(toggle, contentEl, collapsed)
+          const settle = pinWhileFolding(owner.root)
+          const contents = partsOf(container).map(part => part.content)
+          const collapsed = owner.content.getAttribute('data-zephyr-work-collapsed') === 'true'
+          setToggleExpanded(toggle, contents, collapsed)
           if (collapsed) {
             // Opening: the space arrives immediately, so pin now.
             settle()
@@ -6072,51 +6117,59 @@ export default {
           // the pin has to wait for that moment or the transcript lurches.
           // The fade runs on --zf-t-1; read it so Motion off settles at once,
           // and keep a timeout fallback in case transitionend is swallowed.
-          const ms = parseFloat(getComputedStyle?.(contentEl)?.getPropertyValue('--zf-t-1')) || 90
+          const ms = parseFloat(getComputedStyle?.(owner.content)?.getPropertyValue('--zf-t-1')) || 90
           let done = false
           const finish = () => {
             if (done) return
             done = true
-            contentEl.removeEventListener?.('transitionend', onEnd)
+            owner.content.removeEventListener?.('transitionend', onEnd)
             clearTimeout(fallback)
             settle()
           }
           const onEnd = event => { if (event.propertyName === 'display') finish() }
-          contentEl.addEventListener?.('transitionend', onEnd)
+          owner.content.addEventListener?.('transitionend', onEnd)
           const fallback = setTimeout(finish, ms + 80)
         })
-        contentEl.insertBefore(toggle, contentEl.firstChild)
-        setToggleExpanded(toggle, contentEl, false)
-      } else if (contentEl.firstChild !== toggle) {
-        contentEl.insertBefore(toggle, contentEl.firstChild)
+        owner.content.insertBefore(toggle, owner.content.firstChild)
+        setToggleExpanded(toggle, [owner.content], false)
+      } else if (owner.content.firstChild !== toggle) {
+        owner.content.insertBefore(toggle, owner.content.firstChild)
       }
 
-      // Both live and finished turns keep the fold honest: prose that already
-      // precedes the newest tool call is interim the moment that call appears.
-      markInterimProse(contentEl)
+      // One tile per turn: every other part drops its own and mirrors the
+      // owner's state, so a click folds or reveals the whole response.
+      const ownerCollapsed = owner.content.getAttribute('data-zephyr-work-collapsed') === 'true'
+      for (const part of info) {
+        if (part === owner) continue
+        part.toggle?.remove()
+        if (part.scaffolds.length) part.content.setAttribute('data-zephyr-work-collapsed', ownerCollapsed ? 'true' : 'false')
+        else if (part.content.hasAttribute?.('data-zephyr-work-collapsed')) part.content.removeAttribute('data-zephyr-work-collapsed')
+      }
 
-      if (live) {
+      const livePart = info.find(part => part.live) || null
+      if (livePart) {
         toggle.setAttribute('data-live', 'true')
         const { verbs, icons, detail } = classifyWork(scaffolds)
-        const secs = (Date.now() - startOf(root)) / 1000
+        const secs = (Date.now() - startOf(livePart.root)) / 1000
         paintToggle(toggle, icons, `${joinVerbs(verbs)} for ${formatDuration(secs)}`, detail)
         return
       }
 
       // Just finished: if Hermes stamped no badge, keep the time we counted.
-      const counted = toggle.getAttribute('data-live') === 'true' && root.dataset.zfStart
-        ? (Date.now() - Number(root.dataset.zfStart)) / 1000 : null
+      const started = info.map(part => part.root.dataset.zfStart).find(Boolean)
+      const counted = toggle.getAttribute('data-live') === 'true' && started
+        ? (Date.now() - Number(started)) / 1000 : null
       toggle.removeAttribute('data-live')
 
       // Finished turns don't change: once summarised with the same scaffold
       // count, skip the text heuristics entirely.
-      const badge = readBadgeSecs(root)
+      const badge = readBadgeSecs(container)
       const scaffoldKey = `${scaffolds.length}|${badge}`
       if (toggle.dataset.scaffolds === scaffoldKey && toggle.dataset.signature && counted === null) return
       toggle.dataset.scaffolds = scaffoldKey
 
       const { verbs, icons, detail } = classifyWork(scaffolds)
-      const key = turnKey(contentEl)
+      const key = turnKey(owner.content)
       let secs = badge
       if (secs === null && counted !== null && counted >= 1) secs = Math.round(counted)
       if (secs !== null) {
@@ -6162,9 +6215,13 @@ export default {
     const scanWorkProgress = () => {
       if (typeof document === 'undefined') return
       const isEnabled = collapseWork.get()
+      const seen = new Set()
       const messages = document.querySelectorAll?.("[data-slot='aui_assistant-message-root']") || []
       for (const root of messages) {
-        processAssistantMessage(root, isEnabled)
+        const group = groupContainerOf(root)
+        if (!group || seen.has(group)) continue
+        seen.add(group)
+        processTurn(group, isEnabled)
       }
     }
 
@@ -6806,13 +6863,13 @@ export default {
     // running (and the newest reply, which may have just started) are touched.
     const liveTimer = setInterval(() => {
       if (typeof document === 'undefined' || document.hidden || !collapseWork.get() || !scrollSettled()) return
-      const roots = new Set()
+      const groups = new Set()
       document.querySelectorAll?.(".zephyr-work-summary[data-live]").forEach(el => {
-        const r = el.closest?.("[data-slot='aui_assistant-message-root']"); if (r) roots.add(r)
+        const g = groupContainerOf(el.closest?.("[data-slot='aui_assistant-message-root']")); if (g) groups.add(g)
       })
       const all = document.querySelectorAll?.("[data-slot='aui_assistant-message-root']")
-      if (all && all.length) roots.add(all[all.length - 1])
-      roots.forEach(r => processAssistantMessage(r, true))
+      if (all && all.length) { const g = groupContainerOf(all[all.length - 1]); if (g) groups.add(g) }
+      groups.forEach(g => processTurn(g, true))
     }, 1000)
     const flareTimer = setInterval(() => { if (typeof document !== 'undefined' && !document.hidden && scrollSettled()) fitStatusStack() }, 1000)
     apply(new Date())

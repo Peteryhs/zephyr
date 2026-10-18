@@ -830,9 +830,11 @@ const skyStyleFor = (date, gl = false) => {
     '  opacity: 1 !important;',
     '  animation: none !important;',
     '}',
-    // Blue dot: ONLY when actually running (working / stalled turn)
-    ":is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) [class*='place-items-center'] span[role='status']:is([class*='ui-accent'], [aria-label*='session running' i]),",
-    ":is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) :is(div, li):has(> .arc-row) [class*='place-items-center'] span[class*='rounded-full'] {",
+    // Blue dot: ONLY when actually running (working / stalled turn). Every
+    // working/stalled dot already carries `ui-accent` and role=status, so the
+    // old `:has(> .arc-row)` fallback was redundant — and it made Blink
+    // re-evaluate :has() for every virtualized row mount while scrolling.
+    ":is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) [class*='place-items-center'] span[role='status']:is([class*='ui-accent'], [aria-label*='session running' i]) {",
     '  background: #3b82f6 !important;',
     '  background-color: #3b82f6 !important;',
     '  border-color: #3b82f6 !important;',
@@ -845,8 +847,7 @@ const skyStyleFor = (date, gl = false) => {
     // The pulse ring rides a pseudo-element: transform and opacity only, so it
     // animates on the compositor instead of repainting the dot's box-shadow on
     // the main thread while the history list scrolls.
-    ":is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) [class*='place-items-center'] span[role='status']:is([class*='ui-accent'], [aria-label*='session running' i])::after,",
-    ":is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) :is(div, li):has(> .arc-row) [class*='place-items-center'] span[class*='rounded-full']::after {",
+    ":is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) [class*='place-items-center'] span[role='status']:is([class*='ui-accent'], [aria-label*='session running' i])::after {",
     "  content: ''; position: absolute; inset: 0; border-radius: 9999px; pointer-events: none;",
     '  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.6) !important;',
     '  animation: zephyr-running-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;',
@@ -860,8 +861,11 @@ const skyStyleFor = (date, gl = false) => {
     '  50% { transform: scale(1.5); opacity: 0; }',
     '}',
     '@media (prefers-reduced-motion: reduce) {',
-    "  :is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) span[role='status'],",
-    "  :is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) span[role='status']::after {",
+    // Mirrors the running-dot selectors' specificity (plus html) so the
+    // override actually wins; the shorter selector it replaced lost to the
+    // dot rules and the pulse kept animating under reduced motion.
+    "  html :is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) [class*='place-items-center'] span[role='status'],",
+    "  html :is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) [class*='place-items-center'] span[role='status']::after {",
     '    animation: none !important;',
     '  }',
     '}',
@@ -1879,6 +1883,14 @@ const MOTION_CSS = [
   // entry animation would replay on every scroll re-render.
   ":is([data-tour='sessions-sidebar'], [data-slot='sidebar-content'], [data-sessions-mode]) :is([data-slot='sidebar-menu-button'], [data-slot='sidebar-menu-action'], [data-slot='sidebar-menu-sub-button'], button, a, [role='button']) {",
   '  transition: background-color var(--zf-t-2) var(--zf-ease), color var(--zf-t-2) var(--zf-ease);',
+  '}',
+  // While a scroll is in flight, rows slide under a stationary pointer and
+  // every newly hovered row would restart a main-thread colour transition
+  // mid-gesture. The attribute is set by the capture-phase scroll listener and
+  // clears 150ms after the last event, so hover still animates at rest. The
+  // rule's own specificity beats the transition declarations above it.
+  "html[data-zf-scrolling] :is([data-tour='sessions-sidebar'], [data-slot='sidebar-content'], [data-sessions-mode]) :is([data-slot='sidebar-menu-button'], [data-slot='sidebar-menu-action'], [data-slot='sidebar-menu-sub-button'], button, a, [role='button'], [data-row-actions] button svg) {",
+  '  transition: none;',
   '}',
   // Press: a slightly stronger accent wash while the pointer is down. The
   // html prefix buys one specificity step over §5's hover/active fills, which
@@ -5770,12 +5782,29 @@ export default {
     }
     if (typeof document !== 'undefined') document.addEventListener('keydown', onDockKey)
     // Maintenance passes that measure layout (the dock, the snippet library,
-    // the status stack's fillets) pause while a scroll is in flight: a forced
-    // layout landing mid-gesture is exactly the hitch they would cause, and the
-    // next tick after the gesture recomputes everything anyway.
+    // the status stack's fillets, the live work tiles) pause while the user
+    // scrolls: a forced layout landing mid-gesture is exactly the hitch they
+    // would cause, and the next tick after the gesture recomputes everything
+    // anyway. The transcript is excluded: it writes scrollTop every frame while
+    // a reply streams, and treating that as a gesture would freeze the timers
+    // for the whole turn. The same flag also switches hover transitions off
+    // mid-gesture (see [motion:history]).
     let lastScrollAt = 0
+    let scrollIdleTimer = 0
+    const onAnyScroll = event => {
+      const target = event?.target
+      if (target?.nodeType === 1 && target.closest?.('[data-chat-surface]')) return
+      lastScrollAt = Date.now()
+      const root = document.documentElement
+      if (root && !root.hasAttribute('data-zf-scrolling')) root.setAttribute('data-zf-scrolling', '')
+      if (scrollIdleTimer) clearTimeout(scrollIdleTimer)
+      scrollIdleTimer = setTimeout(() => {
+        scrollIdleTimer = 0
+        document.documentElement?.removeAttribute?.('data-zf-scrolling')
+      }, 150)
+    }
     if (typeof document !== 'undefined') {
-      document.addEventListener?.('scroll', () => { lastScrollAt = Date.now() }, { capture: true, passive: true })
+      document.addEventListener?.('scroll', onAnyScroll, { capture: true, passive: true })
     }
     const scrollSettled = () => Date.now() - lastScrollAt >= 150
     const dockTimer = setInterval(() => {
@@ -6235,6 +6264,7 @@ export default {
     }
 
     const finishAllSettles = () => {
+      if (!settleRunners.size) return
       for (const surface of [...settleRunners.keys()]) finishSettle(surface)
     }
 
@@ -6540,6 +6570,9 @@ export default {
             if (node?.nodeType !== 1) continue
             // Our own ghosts are clones of surfaces; never track them.
             if (node.classList?.contains?.('zf-ghost')) continue
+            // Every ghost slot is a data-slot; this skips the 13-selector
+            // match for the plain wrapper divs a virtual row commit adds.
+            if (!node.hasAttribute?.('data-slot')) continue
             const hits = []
             if (node.matches?.(GHOST_SLOTS)) hits.push(node)
             else if (portalMount) {
@@ -6772,7 +6805,7 @@ export default {
     // Live work tiles count up once a second. Only the turns that are still
     // running (and the newest reply, which may have just started) are touched.
     const liveTimer = setInterval(() => {
-      if (typeof document === 'undefined' || document.hidden || !collapseWork.get()) return
+      if (typeof document === 'undefined' || document.hidden || !collapseWork.get() || !scrollSettled()) return
       const roots = new Set()
       document.querySelectorAll?.(".zephyr-work-summary[data-live]").forEach(el => {
         const r = el.closest?.("[data-slot='aui_assistant-message-root']"); if (r) roots.add(r)
@@ -7151,6 +7184,10 @@ export default {
         document.querySelectorAll?.('[data-zephyr-work-collapsed]').forEach(el => el.removeAttribute?.('data-zephyr-work-collapsed'))
         document.querySelectorAll?.('[data-zephyr-work-interim]').forEach(el => el.removeAttribute?.('data-zephyr-work-interim'))
         document.removeEventListener?.('click', onDocClick, true)
+        document.removeEventListener?.('scroll', onAnyScroll, { capture: true })
+        if (scrollIdleTimer) clearTimeout(scrollIdleTimer)
+        scrollIdleTimer = 0
+        document.documentElement?.removeAttribute?.('data-zf-scrolling')
       }
       if (typeof window !== 'undefined') {
         window.removeEventListener?.('popstate', onNavChange)

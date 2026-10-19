@@ -253,6 +253,37 @@ test('the work fold is a pure opacity dissolve with token durations', () => {
   assert.match(starting.body, /opacity:\s*0/, '@starting-style should pin the reveal from-state (opacity: 0)')
 })
 
+test('the work summary is hosted by the first part, above the whole turn', () => {
+  // A turn is several aui_assistant-message-root parts (one per model step).
+  // A single summary tile must be hosted by the FIRST part, inserted at the
+  // top of its content: hosting it in the owner (the last work part) renders
+  // it mid-turn, with every earlier part's steps above it.
+  assert.match(pluginSource, /const host = info\.find\(/, 'the fold should pick a host part for the tile')
+  assert.match(pluginSource, /host\.content\.insertBefore\(toggle, host\.content\.firstChild\)/, 'the tile should be inserted at the top of the host content')
+  assert.ok(!/owner\.content\.insertBefore/.test(pluginSource), 'the tile must not be hosted by the owner (the last work part): that puts it mid-turn')
+})
+
+test('a background delivery starts a new response chain, so a late update cannot fold the earlier reply', () => {
+  // A finished process (aui_background-result, a scaffold row) is folded into
+  // the same response group and the model's answer to it becomes a later
+  // assistant root. Interim marking must anchor within each chain: a
+  // group-wide anchor marks the earlier reply as chatter, and the collapsed
+  // fold hides the actual response behind the update.
+  assert.match(pluginSource, /const chainsOf = \(container, parts\)/, 'the fold should split the group into response chains')
+  assert.match(pluginSource, /\[data-slot='aui_background-result'\]/, 'chains should split at background deliveries')
+  assert.match(pluginSource, /for \(const chain of chainsOf\(container, parts\)\)/, 'interim marking should run per response chain')
+  assert.ok(!/container\.querySelectorAll\?\.\(WORK_MARKERS\)/.test(pluginSource), 'the interim anchor must not span the whole group: a late delivery would fold the reply above it')
+})
+
+test('an idle status row is not work and cannot fold the reply above it', () => {
+  // A settled turn keeps its status row mounted as the tail of its content
+  // (empty, sr-only, data-state='idle') so its live region survives a flip.
+  // Anchoring on it would mark the reply above as chatter, and the collapsed
+  // fold would hide the reply until the row unmounts on the next turn.
+  assert.match(pluginSource, /const lastWorkBlockOf = chain =>/, 'the interim anchor should come from lastWorkBlockOf')
+  assert.match(pluginSource, /'aui_turn-activity' && el\.getAttribute\?\.\('data-state'\) === 'idle'/, 'an idle status row should be skipped when picking the anchor')
+})
+
 test('the old chat slide is gone from the sheet and the source', () => {
   assert.ok(!flat.some(rule => rule.selector === '.zephyr-chat-slide'), '.zephyr-chat-slide should no longer exist (the session-switch fade replaces it)')
   assert.ok(!/zephyr-chat-slide|zephyr-chat-enter/.test(pluginSource), 'no chat-slide leftovers anywhere in plugin.js')

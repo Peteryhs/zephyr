@@ -5988,23 +5988,64 @@ export default {
        precedes the last work block is interim and folds with the tools; the
        prose that follows all the work is the reply and stays. */
     const WORK_MARKERS = "[data-conversation-scaffold], [data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]"
-    // The turn's last work block anchors the interim marking across every
-    // root of the group: prose before it is chatter, prose after it is the
-    // reply. One root's markers are compared against the whole turn, so a
+    // Node is absent from the CSS test rigs, so fall back to the spec's values.
+    const DOC_FOLLOWING = typeof Node !== 'undefined' ? Node.DOCUMENT_POSITION_FOLLOWING : 4
+    const DOC_CONTAINED = typeof Node !== 'undefined' ? Node.DOCUMENT_POSITION_CONTAINED_BY : 16
+    // The chain's last work block anchors the interim marking across every
+    // root of that chain: prose before it is chatter, prose after it is the
+    // reply. One root's markers are compared against the whole chain, so a
     // later message's tool call also folds an earlier message's chatter.
     const markInterimProse = (parts, lastWork) => {
-      const following = typeof Node !== 'undefined' ? Node.DOCUMENT_POSITION_FOLLOWING : 4
-      const contained = typeof Node !== 'undefined' ? Node.DOCUMENT_POSITION_CONTAINED_BY : 16
       for (const { content } of parts) {
         for (const md of content.querySelectorAll?.('.aui-md') || []) {
           // strictly before the last work block: follows it in document order,
           // without containing it (a wrapper holding the work is not before it)
           const interim = Boolean(lastWork) &&
-            (md.compareDocumentPosition(lastWork) & (following | contained)) === following
+            (md.compareDocumentPosition(lastWork) & (DOC_FOLLOWING | DOC_CONTAINED)) === DOC_FOLLOWING
           if (interim) md.setAttribute('data-zephyr-work-interim', 'true')
           else if (md.hasAttribute?.('data-zephyr-work-interim')) md.removeAttribute('data-zephyr-work-interim')
         }
       }
+    }
+
+    /* One response group can carry more than one response chain. A background
+       delivery — a finished process, an async result — is folded into the
+       same group, and the model's answer to it becomes a new assistant root,
+       so the group reads [answer 1][delivery][answer 2]. The interim anchor
+       must not reach across a delivery: once a chain has answered, a later
+       chain's work would otherwise mark that answer as chatter, and folding
+       the turn would hide the actual response in favour of the update. */
+    const chainsOf = (container, parts) => {
+      const deliveries = Array.from(container.querySelectorAll?.("[data-slot='aui_background-result']") || [])
+      if (deliveries.length === 0 || parts.length < 2) return [parts]
+      const between = (a, b, el) =>
+        Boolean((a.compareDocumentPosition(el) & DOC_FOLLOWING) && (el.compareDocumentPosition(b) & DOC_FOLLOWING))
+      const chains = []
+      let chain = []
+      for (let i = 0; i < parts.length; i += 1) {
+        if (i > 0 && deliveries.some(el => between(parts[i - 1].root, parts[i].root, el))) {
+          chains.push(chain)
+          chain = []
+        }
+        chain.push(parts[i])
+      }
+      chains.push(chain)
+      return chains
+    }
+
+    /* The chain's last real work block anchors the interim marking. A settled
+       turn keeps its own status row mounted as the tail of the content (empty,
+       sr-only, data-state='idle') so the live region survives a flip — it is
+       not work, and letting it anchor would mark the reply above it as
+       chatter and fold the reply away the moment the turn settles. */
+    const lastWorkBlockOf = chain => {
+      const work = chain.flatMap(part => Array.from(part.content.querySelectorAll?.(WORK_MARKERS) || []))
+      for (let i = work.length - 1; i >= 0; i -= 1) {
+        const el = work[i]
+        const idleStatus = el.getAttribute?.('data-slot') === 'aui_turn-activity' && el.getAttribute?.('data-state') === 'idle'
+        if (!idleStatus) return el
+      }
+      return null
     }
 
     /* The nearest ancestor that actually scrolls; null means the page does. */
@@ -6057,10 +6098,13 @@ export default {
     }
 
     /* One turn can arrive as several assistant messages (one per model step),
-       each with its own content root. The fold is a turn-level idea, so a
-       single summary lives in the last part that carries work (or is live)
-       and controls every root of the response group; otherwise a turn whose
-       thinking and tools land in different messages shows two stacked tiles. */
+       each with its own content root. The fold is a turn-level idea: one
+       summary serves the whole turn, and it is hosted by the FIRST part, so
+       it sits at the top of the work tree — above every step — instead of in
+       the middle of it. Parts only ever arrive below the first one, so the
+       top stays the top for the whole stream; the last part that carries work
+       (or is live) is the owner, which supplies the turn's settled prose and
+       the scroll pin's anchor, not the tile's home. */
     const processTurn = (container, isEnabled) => {
       const parts = partsOf(container)
       if (!parts.length) return
@@ -6082,20 +6126,33 @@ export default {
       }))
       const scaffolds = info.flatMap(part => part.scaffolds)
       // The owner is the last part with something to fold: work, a live
-      // stream, or the tile the turn already wears.
+      // stream, or the tile the turn already wears. It supplies the turn's
+      // answer (whose prose keys the duration memory) and the scroll anchor.
       let owner = null
       for (const part of info) if (part.live || part.scaffolds.length || part.toggle) owner = part
       // A finished reply with no work to fold needs no tile; a live one gets
       // it from the first moment, so the work never flashes open and shut.
       if (!owner) return
+      // A tool-continuation part that only waits on an approval rests at
+      // display:none until a result is opened; the tile is hosted by the
+      // first part the app actually shows, or it would vanish with the work.
+      const hiddenPart = part => Boolean(part.root.hasAttribute?.('data-approval-activity-only') && !part.root.querySelector?.('[data-tool-open]'))
+      const host = info.find(part => !hiddenPart(part)) || info[0]
 
       // Both live and finished turns keep the fold honest across the whole
-      // response: prose that precedes the turn's newest tool call is interim
+      // response: prose that precedes the chain's newest tool call is interim
       // the moment that call appears, even when it sat in an earlier message.
-      const work = container.querySelectorAll?.(WORK_MARKERS) || []
-      markInterimProse(parts, work.length ? work[work.length - 1] : null)
+      // Each response chain is marked on its own, and the idle status row a
+      // settled turn keeps mounted is not work: a late update's tools cannot
+      // fold the answer that preceded them.
+      for (const chain of chainsOf(container, parts)) {
+        markInterimProse(chain, lastWorkBlockOf(chain))
+      }
 
-      let toggle = owner.toggle
+      // One tile per turn, hosted by the first part. A tile a later part
+      // still wears (an older render, a part that used to host it) is moved
+      // up rather than duplicated.
+      let toggle = info.map(part => part.toggle).find(Boolean) || null
       if (!toggle) {
         toggle = document.createElement('button')
         toggle.type = 'button'
@@ -6104,11 +6161,14 @@ export default {
         toggle.addEventListener('click', e => {
           e.preventDefault()
           e.stopPropagation()
-          const settle = pinWhileFolding(owner.root)
-          const contents = partsOf(container).map(part => part.content)
-          const collapsed = owner.content.getAttribute('data-zephyr-work-collapsed') === 'true'
-          setToggleExpanded(toggle, contents, collapsed)
-          if (collapsed) {
+          // Both the anchor and the current state are read live: a streaming
+          // turn moves its owner, so a part captured at creation would go
+          // stale under the tile.
+          const clickParts = partsOf(container)
+          const settle = pinWhileFolding((clickParts[clickParts.length - 1] || owner).root)
+          const expandedNow = toggle.getAttribute('data-expanded') === 'true'
+          setToggleExpanded(toggle, clickParts.map(part => part.content), !expandedNow)
+          if (!expandedNow) {
             // Opening: the space arrives immediately, so pin now.
             settle()
             return
@@ -6117,32 +6177,35 @@ export default {
           // the pin has to wait for that moment or the transcript lurches.
           // The fade runs on --zf-t-1; read it so Motion off settles at once,
           // and keep a timeout fallback in case transitionend is swallowed.
-          const ms = parseFloat(getComputedStyle?.(owner.content)?.getPropertyValue('--zf-t-1')) || 90
+          const fadeRoot = toggle.parentElement || owner.content
+          const ms = parseFloat(getComputedStyle?.(fadeRoot)?.getPropertyValue('--zf-t-1')) || 90
           let done = false
           const finish = () => {
             if (done) return
             done = true
-            owner.content.removeEventListener?.('transitionend', onEnd)
+            fadeRoot.removeEventListener?.('transitionend', onEnd)
             clearTimeout(fallback)
             settle()
           }
           const onEnd = event => { if (event.propertyName === 'display') finish() }
-          owner.content.addEventListener?.('transitionend', onEnd)
+          fadeRoot.addEventListener?.('transitionend', onEnd)
           const fallback = setTimeout(finish, ms + 80)
         })
-        owner.content.insertBefore(toggle, owner.content.firstChild)
-        setToggleExpanded(toggle, [owner.content], false)
-      } else if (owner.content.firstChild !== toggle) {
-        owner.content.insertBefore(toggle, owner.content.firstChild)
+        host.content.insertBefore(toggle, host.content.firstChild)
+        setToggleExpanded(toggle, parts.map(part => part.content), false)
+      } else if (toggle.parentElement !== host.content || host.content.firstChild !== toggle) {
+        host.content.insertBefore(toggle, host.content.firstChild)
       }
 
-      // One tile per turn: every other part drops its own and mirrors the
-      // owner's state, so a click folds or reveals the whole response.
-      const ownerCollapsed = owner.content.getAttribute('data-zephyr-work-collapsed') === 'true'
+      // Every other tile is retired, and each part mirrors the surviving
+      // tile's state, so one click folds or reveals the whole response. The
+      // state lives on the tile: a part that joins later (a new step, a
+      // swapped-in root) reads it from there instead of arriving open.
+      const expanded = toggle.getAttribute('data-expanded') === 'true'
+      for (const stray of container.querySelectorAll?.('.zephyr-work-summary') || []) if (stray !== toggle) stray.remove?.()
       for (const part of info) {
-        if (part === owner) continue
-        part.toggle?.remove()
-        if (part.scaffolds.length) part.content.setAttribute('data-zephyr-work-collapsed', ownerCollapsed ? 'true' : 'false')
+        const foldable = part.scaffolds.length || Boolean(part.content.querySelector?.(WORK_MARKERS))
+        if (foldable) part.content.setAttribute('data-zephyr-work-collapsed', expanded ? 'false' : 'true')
         else if (part.content.hasAttribute?.('data-zephyr-work-collapsed')) part.content.removeAttribute('data-zephyr-work-collapsed')
       }
 

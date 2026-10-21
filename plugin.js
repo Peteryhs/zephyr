@@ -4592,7 +4592,7 @@ export default {
     const sky = atom(stored(STORE_KEYS.sky) !== false)
     // 'sunset' = the painted sky (the default); 'gruvbox' = the built-in
     // Backwater skin at its shipped defaults; 'custom' = the same skin driven by
-    // your own picture and knobs. Built-in and custom differ
+    // your own picture and knobs (zephyr-theme.json). Built-in and custom differ
     // only in which values the sheet reads.
     const LOOKS = ['sunset', 'gruvbox', 'custom']
     const lookStore = stored(STORE_KEYS.look)
@@ -7703,6 +7703,7 @@ export default {
       skin.set(next)
       setSkin(next)
       ctx.storage.set(STORE_KEYS.skin, next)
+      if (!fromFile) writeConfig(next)
       if (patch.image !== undefined) {
         ctx.storage.set(STORE_KEYS.skinImage, next.image)
         ensurePictureStyle(next.image)
@@ -7715,15 +7716,72 @@ export default {
       ctx.storage.set(STORE_KEYS.skin, { ...SKIN_DEFAULTS })
       ctx.storage.set(STORE_KEYS.skinImage, SKIN_DEFAULTS.image)
       ensurePictureStyle(SKIN_DEFAULTS.image)
+      writeConfig(SKIN_DEFAULTS)
       apply(nowAt())
     }
-    // ── files: the painting ─────────────────────────────────────────────
-    // The picture ships next to the plugin. Find it at startup instead of
-    // hardcoding a path, whether the repo was cloned or the files copied.
+    // ── files: the painting, and ~/.hermes/zephyr-theme.json ─────────────
+    // The theme file IS the Custom look. Every key is optional; anything left
+    // out keeps its default. Edit it in any editor and the app follows within
+    // a couple of seconds; moving a knob in Settings writes it back.
     const desk = typeof window !== 'undefined' ? window.hermesDesktop : null
+    let configPath = null
+    let homeDir = ''
+    let lastConfigText = null
+    const pathToUrl = v => {
+      const t = String(v || '').trim()
+      if (!t || /^(file|https?|data|blob):/i.test(t)) return t
+      const abs = t.startsWith('~/') ? homeDir + t.slice(1) : t
+      return abs.startsWith('/') ? 'file://' + encodeURI(abs) : t
+    }
+    const urlToPath = v => {
+      const t = String(v || '')
+      if (t.startsWith('data:')) return 'uploaded'
+      if (!t.startsWith('file://')) return t
+      const abs = decodeURI(t.slice(7))
+      return homeDir && abs.startsWith(homeDir + '/') ? '~' + abs.slice(homeDir.length) : abs
+    }
+    const CONFIG_HELP = 'Zephyr Custom look. Edit and save; Hermes follows. image: a path (~/Pictures/x.jpg), a URL, or "uploaded" to keep the picture from Settings. Colours are hex; opacities and filters are numbers. Delete a key to get its default.'
+    const configText = sk => {
+      const out = { _help: CONFIG_HELP }
+      for (const key of Object.keys(SKIN_DEFAULTS)) out[key] = key === 'image' ? urlToPath(sk.image) : sk[key]
+      return JSON.stringify(out, null, 2) + '\n'
+    }
+    const writeConfig = sk => {
+      if (!configPath || !desk?.writeTextFile) return
+      const text = configText(sk)
+      if (text === lastConfigText) return
+      lastConfigText = text
+      desk.writeTextFile(configPath, text).catch?.(() => {})
+    }
+    const readConfig = async (switchTo = true) => {
+      if (!configPath || !desk?.readFileText) return
+      let res = null
+      try { res = await desk.readFileText(configPath) } catch { return }
+      const text = res && res.ok !== false && typeof res.text === 'string' ? res.text : null
+      if (text === null || text === lastConfigText) return
+      lastConfigText = text
+      let data
+      try { data = JSON.parse(text) } catch (error) { console.warn('[zephyr] zephyr-theme.json is not valid JSON:', String(error)); return }
+      if (!data || typeof data !== 'object') return
+      const patch = {}
+      for (const key of Object.keys(SKIN_DEFAULTS)) if (data[key] !== undefined && data[key] !== null && data[key] !== '') patch[key] = data[key]
+      if (patch.image === 'uploaded') delete patch.image
+      else if (patch.image) patch.image = pathToUrl(patch.image)
+      const next = { ...SKIN_DEFAULTS, ...(patch.image ? {} : { image: skin.get().image }), ...patch }
+      if (!switchTo && look.get() !== 'custom') {
+        // startup: seed Custom quietly, without changing what is on screen
+        ctx.storage.set(STORE_KEYS.skin, next)
+        return
+      }
+      fromFile = true
+      try { pushSkin(next) } finally { fromFile = false }
+    }
+    let fromFile = false
     const resolvePluginFiles = async () => {
       if (!desk?.desktopPluginsRoot || !desk?.readDir) return
       const root = await desk.desktopPluginsRoot()
+      homeDir = root.replace(/\/\.hermes\/desktop-plugins\/?$/, '')
+      configPath = root.replace(/\/desktop-plugins\/?$/, '') + '/zephyr-theme.json'
       const names = async dir => {
         try { return ((await desk.readDir(dir)) || {}).entries || [] } catch { return [] }
       }
@@ -7752,8 +7810,20 @@ export default {
       } else {
         console.warn('[zephyr] could not find', BACKWATER_FILE, 'under', root)
       }
+      await readConfig(false)
     }
     resolvePluginFiles().catch(error => console.warn('[zephyr] plugin files:', String(error)))
+    const configTimer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      readConfig(true)
+    }, 2000)
+    const openConfig = async () => {
+      if (!configPath) return
+      let exists = false
+      try { const r = await desk.readFileText(configPath); exists = Boolean(r && r.ok !== false) } catch {}
+      if (!exists) { lastConfigText = null; writeConfig(skin.get()); await new Promise(r => setTimeout(r, 200)) }
+      desk.revealPath?.(configPath)
+    }
     const readAsDataUrl = file => new Promise(resolve => {
       const reader = new FileReader()
       reader.onload = () => resolve(String(reader.result || ''))
@@ -7890,6 +7960,14 @@ export default {
             style: { border: '1px solid var(--zf-edge)' },
             onClick: () => resetSkin(),
             children: 'Reset'
+          }),
+          jsx('button', {
+            type: 'button',
+            className: 'rounded-md px-2 py-1 text-[0.75rem]',
+            style: { border: '1px solid var(--zf-edge)' },
+            title: '~/.hermes/zephyr-theme.json: every colour, opacity and filter of the Custom look, as one editable file',
+            onClick: () => { openConfig() },
+            children: 'Theme file'
           })
         ]}),
         ...SKIN_SLIDERS.map(slider),
@@ -8191,6 +8269,7 @@ export default {
     // A plugin is a guest: leave the host as we found it when it unloads.
     ctx.onDispose?.(() => {
       themeObs?.disconnect()
+      clearInterval(configTimer)
       clearInterval(timer)
       clearInterval(weatherTimer)
       clearInterval(flareTimer)

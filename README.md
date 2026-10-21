@@ -126,6 +126,10 @@ The floating sidebar stays solid whatever you set, because it sits over text.
 - **Pinned**: the sidebar is a glass card inset from the window edge.
 - **Floating**: the sidebar is hidden until you touch the left edge of the window. It slides in over the chat and tucks away as soon as you move off it. The command center starts folded.
 
+## Tabs
+
+- Tabs are wide pills. The close button shows on the active tab and on hover.
+
 ## Snippet cards
 
 <p align="center">

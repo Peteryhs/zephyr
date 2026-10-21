@@ -117,6 +117,15 @@ The Custom look lives in one file, `<HERMES_HOME>/zephyr-theme.json`. **Settings
 | `accent` | Buttons and toggles. Never used for text. |
 | `ink`, `ink2` | Text, and quieter text. |
 
+The floating sidebar stays solid whatever you set, because it sits over text.
+
+## Sidebar
+
+**Cmd+S** switches the sidebar between two modes, with a short morph between them. The button at the top left of the sidebar does the same.
+
+- **Pinned**: the sidebar is a glass card inset from the window edge.
+- **Floating**: the sidebar is hidden until you touch the left edge of the window. It slides in over the chat and tucks away as soon as you move off it. The command center starts folded.
+
 ## Snippet cards
 
 <p align="center">

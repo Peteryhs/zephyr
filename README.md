@@ -42,7 +42,7 @@ It's one JavaScript file. There's no build step, and it doesn't modify Hermes it
    ```
    <HERMES_HOME>/desktop-plugins/zephyr/
    ```
-3. Put `plugin.js` in that folder.
+3. Put `plugin.js` in that folder. For the Backwater look, also put `assets/backwater.jpg` there (either next to `plugin.js` or in an `assets/` folder). Cloning the whole repository into that folder works too.
 4. Restart Hermes Agent. Zephyr appears in Settings with its own icon.
 
 To remove Zephyr, delete the `zephyr` folder and restart Hermes.
@@ -65,6 +65,58 @@ Open **Settings > Zephyr**.
 | App animations | Short fades and slides on menus, the history list, the composer and folded steps. Off makes every interaction instant. Follows your system's reduced-motion setting. |
 | Status panel in Simple mode | Moves the status bar into the sessions sidebar. |
 | Snippet library | Shows the Snippets card in the sidebar with everything you've pinned. |
+| Background | **Sky** (the live sky), **Built-in** (The Backwater, a painting behind green glass) or **Custom** (your own picture and colours). |
+
+## Looks
+
+Zephyr has two kinds of look, and you can switch between them either in **Settings > Zephyr > Background** or in **Settings > Appearance > Theme**:
+
+- **Zephyr Dawn, Day, Dusk, Night**: the live sky. Picking one in Appearance shows that sky right away, whatever the time; picking the phase you are in follows the real sun again.
+- **Zephyr Gruvbox**: a painting, The Backwater, behind tinted glass, with gruvbox cream text.
+
+### Your own look: `zephyr-theme.json`
+
+The Custom look lives in one file, `<HERMES_HOME>/zephyr-theme.json`. **Settings > Zephyr > Theme file** creates it and shows it in Finder. Edit it in any editor and Hermes follows within two seconds; moving a control in Settings writes it back. Every key is optional, and a missing key keeps its default.
+
+```json
+{
+  "image": "~/Pictures/my-wallpaper.jpg",
+  "fit": "cover",
+  "posX": 46,
+  "posY": 45,
+  "scrim": 0.31,
+  "blur": 18,
+  "saturate": 1.3,
+  "brightness": 0.9,
+  "chrome": 0.74,
+  "sidebar": 0.74,
+  "card": 0.78,
+  "bubble": 0.78,
+  "ground": "#16261e",
+  "deeper": "#0c1612",
+  "cardTint": "#1d3328",
+  "bubbleTint": "#2b4636",
+  "edge": "#4f7360",
+  "accent": "#fe8019",
+  "ink": "#fbf1c7",
+  "ink2": "#ebdbb2"
+}
+```
+
+| Key | What it controls |
+| --- | --- |
+| `image` | The picture: a path (`~/…` works), a URL, or `"uploaded"` for one picked in Settings. |
+| `fit`, `posX`, `posY` | `cover` or `contain`, and which part of the picture stays in view (percent). |
+| `scrim` | How much the picture is darkened behind everything. |
+| `blur`, `saturate`, `brightness` | The frosted glass behind the chat. |
+| `chrome`, `sidebar`, `card`, `bubble` | How solid the chat pane, the pinned sidebar, cards and your messages are (0 to 1). |
+| `ground`, `deeper` | The glass colours: the chat, and the sidebar and darkest surfaces. |
+| `cardTint`, `bubbleTint` | Cards and the message box; your messages and tabs. |
+| `edge` | Hairlines, borders and the text selection. |
+| `accent` | Buttons and toggles. Never used for text. |
+| `ink`, `ink2` | Text, and quieter text. |
+
+The floating sidebar stays solid whatever you set, because it sits over text.
 
 ## Snippet cards
 
@@ -118,6 +170,8 @@ No code from hark.com is borrowed or used here. Zephyr's sky was reimplemented i
 ## Credits
 
 Weather and sunrise data come from [Open-Meteo](https://open-meteo.com).
+
+The Backwater is a public-domain painting; `assets/backwater.jpg` is the full-resolution scan.
 
 ## License
 

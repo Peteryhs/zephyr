@@ -37,7 +37,7 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 const THEMES_AREA = 'themes'
 const DIRECTIVE_AREA = 'transcript.directives'
 
-const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', hold: 'hold', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage' }
+const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', hold: 'hold', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin' }
 
 // ── Theme palettes ─────────────────────────────────────────────────────────
 // Hermes keeps its amber; the ground shifts with the hour. Four phases, four
@@ -119,7 +119,10 @@ const PHASE_ACCENT = { dawn: '#e8a07a', day: '#9dc4e8', dusk: '#e6863f', night: 
 // is the only way prose stays readable over a picture with real highlights.
 const GRUVBOX_THEME = 'zephyr-gruvbox'
 const GRUVBOX_ACCENT = '#fe8019'
-const BACKWATER_URL = 'file:///Users/alinaqvi/.hermes/desktop-plugins/zephyr/backwater.jpg'
+// Resolved at startup from wherever the plugin is installed (assets/ in a
+// clone, or next to plugin.js); see resolvePluginFiles.
+let BACKWATER_URL = 'data:,'
+const BACKWATER_FILE = 'backwater.jpg'
 
 // The palette, verbatim from gruvbox.vim's `s:gb` dictionary.
 const GB = {
@@ -1272,7 +1275,7 @@ const skyStyleFor = (date, gl = false) => {
 
   return [
     gruv
-      ? `/* Zephyr · gruvbox. The Backwater, ${BACKWATER_URL.split('/').pop()}, full ${4096}×${2428}, cover-fitted. */`
+      ? `/* Zephyr · gruvbox. The Backwater, ${BACKWATER_FILE}, full ${4096}×${2428}, cover-fitted. */`
       : `/* Zephyr sky. Blended for ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}, exposure ${sky.exposure.toFixed(2)}, horizon ${horizonTilt.angle.toFixed(1)}°. */`,
     'html {',
     `  background-color: ${gruv ? '#1d2021' : cssRgb(sky.base)};`,
@@ -4957,7 +4960,7 @@ export default {
     const sky = atom(stored(STORE_KEYS.sky) !== false)
     // The held sunset: the local build's whole point. On by default, so the app
     // opens on the dark ember band instead of whatever the clock currently says.
-    const held = atom(stored(STORE_KEYS.hold) !== false)
+    const held = atom(stored(STORE_KEYS.hold) === true)
     // 'sunset' = the painted sky; 'gruvbox' = The Backwater under gruvbox glass.
     // Default is gruvbox: this build's new skin.
     const LOOKS = ['sunset', 'gruvbox', 'custom']
@@ -7736,8 +7739,23 @@ export default {
       d.setHours(Math.floor(h), Math.round((h % 1) * 60), 0, 0)
       return d
     }
-    const heldMoment = () => (held.get() ? sunsetMoment() : null)
-    const nowAt = () => (held.get() ? sunsetMoment() : new Date())
+    // A picked phase pins the sky to a moment inside it, today: picking Zephyr
+    // Day in Appearance at midnight shows the midday sky. null = the real sun.
+    const storedPin = stored(STORE_KEYS.phasePin)
+    const pin = atom(PHASES.includes(storedPin) ? storedPin : held.get() ? 'dusk' : null)
+    const momentFor = (phase, base = new Date()) => {
+      const { rise, set } = getSolar(base)
+      const h = phase === 'dawn' ? rise - 0.35
+        : phase === 'day' ? (rise + set) / 2
+          : phase === 'dusk' ? set + SUNSET_HOLD_OFFSET
+            : Math.max(set + 3, 22.5)
+      const c = Math.min(23.9, Math.max(0, h))
+      const d = new Date(base)
+      d.setHours(Math.floor(c), Math.round((c % 1) * 60), 0, 0)
+      return d
+    }
+    const heldMoment = () => (pin.get() ? momentFor(pin.get()) : null)
+    const nowAt = () => heldMoment() || new Date()
 
     // ── GL sky lifecycle ──────────────────────────────────────────────────
     let glSky = null
@@ -7832,7 +7850,7 @@ export default {
       }
       // gruvbox is a still painting, so there is no canvas sky and no clock to
       // hold; gl=true would also blank the image layer, so it is forced off.
-      const gl = look.get() === 'gruvbox' ? (dropGl(), null) : glOn.get() ? ensureGl() : (dropGl(), null)
+      const gl = look.get() !== 'sunset' ? (dropGl(), null) : glOn.get() ? ensureGl() : (dropGl(), null)
       if (gl) gl.setHold(heldMoment())
       paintSky(now, Boolean(gl))
     }
@@ -7854,7 +7872,7 @@ export default {
 
       renderSky(now)
 
-      if (look.get() === 'gruvbox') {
+      if (look.get() !== 'sunset') {
         requestTheme(GRUVBOX_THEME)
         if (tint.get()) setAccentOverride(GRUVBOX_ACCENT)
         return
@@ -7999,6 +8017,44 @@ export default {
     setSkin(look.get() === 'custom' ? customSkin : { ...SKIN_DEFAULTS })
     ensurePictureStyle(SKIN.image)
     const skin = atom({ ...(look.get() === 'custom' ? customSkin : SKIN_DEFAULTS) })
+    const switchLook = next => {
+      if (next === look.get()) return
+      look.set(next)
+      persist()
+      setLookMode(next === 'sunset' ? 'sunset' : 'gruvbox')
+      // built-in always paints the shipped defaults; custom paints yours
+      setSkin(next === 'custom' ? { ...skin.get() } : { ...SKIN_DEFAULTS })
+      ensurePictureStyle(SKIN.image)
+      apply(nowAt())
+      if (sky.get()) renderSky(nowAt())
+    }
+    // Appearance › Theme is a second way in: picking Zephyr Gruvbox shows the
+    // painting, picking Zephyr Dawn/Day/Dusk/Night shows that sky. Our own
+    // requestTheme calls land here too and are no-ops by construction.
+    let themeObs = null
+    if (typeof MutationObserver === 'function' && typeof document !== 'undefined') {
+      const onTheme = () => {
+        const name = document.documentElement.dataset.hermesTheme || ''
+        if (name === GRUVBOX_THEME) {
+          if (look.get() === 'sunset') switchLook('gruvbox')
+          return
+        }
+        const phase = PHASES.find(p => name === phaseThemeName(p))
+        if (!phase) return
+        const want = phase === phaseAt(new Date()) ? null : phase
+        const lookChanged = look.get() !== 'sunset'
+        if (want !== pin.get()) {
+          pin.set(want)
+          held.set(want === 'dusk')
+          ctx.storage.set(STORE_KEYS.phasePin, want)
+          persist()
+        }
+        if (lookChanged) switchLook('sunset')
+        else { apply(nowAt()); if (sky.get()) renderSky(nowAt()) }
+      }
+      themeObs = new MutationObserver(onTheme)
+      themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-hermes-theme'] })
+    }
     const pushSkin = patch => {
       const next = { ...skin.get(), ...patch }
       // Touching a knob means "I want my own version": switch onto Custom so the
@@ -8012,6 +8068,7 @@ export default {
       skin.set(next)
       setSkin(next)
       ctx.storage.set(STORE_KEYS.skin, next)
+      if (!fromFile) writeConfig(next)
       if (patch.image !== undefined) {
         ctx.storage.set(STORE_KEYS.skinImage, next.image)
         ensurePictureStyle(next.image)
@@ -8024,7 +8081,113 @@ export default {
       ctx.storage.set(STORE_KEYS.skin, { ...SKIN_DEFAULTS })
       ctx.storage.set(STORE_KEYS.skinImage, SKIN_DEFAULTS.image)
       ensurePictureStyle(SKIN_DEFAULTS.image)
+      writeConfig(SKIN_DEFAULTS)
       apply(nowAt())
+    }
+    // ── files: the painting, and ~/.hermes/zephyr-theme.json ─────────────
+    // The theme file IS the Custom look. Every key is optional; anything left
+    // out keeps its default. Edit it in any editor and the app follows within
+    // a couple of seconds; moving a knob in Settings writes it back.
+    const desk = typeof window !== 'undefined' ? window.hermesDesktop : null
+    let configPath = null
+    let homeDir = ''
+    let lastConfigText = null
+    const pathToUrl = v => {
+      const t = String(v || '').trim()
+      if (!t || /^(file|https?|data|blob):/i.test(t)) return t
+      const abs = t.startsWith('~/') ? homeDir + t.slice(1) : t
+      return abs.startsWith('/') ? 'file://' + encodeURI(abs) : t
+    }
+    const urlToPath = v => {
+      const t = String(v || '')
+      if (t.startsWith('data:')) return 'uploaded'
+      if (!t.startsWith('file://')) return t
+      const abs = decodeURI(t.slice(7))
+      return homeDir && abs.startsWith(homeDir + '/') ? '~' + abs.slice(homeDir.length) : abs
+    }
+    const CONFIG_HELP = 'Zephyr Custom look. Edit and save; Hermes follows. image: a path (~/Pictures/x.jpg), a URL, or "uploaded" to keep the picture from Settings. Colours are hex; opacities and filters are numbers. Delete a key to get its default.'
+    const configText = sk => {
+      const out = { _help: CONFIG_HELP }
+      for (const key of Object.keys(SKIN_DEFAULTS)) out[key] = key === 'image' ? urlToPath(sk.image) : sk[key]
+      return JSON.stringify(out, null, 2) + '\n'
+    }
+    const writeConfig = sk => {
+      if (!configPath || !desk?.writeTextFile) return
+      const text = configText(sk)
+      if (text === lastConfigText) return
+      lastConfigText = text
+      desk.writeTextFile(configPath, text).catch?.(() => {})
+    }
+    const readConfig = async (switchTo = true) => {
+      if (!configPath || !desk?.readFileText) return
+      let res = null
+      try { res = await desk.readFileText(configPath) } catch { return }
+      const text = res && res.ok !== false && typeof res.text === 'string' ? res.text : null
+      if (text === null || text === lastConfigText) return
+      lastConfigText = text
+      let data
+      try { data = JSON.parse(text) } catch (error) { console.warn('[zephyr] zephyr-theme.json is not valid JSON:', String(error)); return }
+      if (!data || typeof data !== 'object') return
+      const patch = {}
+      for (const key of Object.keys(SKIN_DEFAULTS)) if (data[key] !== undefined && data[key] !== null && data[key] !== '') patch[key] = data[key]
+      if (patch.image === 'uploaded') delete patch.image
+      else if (patch.image) patch.image = pathToUrl(patch.image)
+      const next = { ...SKIN_DEFAULTS, ...(patch.image ? {} : { image: skin.get().image }), ...patch }
+      if (!switchTo && look.get() !== 'custom') {
+        // startup: seed Custom quietly, without changing what is on screen
+        ctx.storage.set(STORE_KEYS.skin, next)
+        return
+      }
+      fromFile = true
+      try { pushSkin(next) } finally { fromFile = false }
+    }
+    let fromFile = false
+    const resolvePluginFiles = async () => {
+      if (!desk?.desktopPluginsRoot || !desk?.readDir) return
+      const root = await desk.desktopPluginsRoot()
+      homeDir = root.replace(/\/\.hermes\/desktop-plugins\/?$/, '')
+      configPath = root.replace(/\/desktop-plugins\/?$/, '') + '/zephyr-theme.json'
+      const names = async dir => {
+        try { return ((await desk.readDir(dir)) || {}).entries || [] } catch { return [] }
+      }
+      const tops = await names(root)
+      const dirs = [...tops.filter(e => e.isDirectory && /zephyr/i.test(e.name)), ...tops.filter(e => e.isDirectory && !/zephyr/i.test(e.name))]
+      let found = null
+      for (const dir of dirs) {
+        const here = await names(dir.path)
+        if (!here.some(e => e.name === 'plugin.js')) continue
+        const direct = here.find(e => e.name === BACKWATER_FILE)
+        if (direct) { found = direct.path; break }
+        if (here.some(e => e.name === 'assets' && e.isDirectory)) {
+          const hit = (await names(dir.path + '/assets')).find(e => e.name === BACKWATER_FILE)
+          if (hit) { found = hit.path; break }
+        }
+      }
+      if (found) {
+        const url = 'file://' + encodeURI(found)
+        const was = BACKWATER_URL
+        BACKWATER_URL = url
+        SKIN_DEFAULTS.image = url
+        if (!SKIN.image || SKIN.image === was || SKIN.image === 'data:,') setSkin({ ...SKIN, image: url })
+        if (!skin.get().image || skin.get().image === was || skin.get().image === 'data:,') skin.set({ ...skin.get(), image: url })
+        ensurePictureStyle(SKIN.image)
+        apply(nowAt())
+      } else {
+        console.warn('[zephyr] could not find', BACKWATER_FILE, 'under', root)
+      }
+      await readConfig(false)
+    }
+    resolvePluginFiles().catch(error => console.warn('[zephyr] plugin files:', String(error)))
+    const configTimer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      readConfig(true)
+    }, 2000)
+    const openConfig = async () => {
+      if (!configPath) return
+      let exists = false
+      try { const r = await desk.readFileText(configPath); exists = Boolean(r && r.ok !== false) } catch {}
+      if (!exists) { lastConfigText = null; writeConfig(skin.get()); await new Promise(r => setTimeout(r, 200)) }
+      desk.revealPath?.(configPath)
     }
     const readAsDataUrl = file => new Promise(resolve => {
       const reader = new FileReader()
@@ -8162,6 +8325,7 @@ export default {
           if (col) col.style.viewTransitionName = ''
           if (main) main.style.viewTransitionName = ''
           delete root.dataset.zfMorph
+          window.dispatchEvent(new Event('zf-morph-end'))
         })
       }
       const setArc = value => {
@@ -8289,6 +8453,9 @@ export default {
       document.body.appendChild(landing)
       let landKey = ''
       const syncLanding = () => {
+        // mid-morph the page is a set of transition snapshots, so hit-testing
+        // finds no thread and would frost the landing for a few frames
+        if (root.dataset.zfMorph) return
         // several tabs keep their thread mounted in the same spot; the visible
         // one is whichever the pointer would actually hit
         const vps = Array.from(document.querySelectorAll("[data-slot='aui_thread-viewport']")).filter(el => el.getClientRects().length && el.getBoundingClientRect().width > 200)
@@ -8342,6 +8509,7 @@ export default {
         }
       }
       const baseSync = sync
+      window.addEventListener('zf-morph-end', () => { if (alive()) syncLanding() })
       const fullSync = () => { baseSync(); if (alive()) syncLanding() }
       let queued2 = false
       const schedule2 = () => {
@@ -8665,6 +8833,14 @@ export default {
             style: { border: '1px solid var(--zf-edge)' },
             onClick: () => resetSkin(),
             children: 'Reset'
+          }),
+          jsx('button', {
+            type: 'button',
+            className: 'rounded-md px-2 py-1 text-[0.75rem]',
+            style: { border: '1px solid var(--zf-edge)' },
+            title: '~/.hermes/zephyr-theme.json: every colour, opacity and filter of the Custom look, as one editable file',
+            onClick: () => { openConfig() },
+            children: 'Theme file'
           })
         ]}),
         ...SKIN_SLIDERS.map(slider),
@@ -8744,17 +8920,7 @@ export default {
                 { id: 'gruvbox', label: 'Built-in' },
                 { id: 'custom', label: 'Custom' }
               ],
-              onChange: next => {
-                if (next === look.get()) return
-                look.set(next)
-                persist()
-                setLookMode(next === 'sunset' ? 'sunset' : 'gruvbox')
-                // built-in always paints the shipped defaults; custom paints yours
-                setSkin(next === 'custom' ? { ...skin.get() } : { ...SKIN_DEFAULTS })
-                ensurePictureStyle(SKIN.image)
-                apply(nowAt())
-                if (sky.get()) renderSky(nowAt())
-              }
+              onChange: next => switchLook(next)
             })
           }),
           jsx(ToggleRow, {
@@ -8868,6 +9034,8 @@ export default {
             label: 'Hold the light at sunset',
             onChange: on => {
               held.set(on)
+              pin.set(on ? 'dusk' : null)
+              ctx.storage.set(STORE_KEYS.phasePin, pin.get())
               persist()
               apply(nowAt())
               if (sky.get()) renderSky(nowAt())
@@ -8987,6 +9155,8 @@ export default {
 
     // A plugin is a guest: leave the host as we found it when it unloads.
     ctx.onDispose?.(() => {
+      themeObs?.disconnect()
+      clearInterval(configTimer)
       clearInterval(timer)
       clearInterval(weatherTimer)
       clearInterval(flareTimer)

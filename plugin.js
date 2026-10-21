@@ -135,8 +135,8 @@ const gbA = (rgb, a) => `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a})`
 // These are the same values pushed toward the picture's own browns: equal or
 // lower luminance than bg0, but with hue and chroma, so the panes stay dark
 // while being warm instead of soot. Deliberately outside the palette.
-const WARM = { deep: [26, 20, 17], pane: [34, 26, 22], card: [45, 35, 29], bubble: [62, 46, 37] }
-const WARM_EDGE = '#6a5140'
+const WARM = { deep: [13, 23, 19], pane: [19, 32, 26], card: [27, 43, 35], bubble: [38, 58, 46] }
+const WARM_EDGE = '#466553'
 
 // ── The skin, as data ───────────────────────────────────────────────────────
 // Everything below is what the editor writes: the artwork, how the glass sits on
@@ -147,20 +147,20 @@ const SKIN_DEFAULTS = {
   fit: 'cover',
   posX: 46,
   posY: 45,
-  scrim: 0.44,
-  blur: 28,
-  saturate: 1.15,
-  brightness: 0.86,
+  scrim: 0.24,
+  blur: 18,
+  saturate: 1.25,
+  brightness: 0.95,
   feather: 72,
   chrome: 0.74,
   sidebar: 0.74,
   card: 0.78,
   bubble: 0.78,
-  ground: '#2a1c15',
-  deeper: '#1c120d',
-  cardTint: '#3a261c',
-  bubbleTint: '#4a2f22',
-  edge: '#7d5640',
+  ground: '#16261e',
+  deeper: '#0c1612',
+  cardTint: '#1d3328',
+  bubbleTint: '#2b4636',
+  edge: '#4f7360',
   accent: '#fe8019',
   ink: '#fbf1c7',
   ink2: '#ebdbb2'
@@ -196,6 +196,43 @@ const hexTriple = hex => {
 }
 const picUrl = () => String(SKIN.image || BACKWATER_URL).replace(/"/g, '%22')
 const hexRgb = hex => hexTriple(hex).split(', ').map(Number)
+
+// Every surface Zephyr paints reads these, so a look (or a user skin) is one
+// set of numbers instead of a hunt through the stylesheet.
+const mixHex = (a, b, t) => hexRgb(a).map((v, i) => Math.round(v + (hexRgb(b)[i] - v) * t))
+const materialVars = gruv => {
+  const tri = rgb => rgb.join(', ')
+  if (!gruv) {
+    return [
+      'html:root {',
+      '  --zf-hi: 255, 255, 255;',
+      '  --zf-m-solid: rgb(17, 18, 24);',
+      '  --zf-m-tab: rgba(255, 255, 255, 0.10);',
+      '  --zf-m-pin-a: rgba(16, 17, 24, 0.46); --zf-m-pin-b: rgba(10, 11, 16, 0.56);',
+      '  --zf-m-comp-a: rgba(24, 25, 34, 0.46); --zf-m-comp-b: rgba(14, 15, 22, 0.54);',
+      '  --zf-m-bub-a: rgba(255, 255, 255, 0.10); --zf-m-bub-b: rgba(255, 255, 255, 0.07);',
+      '  --zf-m-sheet: rgba(14, 15, 22, 0.74);',
+      '  --zf-m-on: #11121a;',
+      '  --ui-row-active-background: rgba(255, 255, 255, 0.10) !important;',
+      '}'
+    ]
+  }
+  const deep = SKIN.deeper, ground = SKIN.ground, card = SKIN.cardTint, bub = SKIN.bubbleTint
+  const g = k => skinNumber(SKIN[k], 0.78)
+  return [
+    'html:root {',
+    `  --zf-hi: ${hexTriple(SKIN.ink)};`,
+    `  --zf-m-solid: rgb(${tri(mixHex(deep, ground, 0.6))});`,
+    `  --zf-m-tab: rgba(${hexTriple(bub)}, 0.86);`,
+    `  --zf-m-pin-a: rgba(${hexTriple(ground)}, ${(g('sidebar') * 0.68).toFixed(3)}); --zf-m-pin-b: rgba(${hexTriple(deep)}, ${(g('sidebar') * 0.78).toFixed(3)});`,
+    `  --zf-m-comp-a: rgba(${hexTriple(bub)}, ${(g('chrome') * 0.62).toFixed(3)}); --zf-m-comp-b: rgba(${hexTriple(card)}, ${(g('chrome') * 0.70).toFixed(3)});`,
+    `  --zf-m-bub-a: rgba(${hexTriple(bub)}, ${(g('bubble') * 0.60).toFixed(3)}); --zf-m-bub-b: rgba(${hexTriple(card)}, ${(g('bubble') * 0.68).toFixed(3)});`,
+    `  --zf-m-sheet: rgba(${tri(mixHex(deep, ground, 0.5))}, ${(g('card') * 0.92).toFixed(3)});`,
+    `  --zf-m-on: ${deep};`,
+    `  --ui-row-active-background: rgba(${tri(mixHex(bub, SKIN.ink, 0.18))}, 0.62) !important;`,
+    '}'
+  ]
+}
 
 const gbHex = rgb => `#${rgb.map(v => v.toString(16).padStart(2, '0')).join('')}`
 
@@ -327,12 +364,12 @@ const SESSION_TAB_CSS = [
   "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):is(:hover, [aria-selected='true']) { opacity: 1; }",
   "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):hover {",
   '  color: var(--zf-ink-1, #ebdbb2) !important;',
-  '  background: rgba(235, 219, 178, 0.06) !important;',
+  '  background: rgba(var(--zf-hi), 0.06) !important;',
   '}',
   "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *)[aria-selected='true'] {",
   '  color: var(--zf-ink-0, #fbf1c7) !important;',
-  '  background: rgba(58, 36, 26, 0.86) !important;',
-  '  box-shadow: inset 0 0 0 1px rgba(251, 241, 199, 0.10), 0 4px 14px rgba(0, 0, 0, 0.28) !important;',
+  '  background: var(--zf-m-tab) !important;',
+  '  box-shadow: inset 0 0 0 1px rgba(var(--zf-hi), 0.10), 0 4px 14px rgba(0, 0, 0, 0.28) !important;',
   '}',
   // the + button: a quiet rounded square in line with the pills
   "button[aria-label='New session tab'] {",
@@ -340,13 +377,13 @@ const SESSION_TAB_CSS = [
   '  color: var(--zf-ink-3, #d5c4a1) !important; background: transparent !important; border: 0 !important;',
   '  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;',
   '}',
-  "button[aria-label='New session tab']:hover { background: rgba(251, 241, 199, 0.08) !important; color: var(--zf-ink-0, #fbf1c7) !important; }",
+  "button[aria-label='New session tab']:hover { background: rgba(var(--zf-hi), 0.08) !important; color: var(--zf-ink-0, #fbf1c7) !important; }",
   "button[aria-label='New session tab']:active { transform: scale(0.94); }",
   "button[aria-label='New session tab'] :is(svg, i) { width: 14px !important; height: 14px !important; font-size: 14px !important; }",
   // a tab's close button: hidden until the tab is hovered or active
   "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button { border-radius: 5px !important; opacity: 0; transition: opacity 120ms ease, background-color 120ms ease; }",
   "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):is(:hover, [aria-selected='true']) button { opacity: 0.7; }",
-  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button:hover { opacity: 1; background: rgba(251, 241, 199, 0.10) !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button:hover { opacity: 1; background: rgba(var(--zf-hi), 0.10) !important; }",
   // Wider tabs: the app caps them at 12rem and sizes them to the title. Give
   // every tab a generous fixed span (Chrome-style), shrinking only when crowded.
   "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) { flex: 0 1 220px !important; width: 220px !important; min-width: 120px !important; max-width: 260px !important; height: 28px !important; padding-inline: 10px 6px !important; }",
@@ -565,8 +602,8 @@ const polishCss = () => [
   '  width: 272px !important; height: auto !important; min-width: 0 !important; max-width: none !important;',
   '  flex: none !important; z-index: 60 !important;',
   '  border-radius: 16px !important; overflow: hidden !important;',
-  '  background: rgba(38, 24, 17, 0.97) !important; background-image: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;',
-  '  box-shadow: 0 0 0 1px rgba(251, 241, 199, 0.08), 0 24px 60px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35) !important;',
+  '  background: var(--zf-m-solid) !important; background-image: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;',
+  '  box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 24px 60px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35) !important;',
   '  translate: calc(-100% - 28px) 0; opacity: 0; pointer-events: none;',
   '  transition: translate 150ms cubic-bezier(0.4, 0, 1, 1), opacity 110ms ease;',
   '  will-change: translate, opacity; contain: layout paint;',
@@ -592,7 +629,7 @@ const polishCss = () => [
   // one surface: the session panels inside the column lose their own fill so
   // sessions, snippets and the command center all sit on the same colour
   "html body [data-zf-arc-col] [data-slot='sidebar-content'] > :is([data-slot='sidebar-group'], [data-sessions-mode], div:last-child) { background: transparent !important; box-shadow: none !important; }",
-  "html body [data-zf-arc-col] [data-slot='sidebar-content'] > div:has(input) { background: rgba(235, 219, 178, 0.05) !important; box-shadow: none !important; }",
+  "html body [data-zf-arc-col] [data-slot='sidebar-content'] > div:has(input) { background: rgba(var(--zf-hi), 0.05) !important; box-shadow: none !important; }",
   // Settings nav: the open group is shown by its children, not by a second
   // filled box above the selected child
   "html body button[data-tour][class*='bg-(--ui-bg-tertiary)'][class*='border-(--ui-stroke-tertiary)'] { background: transparent !important; border-color: transparent !important; color: var(--zf-ink-0, #fbf1c7) !important; }",
@@ -607,18 +644,18 @@ const polishCss = () => [
   "html:not([data-zf-arc='1']) [data-zf-arc-col] {",
   '  margin: 10px 0 10px 10px !important; height: calc(100vh - 20px) !important; align-self: flex-start;',
   '  border-radius: 16px !important; overflow: hidden !important;',
-  '  background: rgba(40, 25, 18, 0.80) !important;',
-  '  box-shadow: 0 0 0 1px rgba(235, 219, 178, 0.08), 0 18px 48px rgba(0, 0, 0, 0.35) !important;',
+  '  background: var(--zf-m-pin-b) !important;',
+  '  box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 18px 48px rgba(0, 0, 0, 0.35) !important;',
   '}',
   "html:not([data-zf-arc='1']) [data-zf-arc-col] > div, html:not([data-zf-arc='1']) [data-zf-arc-col] [data-slot='sidebar'] { background: transparent !important; border: 0 !important; }",
   // unread badge and tab dots: no orange
-  "html body div.fixed:has(> button[aria-label*='sidebar' i]) [class*='bg-primary'] { background: var(--zf-ink-1, #e2dacb) !important; color: #1b1512 !important; }",
+  "html body div.fixed:has(> button[aria-label*='sidebar' i]) [class*='bg-primary'] { background: var(--zf-ink-1, #e2dacb) !important; color: var(--zf-m-on) !important; }",
   "[role='tab'][data-tree-tab] [class*='rounded-full'][class*='bg-'] { background: var(--zf-ink-2, #cdc4b4) !important; }",
   // Landing for an empty tab: the app only draws its intro for the very first
   // draft, so a fresh tab was a blank smear. Same wordmark, same mood.
   '#zf-landing { position: fixed; z-index: 1; pointer-events: none; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; opacity: 0; transition: opacity 260ms ease; }',
   "html[data-zf-landing='1'] #zf-landing { display: flex; opacity: 1; }",
-  '#zf-landing .zf-land-mark { font-family: Collapse, ui-serif, serif; font-size: clamp(44px, 7.4vw, 112px); font-weight: 700; letter-spacing: 0.02em; line-height: 1; color: rgba(251, 241, 199, 0.92); mix-blend-mode: plus-lighter; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35); white-space: nowrap; }',
+  '#zf-landing .zf-land-mark { font-family: Collapse, ui-serif, serif; font-size: clamp(44px, 7.4vw, 112px); font-weight: 700; letter-spacing: 0.02em; line-height: 1; color: rgba(var(--zf-hi), 0.92); mix-blend-mode: plus-lighter; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35); white-space: nowrap; }',
   '#zf-landing .zf-land-line { font-size: 15px; color: var(--zf-ink-2, #ebdbb2); text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6); max-width: 34rem; }',
   "@keyframes zf-land-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }",
   "html[data-zf-landing='1'] #zf-landing > * { animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }",
@@ -626,7 +663,7 @@ const polishCss = () => [
   // Settings is a floating sheet: the card's docked rows step back, and the
   // sheet is solid enough that nothing reads through it
   "html:has([class*='grid-cols-[13rem_minmax(0,1fr)]']) :is(#zf-cc-head, #zephyr-snips, footer[data-zf-arc-foot]) { visibility: hidden !important; }",
-  "div.rounded-xl:has(> * [class*='grid-cols-[13rem_minmax(0,1fr)]']), div.rounded-xl:has(> [class*='grid-cols-[13rem_minmax(0,1fr)]']) { background: rgba(36, 22, 15, 0.985) !important; box-shadow: 0 0 0 1px rgba(251, 241, 199, 0.08), 0 30px 80px rgba(0, 0, 0, 0.55) !important; isolation: isolate; }",
+  "div.rounded-xl:has(> * [class*='grid-cols-[13rem_minmax(0,1fr)]']), div.rounded-xl:has(> [class*='grid-cols-[13rem_minmax(0,1fr)]']) { background: var(--zf-m-sheet) !important; box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 30px 80px rgba(0, 0, 0, 0.55) !important; isolation: isolate; }",
   "[class*='grid-cols-[13rem_minmax(0,1fr)]'] > aside { background: rgba(0, 0, 0, 0.16) !important; }",
   // sidebar mode switch, sitting in the command-center row
   "#zf-mode-btn { position: absolute; left: 8px; top: 4px; z-index: 5; display: none; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--zf-ink-2, #ebdbb2); cursor: pointer; -webkit-app-region: no-drag; transition: background-color 120ms ease, color 120ms ease, transform 120ms ease; }",
@@ -638,12 +675,12 @@ const polishCss = () => [
   // the same slide; pinned keeps it in the window corner
   "html[data-zf-arc='1'] #zf-mode-btn { left: 20px; top: 12px; translate: -300px 0; opacity: 0; pointer-events: none; transition: translate 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease, background-color 120ms ease, color 120ms ease; }",
   "html[data-zf-arc='1'][data-zf-arc-open='1'] #zf-mode-btn { translate: 0 0; opacity: 1; pointer-events: auto; transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease, background-color 120ms ease, color 120ms ease; }",
-  "#zf-mode-btn:hover, #zf-mode-btn:focus-visible { background: rgba(251, 241, 199, 0.10); color: var(--zf-ink-0, #fbf1c7); outline: none !important; }",
+  "#zf-mode-btn:hover, #zf-mode-btn:focus-visible { background: rgba(var(--zf-hi), 0.10); color: var(--zf-ink-0, #fbf1c7); outline: none !important; }",
   "#zf-mode-btn:active { transform: scale(0.92); }",
   // focus: a soft cream ring, never the orange accent; the composer gets none
-  "html body :focus-visible { outline: 1.5px solid rgba(251, 241, 199, 0.38) !important; outline-offset: 2px; border-color: rgba(251, 241, 199, 0.28) !important; }",
+  "html body :focus-visible { outline: 1.5px solid rgba(var(--zf-hi), 0.38) !important; outline-offset: 2px; border-color: rgba(var(--zf-hi), 0.28) !important; }",
   "html body :is([data-slot='composer-rich-input'], [data-slot^='composer'] textarea, [data-slot^='composer'] [contenteditable='true'], [data-slot^='composer'] input):is(:focus, :focus-visible) { outline: none !important; box-shadow: none !important; border-color: transparent !important; }",
-  "html body [data-slot='composer-surface']:focus-within { box-shadow: inset 0 0 0 1px rgba(251, 241, 199, 0.16), var(--zf-lift, 0 8px 24px rgba(0,0,0,.3)) !important; }",
+  "html body [data-slot='composer-surface']:focus-within { box-shadow: inset 0 0 0 1px rgba(var(--zf-hi), 0.16), var(--zf-lift, 0 8px 24px rgba(0,0,0,.3)) !important; }",
   "html[data-zf-ghost-menu='1'] :is([data-radix-popper-content-wrapper], [role='menu']) { opacity: 0 !important; pointer-events: none !important; }",
   // mode morph timing
   "::view-transition-group(zf-side), ::view-transition-group(zf-main) { animation-duration: 300ms; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }",
@@ -653,12 +690,12 @@ const polishCss = () => [
   // Glass. Pinned surfaces (sidebar, composer, your messages, cards, sheets)
   // let the frosted painting through; the floating card stays solid because
   // it sits over text.
-  "html body div[data-slot='composer-surface'][data-slot][class] { background: linear-gradient(rgba(84, 54, 36, 0.46), rgba(58, 37, 25, 0.52)) !important; backdrop-filter: blur(18px) saturate(1.25) brightness(1.08) !important; box-shadow: inset 0 1px 0 rgba(251, 241, 199, 0.07), inset 0 0 0 1px rgba(251, 241, 199, 0.06), 0 10px 30px rgba(0, 0, 0, 0.22) !important; }",
-  "html body :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) { background: linear-gradient(rgba(70, 44, 30, 0.46), rgba(50, 31, 21, 0.52)) !important; box-shadow: inset 0 1px 0 rgba(251, 241, 199, 0.07), inset 0 0 0 1px rgba(251, 241, 199, 0.06), 0 6px 20px rgba(0, 0, 0, 0.16) !important; border-color: transparent !important; }",
-  "html:not([data-zf-arc='1']) body [data-zf-arc-col] { background: linear-gradient(rgba(48, 30, 21, 0.50), rgba(32, 20, 14, 0.58)) !important; backdrop-filter: blur(20px) saturate(1.2) !important; box-shadow: inset 0 1px 0 rgba(251, 241, 199, 0.07), inset 0 0 0 1px rgba(251, 241, 199, 0.06), 0 18px 48px rgba(0, 0, 0, 0.30) !important; }",
-  "html[data-zf-arc='1'] body [data-zf-arc-col] { background: rgb(38, 24, 17) !important; }",
+  "html body div[data-slot='composer-surface'][data-slot][class] { background: linear-gradient(var(--zf-m-comp-a), var(--zf-m-comp-b)) !important; backdrop-filter: blur(18px) saturate(1.25) brightness(1.08) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 10px 30px rgba(0, 0, 0, 0.22) !important; }",
+  "html body :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) { background: linear-gradient(var(--zf-m-bub-a), var(--zf-m-bub-b)) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 6px 20px rgba(0, 0, 0, 0.16) !important; border-color: transparent !important; }",
+  "html:not([data-zf-arc='1']) body [data-zf-arc-col] { background: linear-gradient(var(--zf-m-pin-a), var(--zf-m-pin-b)) !important; backdrop-filter: blur(20px) saturate(1.2) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 18px 48px rgba(0, 0, 0, 0.30) !important; }",
+  "html[data-zf-arc='1'] body [data-zf-arc-col] { background: var(--zf-m-solid) !important; }",
   "html[data-zf-arc='1'] body [data-zf-arc-col] :is(footer[data-zf-arc-foot], #zephyr-snips) { background: transparent !important; }",
-  "div.rounded-xl:has(> * [class*='grid-cols-[13rem_minmax(0,1fr)]']), div.rounded-xl:has(> [class*='grid-cols-[13rem_minmax(0,1fr)]']) { background: rgba(34, 21, 15, 0.72) !important; backdrop-filter: blur(28px) saturate(1.1) !important; }",
+  "div.rounded-xl:has(> * [class*='grid-cols-[13rem_minmax(0,1fr)]']), div.rounded-xl:has(> [class*='grid-cols-[13rem_minmax(0,1fr)]']) { background: var(--zf-m-sheet) !important; backdrop-filter: blur(28px) saturate(1.1) !important; }",
   // left-edge hot zone, invisible
   '#zf-rail-hot { position: fixed; left: 0; top: 40px; bottom: 0; width: 8px; z-index: 59; display: none; background: transparent; }',
   "html[data-zf-arc='1']:not([data-zf-arc-open='1']) #zf-rail-hot { display: block; }",
@@ -668,8 +705,8 @@ const polishCss = () => [
   "[data-zf-arc-col] [role='tablist']:has([data-slot='pane-tab']) { border-radius: 10px !important; padding: 3px !important; gap: 3px !important; background: rgba(0, 0, 0, 0.24) !important; overflow: hidden !important; height: 32px !important; box-sizing: border-box !important; }",
   "[data-zf-arc-col] [data-slot='pane-tab'] { flex: 1 1 0 !important; height: 26px !important; justify-content: center !important; border-radius: 7px !important; border: 0 !important; background: transparent !important; box-shadow: none !important; }",
   "[data-zf-arc-col] [data-slot='pane-tab'] .uppercase { text-transform: none !important; letter-spacing: 0 !important; font-size: 12px !important; }",
-  "[data-zf-arc-col] [data-slot='pane-tab']:hover { background: rgba(251, 241, 199, 0.05) !important; }",
-  "[data-zf-arc-col] [data-slot='pane-tab'][aria-selected='true'] { background: rgba(251, 241, 199, 0.10) !important; color: var(--zf-ink-0, #fbf1c7) !important; }",
+  "[data-zf-arc-col] [data-slot='pane-tab']:hover { background: rgba(var(--zf-hi), 0.05) !important; }",
+  "[data-zf-arc-col] [data-slot='pane-tab'][aria-selected='true'] { background: rgba(var(--zf-hi), 0.10) !important; color: var(--zf-ink-0, #fbf1c7) !important; }",
   "[data-zf-arc-col] [data-slot='pane-tab'] :is(span, div) { background: transparent !important; }",
 
   // ── Command center data: the live status bar, docked at the bottom of the
@@ -782,7 +819,7 @@ const polishCss = () => [
   '}',
 ]
 
-const GRUVBOX_TEXT_CSS = [
+const gruvboxTextCss = () => [
   /* one soft-focus layer for the reading column: the picture stays as colour
      and light, not as detail competing with letterforms */
   // One glass band across the WHOLE window: edge to edge, left side of the
@@ -797,10 +834,10 @@ const GRUVBOX_TEXT_CSS = [
   "  content: '';",
   '  position: fixed; left: 0; right: 0; top: 0; bottom: 0; z-index: -1;',
   '  pointer-events: none;',
-  '  background: radial-gradient(120% 90% at 50% 40%, rgba(92, 50, 24, 0.20), rgba(40, 20, 10, 0.34));',
-  `  backdrop-filter: blur(${skinNumber(SKIN.blur, 16)}px) sepia(0.32) saturate(${skinNumber(SKIN.saturate, 1.35)}) brightness(${skinNumber(SKIN.brightness, 0.84)});`,
+  `  background: radial-gradient(120% 90% at 50% 40%, rgba(${hexTriple(SKIN.deeper)}, ${(skinNumber(SKIN.scrim, 0.44) * 0.45).toFixed(3)}), rgba(${hexTriple(SKIN.deeper)}, ${(skinNumber(SKIN.scrim, 0.44) * 0.95).toFixed(3)}));`,
+  `  backdrop-filter: blur(${skinNumber(SKIN.blur, 16)}px) saturate(${skinNumber(SKIN.saturate, 1.35)}) brightness(${skinNumber(SKIN.brightness, 0.84)});`,
   '}',
-  '::selection { background: #7c4f37 !important; color: #fbf1c7 !important; }',
+  `::selection { background: ${SKIN.edge} !important; color: ${SKIN.ink} !important; }`,
 
   // Title
   ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) :is(h1, h2, h3, h4, h5, h6) {",
@@ -815,13 +852,13 @@ const GRUVBOX_TEXT_CSS = [
   // Constant
   ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) :is(code, kbd, samp) {",
   '  color: #d3869b !important;',
-  '  background: rgba(26, 20, 17, 0.78) !important;',
+  `  background: rgba(${hexTriple(SKIN.deeper)}, 0.78) !important;`,
   `  border: 1px solid ${SKIN.edge} !important;`,
   '}',
   // String / Special in blocks: the fence keeps bg0_hard, the border is bg2
   ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) pre {",
-  '  background: rgba(26, 20, 17, 0.90) !important;',
-  '  border: 1px solid #6a5140 !important;',
+  `  background: rgba(${hexTriple(SKIN.deeper)}, 0.90) !important;`,
+  `  border: 1px solid ${SKIN.edge} !important;`,
   '  color: #ebdbb2 !important;',
   '}',
   // PreProc
@@ -831,7 +868,7 @@ const GRUVBOX_TEXT_CSS = [
   '}',
   // LineNr
   ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) hr {",
-  '  border-color: #6a5140 !important;',
+  `  border-color: ${SKIN.edge} !important;`,
   '}',
   // prose shadow: cheap insurance on the last translucent surface in the stack
   ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message'], [data-slot='assistant-message']) :is(p, li, td, th, dd, dt, figcaption) {",
@@ -1290,7 +1327,7 @@ const skyStyleFor = (date, gl = false) => {
     // gruvbox they ARE the palette (bg0 chrome, bg0_hard sidebar, bg1 cards), so
     // the pane is a gruvbox surface with the painting behind it, not soot.
     `  --theme-neutral-chrome: rgba(${gruv ? hexTriple(SKIN.ground) : '13, 13, 14'}, ${density});`,
-    `  --theme-neutral-sidebar: rgba(${gruv ? '26, 20, 17' : '10, 10, 11'}, ${sideDensity});`,
+    `  --theme-neutral-sidebar: rgba(${gruv ? hexTriple(SKIN.deeper) : '10, 10, 11'}, ${sideDensity});`,
     `  --theme-neutral-card: rgba(${gruv ? hexTriple(SKIN.cardTint) : '22, 22, 24'}, ${cardDensity});`,
     `  --ui-text-primary: ${gruv ? SKIN.ink : '#ffffff'};`,
     '  --ui-text-secondary: var(--zf-ink-2);',
@@ -2106,9 +2143,10 @@ const skyStyleFor = (date, gl = false) => {
     // Outside the :root block, on purpose: these are rules, not custom
     // properties, and a stray `{` inside a declaration block makes the parser
     // swallow everything after it.
+    ...materialVars(gruv),
     ...SESSION_TAB_CSS,
     ...PANE_RAIL_CSS,
-    ...(gruv ? GRUVBOX_TEXT_CSS : []),
+    ...(gruv ? gruvboxTextCss() : []),
     ...polishCss(),
     // Sidebar cards, the composer and the switch pill share the material.
     "[data-slot='sidebar-content'] > [data-slot='sidebar-group'],",

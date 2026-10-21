@@ -121,7 +121,7 @@ The floating sidebar stays solid whatever you set, because it sits over text.
 
 ## Sidebar
 
-**Cmd+S** switches the sidebar between two modes. The button at the top left of the sidebar does the same.
+**Cmd+S** switches the sidebar between two modes, with a short morph between them. The button at the top left of the sidebar does the same.
 
 - **Pinned**: the sidebar is a glass card inset from the window edge.
 - **Floating**: the sidebar is hidden until you touch the left edge of the window. It slides in over the chat and tucks away as soon as you move off it. The command center starts folded.

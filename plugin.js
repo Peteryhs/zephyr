@@ -566,6 +566,11 @@ const polishCss = () => [
   "html body :focus-visible { outline: 1.5px solid rgba(var(--zf-hi), 0.38) !important; outline-offset: 2px; border-color: rgba(var(--zf-hi), 0.28) !important; }",
   "html body :is([data-slot='composer-rich-input'], [data-slot^='composer'] textarea, [data-slot^='composer'] [contenteditable='true'], [data-slot^='composer'] input):is(:focus, :focus-visible) { outline: none !important; box-shadow: none !important; border-color: transparent !important; }",
   "html body [data-slot='composer-surface']:focus-within { box-shadow: inset 0 0 0 1px rgba(var(--zf-hi), 0.16), var(--zf-lift, 0 8px 24px rgba(0,0,0,.3)) !important; }",
+  // mode morph timing
+  "::view-transition-group(zf-side), ::view-transition-group(zf-main) { animation-duration: 300ms; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }",
+  "::view-transition-old(zf-main), ::view-transition-new(zf-main) { width: 100%; height: 100%; object-fit: none; object-position: center top; animation-duration: 300ms; }",
+  "::view-transition-old(zf-side), ::view-transition-new(zf-side) { animation-duration: 220ms; }",
+  "::view-transition-old(root), ::view-transition-new(root) { animation: none; }",
   // Glass. Pinned surfaces (sidebar, composer, your messages, cards, sheets)
   // let the frosted painting through; the floating card stays solid because
   // it sits over text.
@@ -8071,9 +8076,8 @@ export default {
       }
       modeBtn.addEventListener('click', e => {
         e.stopPropagation(); e.preventDefault()
-        if (arc) { setArc(false); return }
-        setArc(true)
-        setOpen(true, true)
+        if (arc) { morph(() => setArc(false)); return }
+        morph(() => { setArc(true); setOpen(true, true) })
       })
       modeBtn.addEventListener('keydown', e => e.stopPropagation())
       ccHead.addEventListener('click', flipCC)
@@ -8098,6 +8102,24 @@ export default {
         return node && node.parentElement ? node : null
       }
 
+      // Cmd+S / the mode button morph between pinned and floating: the column
+      // and the main pane are captured and glide to their new boxes
+      const morph = fn => {
+        if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) { fn(); return }
+        const col = column()
+        const split = col && col.parentElement
+        const main = split && Array.from(split.children).filter(c => c !== col && c.getClientRects().length).sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0]
+        if (col) col.style.viewTransitionName = 'zf-side'
+        if (main) main.style.viewTransitionName = 'zf-main'
+        root.dataset.zfMorph = '1'
+        const t = document.startViewTransition(fn)
+        t.finished.finally(() => {
+          if (col) col.style.viewTransitionName = ''
+          if (main) main.style.viewTransitionName = ''
+          delete root.dataset.zfMorph
+          window.dispatchEvent(new Event('zf-morph-end'))
+        })
+      }
       const setArc = value => {
         arc = value
         try { localStorage.setItem(ARC_KEY, value ? '1' : '0') } catch {}
@@ -8229,7 +8251,7 @@ export default {
             setArc(false)
             return
           }
-          setArc(!arc)
+          morph(() => setArc(!arc))
         }
       }, true)
 
@@ -8269,7 +8291,7 @@ export default {
         window.removeEventListener('resize', schedule)
         hot.remove(); ccHead.remove(); modeBtn.remove()
         if (footRO) footRO.disconnect()
-        for (const k of ['zfArc', 'zfArcOpen', 'zfArcReady', 'zfArcSeen']) delete root.dataset[k]
+        for (const k of ['zfArc', 'zfArcOpen', 'zfArcReady', 'zfArcSeen', 'zfMorph']) delete root.dataset[k]
         document.querySelectorAll('[data-zf-arc-col]').forEach(el => { delete el.dataset.zfArcCol })
       })
     } catch (err) {
@@ -8284,6 +8306,9 @@ export default {
       let pageDead = false
       const syncPage = () => {
         if (pageDead) return
+        // mid-morph the page is a set of transition snapshots, so hit-testing
+        // finds no thread and would frost an empty page for a few frames
+        if (root.dataset.zfMorph) return
         // several tabs keep their thread mounted in the same spot; only the one
         // the pointer would actually hit counts (a page like Capabilities sits
         // on top of a still-mounted thread)
@@ -8307,6 +8332,7 @@ export default {
         pageQueued = true
         requestAnimationFrame(() => { pageQueued = false; syncPage() })
       }
+      window.addEventListener('zf-morph-end', schedulePage)
       const pageObs = new MutationObserver(schedulePage)
       pageObs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected', 'data-state', 'hidden'] })
       window.addEventListener('resize', schedulePage)
@@ -8315,6 +8341,7 @@ export default {
         pageDead = true
         pageObs.disconnect()
         window.removeEventListener('resize', schedulePage)
+        window.removeEventListener('zf-morph-end', schedulePage)
         delete root.dataset.zfChat
       })
     } catch (err) {

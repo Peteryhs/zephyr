@@ -119,6 +119,17 @@ The Custom look lives in one file, `<HERMES_HOME>/zephyr-theme.json`. **Settings
 | `accent` | Buttons and toggles. Never used for text. |
 | `ink`, `ink2` | Text, and quieter text. |
 
+## Sidebar
+
+**Ctrl+S** on Windows, **Cmd+S** on macOS, switches the sidebar between two modes, with a short morph between them. The button at the top left of the sidebar does the same.
+
+- **Pinned**: the sidebar sits in the window as it always has.
+- **Floating**: the sidebar stays out of the way until you touch the left edge of the window. It slides in over the chat and tucks away when you move off it, or on Escape.
+
+## Tabs
+
+- **Ctrl/Cmd+Option+Left/Right** walks the session tabs. It is a contributed keybind, so it can be rebound in Settings > Keybinds.
+- A new tab shows the Hermes wordmark instead of an empty page.
 ## Snippet cards
 
 <p align="center">

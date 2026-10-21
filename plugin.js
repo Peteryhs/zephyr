@@ -4040,6 +4040,133 @@ export default {
       }
     }
 
+    // ── Tabs: ⌘⌥←/→, and the labels of a collapsed pane ───────────────────
+    // ⌘⌥←/→ walks the session tabs. Skipped inside text fields,
+    // where the same chord is macOS "jump by paragraph", and it stops the event
+    // in the capture phase so the app's own chord handling can't fight it.
+    if (typeof window !== 'undefined') {
+      // Session tabs, not the pane tabs: the rows in the tree that each hold one
+      // session (workspace + session-tile:<id>), which is what "the session
+      // tabs" means. Pane tabs are [data-slot='pane-tab'] and are excluded.
+      const tabFrom = (node, dir) => {
+        const tabs = Array.from(document.querySelectorAll("[role='tab'][data-tree-tab]"))
+          .filter(tab => tab.dataset.slot !== 'pane-tab')
+          .filter(tab => tab.getClientRects().length > 0)
+        if (tabs.length < 2) return null
+        const current = tabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true')
+        const from = current < 0 ? 0 : current
+        return tabs[(from + dir + tabs.length) % tabs.length]
+      }
+      // A tab may listen on pointer/mouse rather than click; fire the whole
+      // sequence so the switch happens either way.
+      const pressTab = tab => {
+        if (!tab) return
+        const r = tab.getBoundingClientRect()
+        const at = {
+          bubbles: true, cancelable: true, view: window, button: 0,
+          clientX: r.left + r.width / 2, clientY: r.top + r.height / 2
+        }
+        const pointer = { ...at, pointerId: 1, isPrimary: true, pointerType: 'mouse' }
+        tab.dispatchEvent(new PointerEvent('pointerdown', pointer))
+        tab.dispatchEvent(new MouseEvent('mousedown', at))
+        tab.dispatchEvent(new PointerEvent('pointerup', pointer))
+        tab.dispatchEvent(new MouseEvent('mouseup', at))
+        tab.click()
+      }
+      const onTabChord = event => {
+        if (!event.metaKey || !event.altKey || event.ctrlKey || event.shiftKey) return
+        const dir = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+        if (!dir) return
+        const target = event.target
+        if (target instanceof Element) {
+          if (target.isContentEditable || target.closest("input, textarea, [contenteditable='true'], [contenteditable='']")) return
+        }
+        const next = tabFrom(target, dir)
+        if (!next) return
+        event.preventDefault()
+        event.stopPropagation()
+        pressTab(next)
+      }
+      window.addEventListener('keydown', onTabChord, true)
+      ctx.onDispose?.(() => window.removeEventListener('keydown', onTabChord, true))
+    }
+
+    // A collapsed pane collapses to a sliver; the app clips rather than hides its
+    // tab labels, which leaves a word stacked one letter per line. Measure the
+    // tabs, mark the narrow ones, and let this sheet drop the word.
+    if (typeof document !== 'undefined' && typeof ResizeObserver !== 'undefined') {
+      const PANE_RAIL_CSS = [
+        // Collapsed, the pane tabs are a few pixels wide. A wrapped "Sessions", one
+        // letter per line, is what that used to look like. Now the label goes away
+        // entirely and the tab becomes a small bar: dim when it is not the pane you
+        // are in, ink-bright when it is. Nothing to wrap, nothing to clip.
+        "[data-slot='pane-tab'][data-zf-rail='true'] {",
+        '  justify-content: center !important;',
+        '  align-items: center !important;',
+        '  padding: 0 !important;',
+        '  gap: 0 !important;',
+        '  overflow: hidden !important;',
+        '  white-space: nowrap !important;',
+        '  border: 0 !important;',
+        '  box-shadow: none !important;',
+        '  background: transparent !important;',
+        '}',
+        "[data-slot='pane-tab'][data-zf-rail='true'] > * {",
+        '  display: none !important;',
+        '}',
+        "[data-slot='pane-tab'][data-zf-rail='true']::before {",
+        "  content: ''; width: 3px; height: 16px; border-radius: 999px;",
+        '  background: var(--zf-ink-3, rgba(255, 255, 255, 0.32));',
+        '  transition: background-color 120ms ease, height 120ms ease;',
+        '}',
+        "[data-slot='pane-tab'][data-zf-rail='true']:is([aria-selected='true'], [data-active='true'])::before {",
+        '  height: 22px;',
+        '  background: var(--zf-ink-0, #fbf1c7);',
+        '}'
+      ]
+      document.getElementById('zephyr-pane-rail')?.remove()
+      const railStyle = document.createElement('style')
+      railStyle.id = 'zephyr-pane-rail'
+      railStyle.textContent = PANE_RAIL_CSS.join('\n')
+      document.head.appendChild(railStyle)
+      const seenTabs = new WeakSet()
+      const railObs = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const tab = entry.target
+          const rail = entry.contentRect.width < 56 ? 'true' : 'false'
+          if (tab.dataset.zfRail !== rail) {
+            tab.dataset.zfRail = rail
+            // collapsed, the label is gone, so the hover title has to carry it
+            if (rail === 'true') {
+              const label = (tab.textContent || '').trim()
+              if (label && !tab.dataset.zfTitle) {
+                tab.dataset.zfTitle = label
+                tab.setAttribute('title', label)
+              }
+            } else if (tab.dataset.zfTitle) {
+              tab.removeAttribute('title')
+              delete tab.dataset.zfTitle
+            }
+          }
+        }
+      })
+      const scanTabs = () => {
+        for (const tab of document.querySelectorAll("[data-slot='pane-tab']")) {
+          if (seenTabs.has(tab)) continue
+          seenTabs.add(tab)
+          railObs.observe(tab)
+        }
+      }
+      scanTabs()
+      const tabObserver = new MutationObserver(() => scanTabs())
+      tabObserver.observe(document.documentElement, { childList: true, subtree: true })
+      ctx.onDispose?.(() => {
+        tabObserver.disconnect()
+        railObs.disconnect()
+        railStyle.remove()
+      })
+    }
+
     const pins = atom(stored(STORE_KEYS.pins) || [])
     const auto = atom(stored(STORE_KEYS.auto) !== false)
     const tint = atom(stored(STORE_KEYS.tint) === true)

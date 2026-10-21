@@ -130,6 +130,7 @@ The floating sidebar stays solid whatever you set, because it sits over text.
 
 - Tabs are wide pills. The close button shows on the active tab and on hover.
 - A new tab shows the Hermes wordmark instead of an empty page.
+- Clicking a session in the sidebar opens it in the tab you are in.
 
 ## Snippet cards
 

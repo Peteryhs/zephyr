@@ -43,7 +43,7 @@ It's one JavaScript file. There's no build step, and it doesn't modify Hermes it
    ```
    <HERMES_HOME>/desktop-plugins/zephyr/
    ```
-3. Put `plugin.js` in that folder.
+3. Put `plugin.js` in that folder. For the Backwater look, also put `assets/backwater.jpg` there (either next to `plugin.js` or in an `assets/` folder). Cloning the whole repository into that folder works too.
 4. Restart Hermes Agent. Zephyr appears in Settings with its own icon.
 
 To remove Zephyr, delete the `zephyr` folder and restart Hermes.
@@ -66,6 +66,16 @@ Open **Settings > Zephyr**.
 | App animations | Short fades and slides on menus, the history list, the composer and folded steps. Off makes every interaction instant. Follows your system's reduced-motion setting. |
 | Status panel in Simple mode | Moves the status bar into the sessions sidebar. |
 | Snippet library | Shows the Snippets card in the sidebar with everything you've pinned. |
+| Background | **Sky** (the live sky), **Built-in** (The Backwater, a painting behind green glass) or **Custom** (your own picture and colours). |
+
+## Looks
+
+Zephyr has two kinds of look, and you can switch between them either in **Settings > Zephyr > Background** or in **Settings > Appearance > Theme**:
+
+- **Zephyr Sky**: the live sky. It follows the real sun all day, and Hermes's colours move with it through dawn, day, dusk and night while the theme stays selected.
+- **Zephyr Dawn, Day, Dusk, Night**: hold one sky, whatever the time.
+- **Zephyr Gruvbox**: a painting, The Backwater, behind tinted glass, with gruvbox cream text.
+- **Custom** (Settings > Zephyr only): your own picture and glass, from the controls under Picture & glass.
 
 ## Snippet cards
 
@@ -119,6 +129,8 @@ No code from hark.com is borrowed or used here. Zephyr's sky was reimplemented i
 ## Credits
 
 Weather and sunrise data come from [Open-Meteo](https://open-meteo.com).
+
+The Backwater is by Charles William Wyllie (1859–1923), exhibited at the Royal Academy in 1903, and is in the public domain. `assets/backwater.jpg` is a full-resolution scan.
 
 ## License
 

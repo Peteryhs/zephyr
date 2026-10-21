@@ -37,7 +37,7 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 const THEMES_AREA = 'themes'
 const DIRECTIVE_AREA = 'transcript.directives'
 
-const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen' }
+const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', phasePin: 'phasePin' }
 
 // ── Theme palettes ─────────────────────────────────────────────────────────
 // Hermes keeps its amber; the ground shifts with the hour. Four phases, four
@@ -3186,7 +3186,7 @@ const createSky = (opts = {}) => {
   let liftNow = Object.assign({}, HS.LIFT_BASE, opts.lift || {})
   const scene = { cover: 30, low: 30, mid: 0, high: 0, code: 2, aod: null, wind: 9, windDir: 250 }
   const want = { ...scene }
-  const live = { lat: opts.lat ?? 43.65, lng: opts.lng ?? -79.38, fade: 0, clock: null, fast: false }
+  const live = { lat: opts.lat ?? 43.65, lng: opts.lng ?? -79.38, fade: 0, clock: null, fast: false, hold: null }
   const run = { on: false, disposed: false, timer: 0, last: 0, lastSky: -1e9, builtAt: -1e9, dirty: true, frame: null, fps: quality.fps, slowT: 1.5, driftOff: [0, 0], blur: 0, blurTo: 0, blurFrom: 0, blurT0: 0, sized: 0, dim: opts.dim ?? SKY_DIM }
 
   /* Weather weights (the plugin's genera weights) → the engine's builder inputs:
@@ -3224,7 +3224,7 @@ const createSky = (opts = {}) => {
   }
 
   const build = t => {
-    const d = live.clock ? live.clock() : new Date()
+    const d = live.clock ? live.clock() : live.hold ? new Date(live.hold) : new Date()
     HS.applyScene({
       hourly: false,
       hour: d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600,
@@ -3451,6 +3451,15 @@ const createSky = (opts = {}) => {
         run.dirty = true
       }
     },
+    /* Freeze the sun at one instant (a picked phase), or null for the wall
+       clock. The sky is still redrawn every frame; only the date is pinned. */
+    setHold(date) {
+      const next = date instanceof Date && !Number.isNaN(date.getTime()) ? date.getTime() : null
+      if (next === live.hold) return
+      live.hold = next
+      run.dirty = true
+      reschedule()
+    },
     /* a fast clock drives the day preview; anything else is the wall clock
        (the preview hands back `() => new Date()`, which must not keep the
        per-frame rebuild running forever) */
@@ -3523,11 +3532,13 @@ const clearSky = () => {
 }
 
 const phaseThemeName = phase => `zephyr-${phase}`
+// The live theme: one pick that follows the sun (see registerLive).
+const SKY_THEME = 'zephyr-sky'
 
 const themeFor = phase => ({
   name: phaseThemeName(phase),
   label: `Zephyr ${phase[0].toUpperCase()}${phase.slice(1)}`,
-  description: `Sky-lit: the ${phase} sky shows through every surface. Zephyr follows the clock.`,
+  description: `Holds the ${phase} sky whatever the time. Pick Zephyr Sky to follow the sun.`,
   colors: GROUNDS[phase]
 })
 
@@ -6786,6 +6797,26 @@ export default {
       style.setProperty('--zephyr-sun', value)
     }
 
+    // A picked phase pins the sky to a moment inside it, today: picking Zephyr
+    // Day in Appearance at midnight shows the midday sky. null = the real sun.
+    const SUNSET_HOLD_OFFSET = 0.3   // hours past the sunset anchor: the ember
+    const storedPin = stored(STORE_KEYS.phasePin)
+    const pin = atom(PHASES.includes(storedPin) ? storedPin : null)
+    const momentFor = (phase, base = new Date()) => {
+      const { rise, set } = getSolar(base)
+      const h = phase === 'dawn' ? rise - 0.35
+        : phase === 'day' ? (rise + set) / 2
+          : phase === 'dusk' ? set + SUNSET_HOLD_OFFSET
+            : Math.max(set + 3, 22.5)
+      const c = Math.min(23.9, Math.max(0, h))
+      const d = new Date(base)
+      d.setHours(Math.floor(c), Math.round((c % 1) * 60), 0, 0)
+      return d
+    }
+    let liveFor = null   // the phase whose colours Zephyr Sky currently carries
+    const heldMoment = () => (pin.get() ? momentFor(pin.get()) : null)
+    const nowAt = () => heldMoment() || new Date()
+
     // ── GL sky lifecycle ──────────────────────────────────────────────────
     let glSky = null
     let glFailed = false
@@ -6878,6 +6909,7 @@ export default {
         return
       }
       const gl = glOn.get() ? ensureGl() : (dropGl(), null)
+      if (gl) gl.setHold(heldMoment())
       paintSky(now, Boolean(gl))
     }
 
@@ -6900,13 +6932,19 @@ export default {
 
       if (!auto.get()) return
 
-      requestTheme(phaseThemeName(next))
+      // A picked phase holds its own theme; otherwise the one live theme,
+      // Zephyr Sky, takes this phase's colours and stays selected all day.
+      if (pin.get()) requestTheme(phaseThemeName(pin.get()))
+      else {
+        registerLive(next)
+        requestTheme(SKY_THEME)
+      }
 
       if (tint.get()) setAccentOverride(PHASE_ACCENT[next])
     }
 
     const tick = () => {
-      const now = new Date()
+      const now = nowAt()
       writeSun(now)
       if (sky.get()) renderSky(now)
       if (glSky && weatherMode.get() === 'live' && !liveWeather) applyWeather()
@@ -6935,19 +6973,58 @@ export default {
       groups.forEach(g => processTurn(g, true))
     }, 1000)
     const flareTimer = setInterval(() => { if (typeof document !== 'undefined' && !document.hidden && scrollSettled()) fitStatusStack() }, 1000)
-    apply(new Date())
+    apply(nowAt())
     syncSolar(ctx)
       .then(() => {
         if (glSky && liveSolar?.lat != null) glSky.setLocation(liveSolar.lat, liveSolar.lng)
-        apply(new Date())
+        apply(nowAt())
         return refreshWeather()
       })
       .catch(() => {})
 
     // ── themes: the medium for "the app changes with the time of day" ──
+    // Zephyr Sky is the live one: re-registered with the current phase's
+    // colours whenever the phase turns, so the app repaints in place and the
+    // pick in Appearance never changes. The four phases below hold one sky.
+    function registerLive(ph) {
+      if (liveFor === ph) return
+      liveFor = ph
+      ctx.register({
+        id: 'theme.sky',
+        area: THEMES_AREA,
+        order: 38,
+        data: {
+          name: SKY_THEME,
+          label: 'Zephyr Sky',
+          description: 'The live sky: follows the real sun through dawn, day, dusk and night.',
+          colors: GROUNDS[ph]
+        }
+      })
+    }
+    registerLive(phaseAt(nowAt()))
     for (const name of PHASES) {
       ctx.register({ id: `theme.${name}`, area: THEMES_AREA, order: 40, data: themeFor(name) })
     }
+
+    // Appearance › Theme: Zephyr Sky follows the sun all day; a phase holds
+    // that sky whatever the time. Our own requestTheme calls land here too
+    // and are no-ops by construction.
+    let themeObs = null
+    if (typeof MutationObserver === 'function' && typeof document !== 'undefined') {
+      const onTheme = () => {
+        const name = document.documentElement.dataset.hermesTheme || ''
+        const phase = PHASES.find(p => name === phaseThemeName(p))
+        if (!phase && name !== SKY_THEME) return
+        const want = phase || null
+        if (name === SKY_THEME && !auto.get()) { auto.set(true); persist() }
+        if (want !== pin.get()) { pin.set(want); ctx.storage.set(STORE_KEYS.phasePin, want) }
+        apply(nowAt())
+        if (sky.get()) renderSky(nowAt())
+      }
+      themeObs = new MutationObserver(onTheme)
+      themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-hermes-theme'] })
+    }
+    apply(nowAt())
 
     // ── snippet cards: the medium for "small boxes I can copy and pin" ──
     ensureSnippetStyle()
@@ -6985,7 +7062,7 @@ export default {
             const next = !auto.get()
             auto.set(next)
             persist()
-            if (next) apply(new Date())
+            if (next) apply(nowAt())
             else setAccentOverride(null)
           }
         })
@@ -7074,7 +7151,7 @@ export default {
             onChange: on => {
               sky.set(on)
               persist()
-              renderSky(new Date())
+              renderSky(nowAt())
             }
           }),
           isSky
@@ -7088,7 +7165,7 @@ export default {
                 onChange: on => {
                   glOn.set(on)
                   persist()
-                  renderSky(new Date())
+                  renderSky(nowAt())
                 }
               })
             : null,
@@ -7130,7 +7207,7 @@ export default {
                     quality.set(next)
                     persist()
                     dropGl()
-                    renderSky(new Date())
+                    renderSky(nowAt())
                   }
                 })
               })
@@ -7151,7 +7228,7 @@ export default {
                     if (previewTimer) clearTimeout(previewTimer)
                     previewTimer = setTimeout(() => {
                       previewTimer = null
-                      if (glSky) glSky.setClock(() => new Date(), false)
+                      if (glSky) glSky.setClock(null, false)
                     }, 60_000)
                   },
                   children: 'Play'
@@ -7163,7 +7240,7 @@ export default {
         const lightSection = section('symbol-color', 'Light', [
           jsx(ToggleRow, {
             checked: isAuto,
-            description: 'On by default. Switches Hermes\'s colours between the dawn, day, dusk and night themes as the sun moves. Off keeps the theme you pick in Appearance. The sky follows the real sun either way.',
+            description: 'On by default. Keeps Hermes on Zephyr Sky, whose colours move through dawn, day, dusk and night with the sun. Off keeps whatever theme you pick in Appearance.',
             label: 'Time-of-day themes',
             onChange: on => {
               auto.set(on)
@@ -7275,6 +7352,7 @@ export default {
 
     // A plugin is a guest: leave the host as we found it when it unloads.
     ctx.onDispose?.(() => {
+      themeObs?.disconnect()
       clearInterval(timer)
       clearInterval(weatherTimer)
       clearInterval(flareTimer)

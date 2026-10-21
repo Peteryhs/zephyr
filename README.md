@@ -129,6 +129,7 @@ The floating sidebar stays solid whatever you set, because it sits over text.
 ## Tabs
 
 - Tabs are wide pills. The close button shows on the active tab and on hover.
+- A new tab shows the Hermes wordmark instead of an empty page.
 
 ## Snippet cards
 

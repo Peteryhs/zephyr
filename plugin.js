@@ -601,6 +601,15 @@ const polishCss = () => [
   // unread badge and tab dots: no orange
   "html body div.fixed:has(> button[aria-label*='sidebar' i]) [class*='bg-primary'] { background: var(--zf-ink-1, #e2dacb) !important; color: var(--zf-m-on) !important; }",
   "[role='tab'][data-tree-tab] [class*='rounded-full'][class*='bg-'] { background: var(--zf-ink-2, #cdc4b4) !important; }",
+  // Landing for an empty tab: the app only draws its intro for the very first
+  // draft, so a fresh tab was a blank smear. Same wordmark, same mood.
+  '#zf-landing { position: fixed; z-index: 1; pointer-events: none; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; opacity: 0; transition: opacity 260ms ease; }',
+  "html[data-zf-landing='1'] #zf-landing { display: flex; opacity: 1; }",
+  '#zf-landing .zf-land-mark { font-family: Collapse, ui-serif, serif; font-size: clamp(44px, 7.4vw, 112px); font-weight: 700; letter-spacing: 0.02em; line-height: 1; color: rgba(var(--zf-hi), 0.92); mix-blend-mode: plus-lighter; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35); white-space: nowrap; }',
+  '#zf-landing .zf-land-line { font-size: 15px; color: var(--zf-ink-2, #ebdbb2); text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6); max-width: 34rem; }',
+  "@keyframes zf-land-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }",
+  "html[data-zf-landing='1'] #zf-landing > * { animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }",
+  "html[data-zf-landing='1'] #zf-landing .zf-land-line { animation-delay: 80ms; }",
   // the sidebar's docked rows step back while Settings is open
   "html:has([class*='grid-cols-[13rem_minmax(0,1fr)]']) :is(#zf-cc-head, #zephyr-snips, footer[data-zf-arc-foot]) { visibility: hidden !important; }",
   // Settings is a floating sheet, solid enough that nothing reads through it
@@ -8357,10 +8366,30 @@ export default {
 
     // ── Chat or empty page ───────────────────────────────────────────────────
     // The picture is sharp on an empty page and frosted behind a conversation:
-    // mark which one is on screen, and let the sheet do the rest.
+    // mark which one is on screen, and let the sheet do the rest. The app only
+    // draws its intro for the very first draft, so every other empty tab gets
+    // the same wordmark from here.
     if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') try {
       const root = document.documentElement
       let pageDead = false
+      document.querySelectorAll('#zf-landing').forEach(el => el.remove())
+      const landing = document.createElement('div')
+      landing.id = 'zf-landing'
+      landing.setAttribute('aria-hidden', 'true')
+      const LINES = ['Where should we begin?', 'What are we making today?', 'Bring the stuck part. We will work it out.', 'Drop in a task, a file, or a rough idea.', 'What should Hermes tackle?']
+      landing.innerHTML = '<div class="zf-land-mark">HERMES AGENT</div><div class="zf-land-line"></div>'
+      landing.lastElementChild.textContent = LINES[Math.floor(Math.random() * LINES.length)]
+      document.body.appendChild(landing)
+      // borrow the app's own intro (font-fitted wordmark and all) once seen
+      const borrowIntro = intro => {
+        if (landing.dataset.cloned || !intro) return
+        const copy = intro.cloneNode(true)
+        copy.removeAttribute('data-slot')
+        copy.querySelectorAll('[data-slot]').forEach(el => el.removeAttribute('data-slot'))
+        landing.replaceChildren(copy)
+        landing.dataset.cloned = '1'
+      }
+      let landKey = ''
       const syncPage = () => {
         if (pageDead) return
         // mid-morph the page is a set of transition snapshots, so hit-testing
@@ -8373,7 +8402,7 @@ export default {
         let vp = null
         for (const v of vps) {
           const r = v.getBoundingClientRect()
-          const hits = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height * 0.3)
+          const hits = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height * 0.3).filter(h => h !== landing && !landing.contains(h))
           if (hits.length && v.contains(hits[0])) { vp = v; break }
         }
         const hasMsg = vp ? Boolean(vp.querySelector("[data-slot*='message']")) : false
@@ -8382,6 +8411,21 @@ export default {
         const chat = !introShown && !(vp && !hasMsg)
         if (chat) root.dataset.zfChat = '1'
         else delete root.dataset.zfChat
+        borrowIntro(intro || document.querySelector("[data-slot='aui_intro']"))
+        if (vp && !hasMsg && !introShown) {
+          const r = vp.getBoundingClientRect()
+          const key = [r.left, r.top, r.width, r.height].map(Math.round).join('/')
+          if (key !== landKey) {
+            landKey = key
+            Object.assign(landing.style, { left: Math.round(r.left) + 'px', top: Math.round(r.top) + 'px', width: Math.round(r.width) + 'px', height: Math.round(r.height * 0.82) + 'px' })
+          }
+          if (root.dataset.zfLanding !== '1') {
+            if (!landing.dataset.cloned) landing.lastElementChild.textContent = LINES[Math.floor(Math.random() * LINES.length)]
+            root.dataset.zfLanding = '1'
+          }
+        } else if (root.dataset.zfLanding) {
+          delete root.dataset.zfLanding
+        }
       }
       let pageQueued = false
       const schedulePage = () => {
@@ -8400,6 +8444,8 @@ export default {
         window.removeEventListener('resize', schedulePage)
         window.removeEventListener('zf-morph-end', schedulePage)
         delete root.dataset.zfChat
+        delete root.dataset.zfLanding
+        landing.remove()
       })
     } catch (err) {
       console.error('[zephyr] page state failed: ' + (err && err.stack || err))

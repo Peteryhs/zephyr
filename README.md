@@ -171,7 +171,7 @@ No code from hark.com is borrowed or used here. Zephyr's sky was reimplemented i
 
 Weather and sunrise data come from [Open-Meteo](https://open-meteo.com).
 
-The Backwater is a public-domain painting; `assets/backwater.jpg` is the full-resolution scan.
+The Backwater is by Charles William Wyllie (1859–1923), exhibited at the Royal Academy in 1903, and is in the public domain. `assets/backwater.jpg` is a full-resolution scan.
 
 ## License
 

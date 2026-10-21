@@ -8911,7 +8911,7 @@ export default {
             description: lookNow === 'sunset'
               ? 'The sky where you are, painted from the real sun, with the clock driving dawn, day, dusk and night.'
               : lookNow === 'gruvbox'
-                ? 'The built-in look: The Backwater (Wyllie), 4096×2428, behind warm gruvbox glass. Its own theme in Appearance, too.'
+                ? 'The built-in look: The Backwater (Charles W. Wyllie, 1903), 4096×2428, behind warm gruvbox glass. Its own theme in Appearance, too.'
                 : 'Your own picture, with your own glass. Every knob below is yours; the built-in look stays one click away.',
             action: jsx(SegmentedControl, {
               value: lookNow,

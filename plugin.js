@@ -515,6 +515,9 @@ const polishCss = (gruv = false) => [
   "html body :focus-visible { outline: 1.5px solid rgba(var(--zf-hi), 0.38) !important; outline-offset: 2px; border-color: rgba(var(--zf-hi), 0.28) !important; }",
   "html body :is([data-slot='composer-rich-input'], [data-slot^='composer'] textarea, [data-slot^='composer'] [contenteditable='true'], [data-slot^='composer'] input):is(:focus, :focus-visible) { outline: none !important; box-shadow: none !important; border-color: transparent !important; }",
   "html body [data-slot='composer-surface']:focus-within { box-shadow: inset 0 0 0 1px rgba(var(--zf-hi), 0.16), var(--zf-lift, 0 8px 24px rgba(0,0,0,.3)) !important; }",
+  // a session opened through the row's own menu: the menu is the mechanism, not
+  // something to watch, so it stays invisible while it is driven
+  "html[data-zf-ghost-menu='1'] :is([data-radix-popper-content-wrapper], [role='menu']) { opacity: 0 !important; pointer-events: none !important; }",
   // The composer and your own messages wear the gruvbox glass. Under the sky
   // they keep the material every other surface wears (--zf-glass): a plain
   // white wash over a blue sky reads as a different, lighter thing than the
@@ -8282,6 +8285,71 @@ export default {
       console.error('[zephyr] page state failed: ' + (err && err.stack || err))
     }
 
+    // ── Session clicks ───────────────────────────────────────────────────────
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement
+      // A session clicked in the sidebar opens in the tab you are in. The app
+      // always routes a row click to the first (workspace) tab; when a session
+      // tab is active, open the row as a tab through the row's own menu and
+      // retire the tab it replaces.
+      const topTabs = () => Array.from(document.querySelectorAll("[role='tab'][data-tree-tab]")).filter(t => !t.closest('[data-zf-arc-col]'))
+      let swapping = false
+      const onRowClick = event => {
+        if (swapping || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+        // the whole row counts (it is ~62px tall; the title button is 18px),
+        // except its own controls: the actions menu and the reorder handle
+        const t = event.target
+        if (!t.closest || !t.closest("[data-slot='sidebar']")) return
+        if (t.closest("button:not([data-slot='row-button']), [aria-label^='Reorder'], input, [role='menu']")) return
+        const row = t.closest("[data-slot='context-menu-trigger']")
+        const btn = row && row.querySelector("button[data-slot='row-button']")
+        if (!btn) return
+        const active = topTabs().find(t => t.getAttribute('aria-selected') === 'true')
+        const oldId = active && active.dataset.treeTab
+        if (!row || !oldId || !oldId.startsWith('session-tile:')) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        swapping = true
+        root.dataset.zfGhostMenu = '1'
+        const r = btn.getBoundingClientRect()
+        row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 20, clientY: r.top + r.height / 2, button: 2 }))
+        const finish = () => { swapping = false; delete root.dataset.zfGhostMenu }
+        let tries = 0
+        const pick = () => {
+          const items = Array.from(document.querySelectorAll("[role='menuitem']"))
+          if (!items.length && tries++ < 20) { requestAnimationFrame(pick); return }
+          const item = items.find(i => /new tab/i.test(i.textContent))
+          if (!item) {
+            // already open somewhere: close the menu, let the app route it
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+            setTimeout(() => { finish(); btn.click() }, 60)
+            return
+          }
+          const before = new Set(topTabs().map(t => t.dataset.treeTab))
+          item.click()
+          let waits = 0
+          const retire = () => {
+            const fresh = topTabs().find(t => !before.has(t.dataset.treeTab))
+            if (!fresh && waits++ < 40) { setTimeout(retire, 25); return }
+            finish()
+            const old = topTabs().find(t => t.dataset.treeTab === oldId)
+            const close = old && old.querySelector("button[aria-label='Close']")
+            if (fresh && close) {
+              close.click()
+              // a running tab asks first; keep it rather than surprise anyone
+              setTimeout(() => {
+                const dlg = document.querySelector("[role='alertdialog'], [role='dialog'][data-state='open']")
+                if (dlg && /running/i.test(dlg.textContent)) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+              }, 120)
+            }
+          }
+          retire()
+        }
+        requestAnimationFrame(pick)
+      }
+      document.addEventListener('click', onRowClick, true)
+      ctx.onDispose?.(() => document.removeEventListener('click', onRowClick, true))
+    }
 
     // ── the picture + glass editor ───────────────────────────────────────────
     // Plain inputs on purpose: a range, a colour swatch, a file picker and a URL

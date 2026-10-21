@@ -37,7 +37,7 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 const THEMES_AREA = 'themes'
 const DIRECTIVE_AREA = 'transcript.directives'
 
-const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen' }
+const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', hold: 'hold', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage' }
 
 // ── Theme palettes ─────────────────────────────────────────────────────────
 // Hermes keeps its amber; the ground shifts with the hour. Four phases, four
@@ -68,12 +68,12 @@ const GROUNDS = {
     sidebarBackground: 'rgba(16, 24, 36, 0.60)', sidebarBorder: '#25374d', userBubble: 'rgba(32, 44, 62, 0.62)', userBubbleBorder: '#314661'
   },
   dusk: {
-    background: 'rgba(22, 20, 34, 0.72)', foreground: '#f4e8e8', card: 'rgba(30, 26, 42, 0.68)', cardForeground: '#f4e8e8',
-    muted: 'rgba(46, 38, 58, 0.55)', mutedForeground: '#d0b4b8', popover: 'rgba(26, 22, 38, 0.88)', popoverForeground: '#f4e8e8',
-    primary: '#f0934e', primaryForeground: '#0f172a', secondary: 'rgba(56, 42, 64, 0.55)', secondaryForeground: '#e8d6d8',
-    accent: '#f0934e', accentForeground: '#0f172a', border: '#38304c', input: 'rgba(46, 38, 58, 0.55)', ring: '#f0934e',
+    background: 'rgba(13, 11, 20, 0.82)', foreground: '#f5e7e0', card: 'rgba(21, 17, 27, 0.80)', cardForeground: '#f5e7e0',
+    muted: 'rgba(34, 26, 38, 0.62)', mutedForeground: '#bfa4a4', popover: 'rgba(15, 13, 21, 0.94)', popoverForeground: '#f5e7e0',
+    primary: '#e6863f', primaryForeground: '#140d08', secondary: 'rgba(42, 32, 46, 0.62)', secondaryForeground: '#e8d2cf',
+    accent: '#e6863f', accentForeground: '#140d08', border: '#33242e', input: 'rgba(34, 26, 38, 0.62)', ring: '#e6863f',
     destructive: '#e05a52', destructiveForeground: '#fff5f5',
-    sidebarBackground: 'rgba(18, 17, 28, 0.60)', sidebarBorder: '#322a42', userBubble: 'rgba(40, 34, 52, 0.62)', userBubbleBorder: '#3d3450'
+    sidebarBackground: 'rgba(9, 8, 14, 0.72)', sidebarBorder: '#2b1f28', userBubble: 'rgba(30, 23, 34, 0.74)', userBubbleBorder: '#3a2833'
   },
   night: {
     background: 'rgba(10, 18, 38, 0.72)', foreground: '#ffffff', card: 'rgba(10, 16, 36, 0.76)', cardForeground: '#ffffff',
@@ -85,7 +85,767 @@ const GROUNDS = {
   }
 }
 
-const PHASE_ACCENT = { dawn: '#e8a07a', day: '#9dc4e8', dusk: '#f0934e', night: '#b9c7e8' }
+const PHASE_ACCENT = { dawn: '#e8a07a', day: '#9dc4e8', dusk: '#e6863f', night: '#b9c7e8' }
+
+// ── Gruvbox · The Backwater ──────────────────────────────────────────────────
+// Dressed from gruvbox's own element table, not from "brown and orange". Every
+// role below maps onto a named highlight group in morhetz/gruvbox (dark, medium
+// contrast), so the app reads the way the colorscheme reads:
+//
+//   Normal        fg1 on bg0        -> body text on the reading ground
+//   Comment       gray, italic      -> folds, timestamps, tertiary labels
+//   Visual        bg3               -> selection
+//   VertSplit     bg3               -> borders
+//   Pmenu         fg1 on bg2        -> user bubble, menus
+//   PmenuSel      bg2 on blue, bold -> selected row
+//   CursorLine    bg1               -> hover / raised surface
+//   CursorLineNr  yellow on bg1     -> focus ring
+//   Search        yellow, inversed  -> ring / find
+//   IncSearch     orange            -> the thing the eye should land on
+//   Title         bold green        -> headings
+//   Underlined    blue, underline   -> links
+//   Constant      purple            -> numbers, literals, inline code
+//   String        green             -> strings
+//   Type          yellow            -> types
+//   PreProc       aqua              -> quotes / preprocessor
+//   Special       orange            -> highlights
+//   Statement     red               -> errors, destructive, keywords
+//   LineNr        bg4               -> hairlines
+//   Folded        gray on bg1, italic
+//
+// The painting is the ground under all of it: 4096×2428, its own bytes, no
+// resize and no re-encode. Panels are gruvbox surfaces at high alpha — tinted
+// glass rather than a clear pane — because fg1 on bg0 is a 9.5:1 pair and that
+// is the only way prose stays readable over a picture with real highlights.
+const GRUVBOX_THEME = 'zephyr-gruvbox'
+const GRUVBOX_ACCENT = '#fe8019'
+const BACKWATER_URL = 'file:///Users/alinaqvi/.hermes/desktop-plugins/zephyr/backwater.jpg'
+
+// The palette, verbatim from gruvbox.vim's `s:gb` dictionary.
+const GB = {
+  bg0h: [29, 32, 33], bg0: [40, 40, 40], bg0s: [50, 48, 47], bg1: [60, 56, 54],
+  bg2: [80, 73, 69], bg3: [102, 92, 84], bg4: [124, 111, 100],
+  gray: [146, 131, 116], fg0: [251, 241, 199], fg1: [235, 219, 178], fg2: [213, 196, 161],
+  fg3: [189, 174, 147], fg4: [168, 153, 132],
+  red: '#fb4934', green: '#b8bb26', yellow: '#fabd2f', blue: '#83a598',
+  purple: '#d3869b', aqua: '#8ec07c', orange: '#fe8019'
+}
+const gbA = (rgb, a) => `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a})`
+// Gruvbox's own bg ladder is nearly neutral, which over a painting reads grey.
+// These are the same values pushed toward the picture's own browns: equal or
+// lower luminance than bg0, but with hue and chroma, so the panes stay dark
+// while being warm instead of soot. Deliberately outside the palette.
+const WARM = { deep: [26, 20, 17], pane: [34, 26, 22], card: [45, 35, 29], bubble: [62, 46, 37] }
+const WARM_EDGE = '#6a5140'
+
+// ── The skin, as data ───────────────────────────────────────────────────────
+// Everything below is what the editor writes: the artwork, how the glass sits on
+// it, and the panel colours. Defaults reproduce the shipped look exactly, so a
+// fresh install paints what you saw before anyone touched a control.
+const SKIN_DEFAULTS = {
+  image: BACKWATER_URL,
+  fit: 'cover',
+  posX: 46,
+  posY: 45,
+  scrim: 0.44,
+  blur: 28,
+  saturate: 1.15,
+  brightness: 0.86,
+  feather: 72,
+  chrome: 0.74,
+  sidebar: 0.74,
+  card: 0.78,
+  bubble: 0.78,
+  ground: '#2a1c15',
+  deeper: '#1c120d',
+  cardTint: '#3a261c',
+  bubbleTint: '#4a2f22',
+  edge: '#7d5640',
+  accent: '#fe8019',
+  ink: '#fbf1c7',
+  ink2: '#ebdbb2'
+}
+const SKIN_SLIDERS = [
+  ['scrim', 'Picture scrim', 0, 0.9, 0.01],
+  ['blur', 'Glass blur (px)', 0, 40, 1],
+  ['saturate', 'Glass saturation', 0.5, 2, 0.05],
+  ['brightness', 'Glass brightness', 0.5, 1.1, 0.01],
+  ['chrome', 'Chat pane opacity', 0.4, 1, 0.01],
+  ['sidebar', 'Sidebar opacity', 0.4, 1, 0.01],
+  ['card', 'Card opacity', 0.4, 1, 0.01],
+  ['bubble', 'Your message opacity', 0.4, 1, 0.01]
+]
+const SKIN_COLORS = [
+  ['ground', 'Chat ground'],
+  ['deeper', 'Sidebar ground'],
+  ['cardTint', 'Card'],
+  ['bubbleTint', 'Your messages'],
+  ['edge', 'Edges'],
+  ['accent', 'Accent'],
+  ['ink', 'Text'],
+  ['ink2', 'Quiet text']
+]
+let SKIN = { ...SKIN_DEFAULTS }
+const setSkin = next => { SKIN = { ...SKIN_DEFAULTS, ...next } }
+const skinNumber = (value, fallback) => (Number.isFinite(Number(value)) ? Number(value) : fallback)
+// '#221a16' -> '34, 26, 22' (the app's neutral tokens are bare RGB triples)
+const hexTriple = hex => {
+  const h = String(hex || '').replace('#', '')
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h.padEnd(6, '0').slice(0, 6)
+  return [0, 2, 4].map(i => parseInt(full.slice(i, i + 2), 16) || 0).join(', ')
+}
+const picUrl = () => String(SKIN.image || BACKWATER_URL).replace(/"/g, '%22')
+const hexRgb = hex => hexTriple(hex).split(', ').map(Number)
+
+const gbHex = rgb => `#${rgb.map(v => v.toString(16).padStart(2, '0')).join('')}`
+
+const GRUVBOX_GROUNDS = {
+  // Warm dark ground: the luminance of bg0_hard with the picture's browns in it,
+  // so prose keeps its contrast while the app stops reading as grey.
+  background: gbA(WARM.pane, 0.88), foreground: gbHex(GB.fg0),
+  card: gbA(WARM.card, 0.96), cardForeground: gbHex(GB.fg0),
+  muted: gbA(GB.bg1, 0.80), mutedForeground: gbHex(GB.fg3),
+  popover: gbA(WARM.deep, 0.98), popoverForeground: gbHex(GB.fg0),
+  primary: GB.orange, primaryForeground: gbHex(GB.bg0h),
+  secondary: gbA(WARM.card, 0.90), secondaryForeground: gbHex(GB.fg2),
+  accent: GB.orange, accentForeground: gbHex(GB.bg0h),
+  border: WARM_EDGE, input: gbA(WARM.card, 0.95),
+  ring: GB.yellow, destructive: GB.red, destructiveForeground: gbHex(GB.bg0h),
+  sidebarBackground: gbA(WARM.deep, 0.92), sidebarBorder: WARM_EDGE,
+  userBubble: gbA(WARM.bubble, 0.95), userBubbleBorder: WARM_EDGE
+}
+
+// Zephyr derives a glass material from the sky; here it comes from bg1/bg2 so
+// every Zephyr surface (sidebar cards, snippet cards, composer) is a gruvbox
+// pane. The ink ramp is gruvbox's own fg ladder.
+const gruvboxMaterial = () => ({
+  tint: hexRgb(SKIN.ground),
+  tintHi: hexRgb(SKIN.bubbleTint),
+  // ink3 lands on every 10-11px uppercase label in the app — section headers,
+  // the status bar, the fold line, shortcuts — and gruvbox's Comment grey is
+  // simply too quiet at that size over a tinted ground, so the quiet tier sits
+  // at fg1. This is the one place the theme deliberately out-contrasts gruvbox.
+  ink: [hexRgb(SKIN.ink), hexRgb(SKIN.ink2), hexRgb(GB.fg2), hexRgb(SKIN.ink2)],
+  night: 0.2,
+  accent: SKIN.accent
+})
+
+// The painting as the ground. The scrim is what makes the glass tinted rather
+// than clear: it drops the picture's peak brightness so the panels above it can
+// stay translucent without letting a highlight sit under a line of prose.
+const gruvboxLayers = () => {
+  const scrim = skinNumber(SKIN.scrim, 0.44)
+  return [
+    'html::before {',
+    "  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;",
+    '  background-image:',
+    // left: the sidebar's column of small text sits over the dress and the
+    // sunlit grass; top/bottom: titlebar and composer edges.
+    // fine grain: dark gradients over 8-bit colour step visibly; a faint
+    // noise breaks the steps up so the falloff reads as a smooth curve
+    `    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),`,
+    // one soft vignette (eased, many stops) + one even scrim: no ramps that end
+    // in a visible line
+    `    radial-gradient(125% 115% at 50% 42%, rgba(${hexTriple(SKIN.deeper)}, 0) 0%, rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 0.10).toFixed(3)}) 35%, rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 0.32).toFixed(3)}) 55%, rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 0.62).toFixed(3)}) 72%, rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 0.90).toFixed(3)}) 88%, rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 1.05).toFixed(3)}) 100%),`,
+    `    linear-gradient(rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 0.70).toFixed(3)}), rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 0.70).toFixed(3)})),`,
+    // the artwork itself: a custom property, so swapping the picture is one tiny
+    // style element instead of rebuilding a multi-megabyte CSS string
+    `    var(--zf-pic, url("${BACKWATER_URL}"));`,
+    `  background-size: 160px 160px, cover, cover, ${SKIN.fit === 'contain' ? 'contain' : 'cover'};`,
+    `  background-position: 0 0, center, center, ${skinNumber(SKIN.posX, 46)}% ${skinNumber(SKIN.posY, 45)}%;`,
+    '  background-repeat: repeat, no-repeat, no-repeat, no-repeat;',
+    `  background-color: ${SKIN.deeper};`,
+    '}',
+    'body::before { content: none; }'
+  ]
+}
+
+// The picture lives in its own style element: a 5 MB data URL must not be
+// re-stringified on every clock tick.
+const ensurePictureStyle = url => {
+  if (typeof document === 'undefined' || !document.head) return
+  let el = document.getElementById('zephyr-picture')
+  if (!el) {
+    el = document.createElement('style')
+    el.id = 'zephyr-picture'
+    document.head.appendChild(el)
+  }
+  const value = `:root { --zf-pic: url("${String(url).replace(/"/g, '%22')}"); }`
+  if (el.textContent !== value) el.textContent = value
+}
+
+// The prose layer wears the syntax side of gruvbox: headings are Title (bold
+// green), links are Underlined (blue), inline code is Constant (purple) on
+// bg0_hard, quotes are PreProc (aqua), hairlines are LineNr (bg4), selection is
+// Visual (bg3). This is the half of the colorscheme a chat window actually uses.
+// A collapsed pane keeps its tab labels in the flow: at an 8px tab, "SESSIONS"
+// and "BOTS" wrap into a column and stack letter on letter. The collapse is a
+// style width rather than an attribute we can select, so the sheet keys off a
+// measured marker (see watchPaneTabs in register) and hides the word only where
+// there is genuinely no room for it.
+// The feather that takes the glass back into the sharp painting. 72px, with
+// intermediate stops rather than a straight two-stop ramp: a linear alpha ramp
+// has a visible seam where it begins and where it ends, which is exactly the
+// hard edge this is meant to remove.
+const featherStops = px => {
+  const f = Math.max(1, skinNumber(SKIN.feather, 72))
+  return [[0, 0], [f * 0.25, 0.12], [f * 0.5, 0.36], [f * 0.75, 0.66], [f, 1]]
+}
+const featherStop = (d, alpha, side) =>
+  `${alpha === 1 ? '#000' : `rgba(0, 0, 0, ${alpha})`} ${side === 'end' ? `calc(100% - ${d}px)` : `${d}px`}`
+const featherGradient = to =>
+  `linear-gradient(to ${to}, ${[
+    ...featherStops().map(([d, a]) => featherStop(d, a, 'start')),
+    ...featherStops().slice().reverse().map(([d, a]) => featherStop(d, a, 'end'))
+  ].join(', ')})`
+const FEATHER_Y = () => featherGradient('bottom')
+// No horizontal ramp: the band now runs to the actual screen edges, so a fade
+// on this axis would only reintroduce an edge in the middle of the window.
+
+// Session tabs (the session rows in the tree — `data-tree-tab`, workspace or
+// session-tile) get a hairline between them and a selected state you can see:
+// accent bar, accent wash, top of the ink ramp. The pane tabs (Sessions / Bots)
+// are NOT these; they keep their own look.
+const SESSION_TAB_CSS = [
+  // Top tabs: soft pills, sentence case, no rules between them. The active tab
+  // is a raised piece of the same dark glass as the cards; the rest stay quiet
+  // until hovered.
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) {",
+  '  position: relative;',
+  '  height: 26px !important; min-height: 26px !important; margin: 4px 1px 0 !important;',
+  '  padding-inline: 4px 6px !important;',
+  '  border: 0 !important; border-radius: 8px !important;',
+  '  background: transparent !important; box-shadow: none !important;',
+  '  color: var(--zf-ink-2, #ebdbb2) !important; opacity: 0.78;',
+  '  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;',
+  '}',
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *)::before { display: none !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) .uppercase {",
+  '  text-transform: none !important; letter-spacing: 0 !important;',
+  '  font-size: 12px !important; font-weight: 500 !important;',
+  '}',
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):is(:hover, [aria-selected='true']) { opacity: 1; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):hover {",
+  '  color: var(--zf-ink-1, #ebdbb2) !important;',
+  '  background: rgba(235, 219, 178, 0.06) !important;',
+  '}',
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *)[aria-selected='true'] {",
+  '  color: var(--zf-ink-0, #fbf1c7) !important;',
+  '  background: rgba(58, 36, 26, 0.86) !important;',
+  '  box-shadow: inset 0 0 0 1px rgba(251, 241, 199, 0.10), 0 4px 14px rgba(0, 0, 0, 0.28) !important;',
+  '}',
+  // the + button: a quiet rounded square in line with the pills
+  "button[aria-label='New session tab'] {",
+  '  width: 26px !important; height: 26px !important; margin: 4px 0 0 4px !important; border-radius: 8px !important;',
+  '  color: var(--zf-ink-3, #d5c4a1) !important; background: transparent !important; border: 0 !important;',
+  '  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;',
+  '}',
+  "button[aria-label='New session tab']:hover { background: rgba(251, 241, 199, 0.08) !important; color: var(--zf-ink-0, #fbf1c7) !important; }",
+  "button[aria-label='New session tab']:active { transform: scale(0.94); }",
+  "button[aria-label='New session tab'] :is(svg, i) { width: 14px !important; height: 14px !important; font-size: 14px !important; }",
+  // a tab's close button: hidden until the tab is hovered or active
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button { border-radius: 5px !important; opacity: 0; transition: opacity 120ms ease, background-color 120ms ease; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):is(:hover, [aria-selected='true']) button { opacity: 0.7; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button:hover { opacity: 1; background: rgba(251, 241, 199, 0.10) !important; }",
+  // Wider tabs: the app caps them at 12rem and sizes them to the title. Give
+  // every tab a generous fixed span (Chrome-style), shrinking only when crowded.
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) { flex: 0 1 220px !important; width: 220px !important; min-width: 120px !important; max-width: 260px !important; height: 28px !important; padding-inline: 10px 6px !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) .truncate { flex: 1 1 auto !important; min-width: 0 !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button[aria-label='Close'] { width: 18px !important; height: 18px !important; margin-left: 6px !important; flex: none !important; align-self: center !important; }",
+  // the app hides the close slot (opacity 0, no pointer) until hover; show it on the active tab too
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):is(:hover, [aria-selected='true']) span:has(> button[aria-label='Close']) { opacity: 1 !important; pointer-events: auto !important; z-index: 2; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) .pane-tab-content { padding-right: 22px !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) span:has(> button[aria-label='Close']) { align-items: center !important; padding-right: 6px; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button[aria-label='Close'] .codicon { opacity: 1 !important; visibility: visible !important; font-size: 12px !important; color: var(--zf-ink-2, #ebdbb2) !important; }",
+]
+
+const PANE_RAIL_CSS = [
+  // Collapsed, the pane tabs are a few pixels wide. A wrapped "Sessions", one
+  // letter per line, is what that used to look like. Now the label goes away
+  // entirely and the tab becomes a small bar: dim when it is not the pane you
+  // are in, ink-bright when it is. Nothing to wrap, nothing to clip.
+  "[data-slot='pane-tab'][data-zf-rail='true'] {",
+  '  justify-content: center !important;',
+  '  align-items: center !important;',
+  '  padding: 0 !important;',
+  '  gap: 0 !important;',
+  '  overflow: hidden !important;',
+  '  white-space: nowrap !important;',
+  '  border: 0 !important;',
+  '  box-shadow: none !important;',
+  '  background: transparent !important;',
+  '}',
+  "[data-slot='pane-tab'][data-zf-rail='true'] > * {",
+  '  display: none !important;',
+  '}',
+  "[data-slot='pane-tab'][data-zf-rail='true']::before {",
+  "  content: ''; width: 3px; height: 16px; border-radius: 999px;",
+  '  background: var(--zf-ink-3, rgba(255, 255, 255, 0.32));',
+  '  transition: background-color 120ms ease, height 120ms ease;',
+  '}',
+  "[data-slot='pane-tab'][data-zf-rail='true']:is([aria-selected='true'], [data-active='true'])::before {",
+  '  height: 22px;',
+  '  background: var(--zf-ink-0, #fbf1c7);',
+  '}'
+]
+
+// ── Refinement pass ────────────────────────────────────────────────────────
+// The audit found ten different corner radii, ten font sizes, three border
+// colours that were not ours, and every message group 16px wider than the column
+// it sits in. This layer puts the app on one scale: four radii, one border
+// colour, one hover, one focus ring, and prose that cannot overflow.
+const polishCss = () => [
+  // The app's ink tiers were landing on values that read as invisible against
+  // this ground: secondary computed to rgb(33 3 25) (1.09:1) and quaternary to
+  // 36% ink (1.01:1). Pane-tab labels, timestamps and session subtitles were
+  // effectively black on black. `html:root` outranks whatever sets them later.
+  'html:root {',
+  // !important because the app writes these tokens inline on <html> when it
+  // applies a theme, and inline declarations otherwise beat any stylesheet.
+  `  --ui-text-primary: ${LOOK_MODE === 'sunset' ? '#ffffff' : SKIN.ink} !important;`,
+  `  --ui-text-secondary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.86)' : SKIN.ink2} !important;`,
+  `  --ui-text-tertiary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.72)' : '#bdae93'} !important;`,
+  `  --ui-text-quaternary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.58)' : '#a89984'} !important;`,
+  '}',
+  // `--zf-` is the app's namespace too: it ships its own --zf-ink-2, which is
+  // rgb(33 3 25) — near-black. Every rule of ours that said
+  // var(--zf-ink-2, #d5c4a1) got the app's value instead of the fallback, which
+  // is why pane-tab labels and timestamps stayed invisible. Reclaim the ramp.
+  'html:root {',
+  `  --zf-ink-0: ${LOOK_MODE === 'sunset' ? '#ffffff' : SKIN.ink} !important;`,
+  `  --zf-ink-1: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.92)' : SKIN.ink2} !important;`,
+  `  --zf-ink-2: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.78)' : SKIN.ink2} !important;`,
+  `  --zf-ink-3: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.60)' : '#d5c4a1'} !important;`,
+  '}',
+  ':root {',
+  '  --zf-r-chip: 4px;',
+  '  --zf-r-control: 8px;',
+  '  --zf-r-card: 12px;',
+  // the app's own scale, set once: its radius utilities read these
+  '  --radius: 12px;',
+  '  --radius-md: 8px;',
+  '  --radius-lg: 12px;',
+  '  --radius-sm: 6px;',
+  '  --zf-radius: 8px;',
+  '  --zf-radius-lg: 12px;',
+  `  --zf-hair: rgba(${hexTriple(SKIN.edge)}, 0.55);`,
+  '  --zf-ease: cubic-bezier(0.2, 0, 0, 1);',
+  '}',
+
+  // One radius per role. Buttons, inputs and rows are controls; cards and code
+  // are surfaces; chips are inline.
+  "button:not([class*='rounded-full']), input, select, textarea, [role='button']:not([class*='rounded-full']), [role='tab'], [role='option'] {",
+  '  border-radius: var(--zf-r-control) !important;',
+  '}',
+  "[data-slot='aui_message'] :is(pre, table),",
+  "[data-slot='aui_message'] :is(.rounded-lg, .rounded-xl, .rounded-2xl) {",
+  '  border-radius: var(--zf-r-card) !important;',
+  '}',
+  "[data-slot='aui_message'] :not(pre) > code {",
+  '  border-radius: var(--zf-r-chip) !important;',
+  '}',
+
+  // One hairline colour everywhere a border is drawn by the app, so dividers
+  // stop being three different greys.
+  // `[class]` is here to outrank Tailwind's own class-level !important
+  // declarations (border-white/5 and friends), which otherwise win on
+  // specificity no matter how early this sheet is injected.
+  // ...but never on an edge the app meant to be invisible: re-colouring
+  // border-transparent drew a box around every nav row in Settings and the sidebar.
+  "html body :is(div, span, button, a, li, table, th, td, input, textarea, select, section, header, footer, aside, nav)[class]:not([class*='border-transparent']) {",
+  '  border-color: var(--zf-hair) !important;',
+  '}',
+  // the accent is for state, not decoration: a focused control keeps its ring
+  ':focus-visible {',
+  '  border-color: color-mix(in srgb, var(--zf-accent, #fe8019) 55%, transparent) !important;',
+  '}',
+
+  // Focus is visible, consistent, and only on keyboard focus.
+  ':focus-visible {',
+  '  outline: 2px solid color-mix(in srgb, var(--zf-accent, #fe8019) 70%, transparent);',
+  '  outline-offset: 2px;',
+  '}',
+
+  // One hover, one duration. The app animates some rows and snaps others.
+  "button, [role='button'], [role='tab'], [role='option'], [role='menuitem'] {",
+  '  transition: background-color 120ms var(--zf-ease), color 120ms var(--zf-ease), border-color 120ms var(--zf-ease);',
+  '}',
+  "@media (prefers-reduced-motion: reduce) {",
+  "  button, [role='button'], [role='tab'], [role='option'] { transition: none !important; }",
+  '}',
+
+  // Scrollbars: thin, tinted, no full-width gutter.
+  '::-webkit-scrollbar { width: 10px; height: 10px; }',
+  '::-webkit-scrollbar-track { background: transparent; }',
+  '::-webkit-scrollbar-thumb {',
+  '  background: color-mix(in srgb, var(--zf-ink-3, #a89984) 26%, transparent);',
+  '  border: 3px solid transparent;',
+  '  border-radius: 999px;',
+  '  background-clip: content-box;',
+  '}',
+  '::-webkit-scrollbar-thumb:hover {',
+  '  background: color-mix(in srgb, var(--zf-ink-3, #a89984) 44%, transparent);',
+  '  background-clip: content-box;',
+  '}',
+
+  // ── Prose: rhythm, and nothing overflowing the column ────────────────────
+  "[data-slot='aui_thread-content'] :is(p, li, td, th, h1, h2, h3, h4, blockquote) {",
+  '  overflow-wrap: anywhere;',
+  '}',
+  "[data-slot='aui_thread-content'] p { margin-block: 0.7em !important; }",
+  "[data-slot='aui_thread-content'] :is(h1, h2, h3, h4) {",
+  '  letter-spacing: -0.011em;',
+  '  margin-block: 1.15em 0.5em;',
+  '  line-height: 1.3;',
+  '}',
+  "[data-slot='aui_thread-content'] :is(ul, ol) { padding-inline-start: 1.35em; margin-block: 0.6em; }",
+  "[data-slot='aui_thread-content'] li { margin-block: 0.22em !important; }",
+  "[data-slot='aui_thread-content'] li::marker { color: var(--zf-ink-3, #a89984); }",
+  "[data-slot='aui_thread-content'] hr {",
+  '  border: 0; border-top: 1px solid var(--zf-hair); margin-block: 1.4em;',
+  '}',
+  "[data-slot='aui_thread-content'] blockquote {",
+  '  border-inline-start: 2px solid var(--zf-hair);',
+  '  padding-inline-start: 0.9em;',
+  '  margin-inline: 0;',
+  '  color: var(--zf-ink-2, #d5c4a1);',
+  '}',
+  "[data-slot='aui_thread-content'] a {",
+  '  text-underline-offset: 2px;',
+  '  text-decoration-thickness: 1px;',
+  '  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);',
+  '}',
+  "[data-slot='aui_thread-content'] a:hover { text-decoration-color: currentColor; }",
+  "[data-slot='aui_thread-content'] img { max-width: 100%; border-radius: var(--zf-r-control); }",
+
+  // Code: one padding, one radius, one border, tabular figures in blocks.
+  "[data-slot='aui_thread-content'] pre {",
+  '  padding: 13px 15px !important;',
+  '  border-radius: var(--zf-r-card) !important;',
+  '  border: 1px solid var(--zf-hair) !important;',
+  '  line-height: 1.55 !important;',
+  '  font-variant-numeric: tabular-nums;',
+  '}',
+  "[data-slot='aui_thread-content'] :not(pre) > code {",
+  '  padding: 0.12em 0.36em;',
+  '  font-size: 0.92em;',
+  '}',
+
+  // Tables scroll instead of pushing the column wide.
+  "[data-slot='aui_thread-content'] table {",
+  '  border-collapse: collapse;',
+  '  width: 100%;',
+  '  display: block;',
+  '  overflow-x: auto;',
+  '}',
+  "[data-slot='aui_thread-content'] :is(th, td) {",
+  '  padding: 6px 10px;',
+  '  border-bottom: 1px solid var(--zf-hair);',
+  '  text-align: start;',
+  '}',
+  "[data-slot='aui_thread-content'] th {",
+  '  font-weight: 600;',
+  '  color: var(--zf-ink-1, #ebdbb2);',
+  '}',
+
+  // The 16px overflow: message groups are flex children that refuse to shrink.
+  "[data-slot='aui_message-group'], [data-slot='aui_turn-pair'],",
+  "[data-slot='aui_message-group'] > *, [data-slot='aui_turn-pair'] > * {",
+  '  max-width: 100% !important;',
+  '  min-width: 0 !important;',
+  '}',
+
+  // ── Arclike ──────────────────────────────────────────────────────────────
+  // The sidebar column never unmounts. "Collapsed" takes it out of the flow
+  // (position: fixed, so the chat never reflows) and parks it off-screen; a
+  // hover slides it back. Only translate and opacity animate: compositor work,
+  // no React, no layout.
+  "html[data-zf-arc='1'] [data-zf-arc-col] {",
+  '  position: fixed !important; left: 10px !important; top: 10px !important; bottom: 10px !important;',
+  '  width: 272px !important; height: auto !important; min-width: 0 !important; max-width: none !important;',
+  '  flex: none !important; z-index: 60 !important;',
+  '  border-radius: 16px !important; overflow: hidden !important;',
+  '  background: rgba(38, 24, 17, 0.97) !important; background-image: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;',
+  '  box-shadow: 0 0 0 1px rgba(251, 241, 199, 0.08), 0 24px 60px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35) !important;',
+  '  translate: calc(-100% - 28px) 0; opacity: 0; pointer-events: none;',
+  '  transition: translate 150ms cubic-bezier(0.4, 0, 1, 1), opacity 110ms ease;',
+  '  will-change: translate, opacity; contain: layout paint;',
+  '}',
+  "html[data-zf-arc='1'][data-zf-arc-open='1'] [data-zf-arc-col] {",
+  '  translate: 0 0; opacity: 1; pointer-events: auto;',
+  '  transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease;',
+  '}',
+  // the card's own surfaces are see-through so the card is one piece of glass
+  "html[data-zf-arc='1'] [data-zf-arc-col] > div, html[data-zf-arc='1'] [data-zf-arc-col] [data-slot='sidebar'] {",
+  '  background: transparent !important; border: 0 !important;',
+  '}',
+  // room at the bottom of the column for snippets + status
+  "[data-zf-arc-col] > div { padding-bottom: var(--zf-arc-foot, 0px) !important; }",
+  // the chat keeps the toggle's corner clear once the sidebar is out of the flow
+  "html[data-zf-arc='1'] [data-tree-split] > div:not([data-zf-arc-col]) [data-window-top] {",
+  // the mode button lives inside the card here, so the tabs can take the corner
+  '  --panel-titlebar-left: 12px !important;',
+  '}',
+  // menus, tooltips and dialogs opened from inside the card must sit above it
+  "[data-radix-popper-content-wrapper], [role='menu'], [role='listbox'], [role='tooltip'], [data-slot$='-content'][data-state='open'][style*='--radix'] { z-index: 70 !important; }",
+  "[data-slot='dialog-overlay'], [data-slot='dialog-content'], [data-slot='sheet-overlay'], [data-slot='sheet-content'], [data-slot='alert-dialog-overlay'], [data-slot='alert-dialog-content'] { z-index: 72 !important; }",
+  // one surface: the session panels inside the column lose their own fill so
+  // sessions, snippets and the command center all sit on the same colour
+  "html body [data-zf-arc-col] [data-slot='sidebar-content'] > :is([data-slot='sidebar-group'], [data-sessions-mode], div:last-child) { background: transparent !important; box-shadow: none !important; }",
+  "html body [data-zf-arc-col] [data-slot='sidebar-content'] > div:has(input) { background: rgba(235, 219, 178, 0.05) !important; box-shadow: none !important; }",
+  // Settings nav: the open group is shown by its children, not by a second
+  // filled box above the selected child
+  "html body button[data-tour][class*='bg-(--ui-bg-tertiary)'][class*='border-(--ui-stroke-tertiary)'] { background: transparent !important; border-color: transparent !important; color: var(--zf-ink-0, #fbf1c7) !important; }",
+  // No orange or yellow text, anywhere: the app's accent-coloured text
+  // utilities, spinners and time stamps all fall back to the ink ramp.
+  "html body :is([class*='text-(--ui-accent)'], [class*='text-(--accent)'], [class*='text-primary']:not([class*='text-primary-foreground']), [class*='text-amber'], [class*='text-yellow'], [class*='text-orange'], [class*='text-(--theme-primary)'], .glyph-spinner, .glyph-spinner *) { color: var(--zf-ink-2, #cdc4b4) !important; }",
+  "html body time { color: var(--zf-ink-3, #a8a092) !important; }",
+  // the sidebar toggle hides while the arclike is out; the card is the control then
+  "html[data-zf-arc-ready='1'] div.fixed:has(> button[aria-label*='sidebar' i]) { opacity: 0 !important; pointer-events: none !important; }",
+  // Pinned: the same card, docked. Inset from the window edge, rounded, one
+  // piece of glass; the chat sits beside it instead of butting into a strip.
+  "html:not([data-zf-arc='1']) [data-zf-arc-col] {",
+  '  margin: 10px 0 10px 10px !important; height: calc(100vh - 20px) !important; align-self: flex-start;',
+  '  border-radius: 16px !important; overflow: hidden !important;',
+  '  background: rgba(40, 25, 18, 0.80) !important;',
+  '  box-shadow: 0 0 0 1px rgba(235, 219, 178, 0.08), 0 18px 48px rgba(0, 0, 0, 0.35) !important;',
+  '}',
+  "html:not([data-zf-arc='1']) [data-zf-arc-col] > div, html:not([data-zf-arc='1']) [data-zf-arc-col] [data-slot='sidebar'] { background: transparent !important; border: 0 !important; }",
+  // unread badge and tab dots: no orange
+  "html body div.fixed:has(> button[aria-label*='sidebar' i]) [class*='bg-primary'] { background: var(--zf-ink-1, #e2dacb) !important; color: #1b1512 !important; }",
+  "[role='tab'][data-tree-tab] [class*='rounded-full'][class*='bg-'] { background: var(--zf-ink-2, #cdc4b4) !important; }",
+  // Landing for an empty tab: the app only draws its intro for the very first
+  // draft, so a fresh tab was a blank smear. Same wordmark, same mood.
+  '#zf-landing { position: fixed; z-index: 1; pointer-events: none; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; opacity: 0; transition: opacity 260ms ease; }',
+  "html[data-zf-landing='1'] #zf-landing { display: flex; opacity: 1; }",
+  '#zf-landing .zf-land-mark { font-family: Collapse, ui-serif, serif; font-size: clamp(44px, 7.4vw, 112px); font-weight: 700; letter-spacing: 0.02em; line-height: 1; color: rgba(251, 241, 199, 0.92); mix-blend-mode: plus-lighter; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35); white-space: nowrap; }',
+  '#zf-landing .zf-land-line { font-size: 15px; color: var(--zf-ink-2, #ebdbb2); text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6); max-width: 34rem; }',
+  "@keyframes zf-land-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }",
+  "html[data-zf-landing='1'] #zf-landing > * { animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }",
+  "html[data-zf-landing='1'] #zf-landing .zf-land-line { animation-delay: 80ms; }",
+  // Settings is a floating sheet: the card's docked rows step back, and the
+  // sheet is solid enough that nothing reads through it
+  "html:has([class*='grid-cols-[13rem_minmax(0,1fr)]']) :is(#zf-cc-head, #zephyr-snips, footer[data-zf-arc-foot]) { visibility: hidden !important; }",
+  "div.rounded-xl:has(> * [class*='grid-cols-[13rem_minmax(0,1fr)]']), div.rounded-xl:has(> [class*='grid-cols-[13rem_minmax(0,1fr)]']) { background: rgba(36, 22, 15, 0.985) !important; box-shadow: 0 0 0 1px rgba(251, 241, 199, 0.08), 0 30px 80px rgba(0, 0, 0, 0.55) !important; isolation: isolate; }",
+  "[class*='grid-cols-[13rem_minmax(0,1fr)]'] > aside { background: rgba(0, 0, 0, 0.16) !important; }",
+  // sidebar mode switch, sitting in the command-center row
+  "#zf-mode-btn { position: absolute; left: 8px; top: 4px; z-index: 5; display: none; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--zf-ink-2, #ebdbb2); cursor: pointer; -webkit-app-region: no-drag; transition: background-color 120ms ease, color 120ms ease, transform 120ms ease; }",
+  "[data-zf-arc-col] > #zf-mode-btn { display: inline-grid; position: absolute !important; left: 10px !important; top: 3px !important; width: 24px !important; height: 24px !important; margin: 0 !important; transform: none; }",
+  "html:not([data-zf-arc='1']) [data-zf-arc-col] { position: relative !important; }",
+  "html:has([class*='grid-cols-[13rem_minmax(0,1fr)]']) #zf-mode-btn { display: none; }",
+  "#zf-mode-btn svg { width: 16px; height: 16px; }",
+  // arclike: the button belongs to the card, top-left inside it, and rides
+  // the same slide; pinned keeps it in the window corner
+  "html[data-zf-arc='1'] #zf-mode-btn { left: 20px; top: 12px; translate: -300px 0; opacity: 0; pointer-events: none; transition: translate 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease, background-color 120ms ease, color 120ms ease; }",
+  "html[data-zf-arc='1'][data-zf-arc-open='1'] #zf-mode-btn { translate: 0 0; opacity: 1; pointer-events: auto; transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease, background-color 120ms ease, color 120ms ease; }",
+  "#zf-mode-btn:hover, #zf-mode-btn:focus-visible { background: rgba(251, 241, 199, 0.10); color: var(--zf-ink-0, #fbf1c7); outline: none !important; }",
+  "#zf-mode-btn:active { transform: scale(0.92); }",
+  // focus: a soft cream ring, never the orange accent; the composer gets none
+  "html body :focus-visible { outline: 1.5px solid rgba(251, 241, 199, 0.38) !important; outline-offset: 2px; border-color: rgba(251, 241, 199, 0.28) !important; }",
+  "html body :is([data-slot='composer-rich-input'], [data-slot^='composer'] textarea, [data-slot^='composer'] [contenteditable='true'], [data-slot^='composer'] input):is(:focus, :focus-visible) { outline: none !important; box-shadow: none !important; border-color: transparent !important; }",
+  "html body [data-slot='composer-surface']:focus-within { box-shadow: inset 0 0 0 1px rgba(251, 241, 199, 0.16), var(--zf-lift, 0 8px 24px rgba(0,0,0,.3)) !important; }",
+  "html[data-zf-ghost-menu='1'] :is([data-radix-popper-content-wrapper], [role='menu']) { opacity: 0 !important; pointer-events: none !important; }",
+  // mode morph timing
+  "::view-transition-group(zf-side), ::view-transition-group(zf-main) { animation-duration: 300ms; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }",
+  "::view-transition-old(zf-main), ::view-transition-new(zf-main) { width: 100%; height: 100%; object-fit: none; object-position: center top; animation-duration: 300ms; }",
+  "::view-transition-old(zf-side), ::view-transition-new(zf-side) { animation-duration: 220ms; }",
+  "::view-transition-old(root), ::view-transition-new(root) { animation: none; }",
+  // Glass. Pinned surfaces (sidebar, composer, your messages, cards, sheets)
+  // let the frosted painting through; the floating card stays solid because
+  // it sits over text.
+  "html body div[data-slot='composer-surface'][data-slot][class] { background: linear-gradient(rgba(84, 54, 36, 0.46), rgba(58, 37, 25, 0.52)) !important; backdrop-filter: blur(18px) saturate(1.25) brightness(1.08) !important; box-shadow: inset 0 1px 0 rgba(251, 241, 199, 0.07), inset 0 0 0 1px rgba(251, 241, 199, 0.06), 0 10px 30px rgba(0, 0, 0, 0.22) !important; }",
+  "html body :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) { background: linear-gradient(rgba(70, 44, 30, 0.46), rgba(50, 31, 21, 0.52)) !important; box-shadow: inset 0 1px 0 rgba(251, 241, 199, 0.07), inset 0 0 0 1px rgba(251, 241, 199, 0.06), 0 6px 20px rgba(0, 0, 0, 0.16) !important; border-color: transparent !important; }",
+  "html:not([data-zf-arc='1']) body [data-zf-arc-col] { background: linear-gradient(rgba(48, 30, 21, 0.50), rgba(32, 20, 14, 0.58)) !important; backdrop-filter: blur(20px) saturate(1.2) !important; box-shadow: inset 0 1px 0 rgba(251, 241, 199, 0.07), inset 0 0 0 1px rgba(251, 241, 199, 0.06), 0 18px 48px rgba(0, 0, 0, 0.30) !important; }",
+  "html[data-zf-arc='1'] body [data-zf-arc-col] { background: rgb(38, 24, 17) !important; }",
+  "html[data-zf-arc='1'] body [data-zf-arc-col] :is(footer[data-zf-arc-foot], #zephyr-snips) { background: transparent !important; }",
+  "div.rounded-xl:has(> * [class*='grid-cols-[13rem_minmax(0,1fr)]']), div.rounded-xl:has(> [class*='grid-cols-[13rem_minmax(0,1fr)]']) { background: rgba(34, 21, 15, 0.72) !important; backdrop-filter: blur(28px) saturate(1.1) !important; }",
+  // left-edge hot zone, invisible
+  '#zf-rail-hot { position: fixed; left: 0; top: 40px; bottom: 0; width: 8px; z-index: 59; display: none; background: transparent; }',
+  "html[data-zf-arc='1']:not([data-zf-arc-open='1']) #zf-rail-hot { display: block; }",
+  "[data-slot='sidebar-wrapper'], [data-slot='sidebar'] { border-left: 0 !important; border-right: 0 !important; }",
+
+  // Sessions / Bots: equal halves, dark selected rectangle
+  "[data-zf-arc-col] [role='tablist']:has([data-slot='pane-tab']) { border-radius: 10px !important; padding: 3px !important; gap: 3px !important; background: rgba(0, 0, 0, 0.24) !important; overflow: hidden !important; height: 32px !important; box-sizing: border-box !important; }",
+  "[data-zf-arc-col] [data-slot='pane-tab'] { flex: 1 1 0 !important; height: 26px !important; justify-content: center !important; border-radius: 7px !important; border: 0 !important; background: transparent !important; box-shadow: none !important; }",
+  "[data-zf-arc-col] [data-slot='pane-tab'] .uppercase { text-transform: none !important; letter-spacing: 0 !important; font-size: 12px !important; }",
+  "[data-zf-arc-col] [data-slot='pane-tab']:hover { background: rgba(251, 241, 199, 0.05) !important; }",
+  "[data-zf-arc-col] [data-slot='pane-tab'][aria-selected='true'] { background: rgba(251, 241, 199, 0.10) !important; color: var(--zf-ink-0, #fbf1c7) !important; }",
+  "[data-zf-arc-col] [data-slot='pane-tab'] :is(span, div) { background: transparent !important; }",
+
+  // ── Command center data: the live status bar, docked at the bottom of the
+  // column and moving with it. No tab, no popover, no second window.
+  '#zephyr-statusdock-tab, #zephyr-statusdock-head, #zephyr-statusdock-ghost, [data-zephyr-dock-pop] { display: none !important; }',
+  "html body [data-slot*='command-center'], html body [data-slot*='commandCenter'], html body #command-center { display: none !important; }",
+  "html body [data-zephyr-dock-room][data-zephyr-dock-room], html body [data-zephyr-lib-room][data-zephyr-lib-room] { margin-top: 0 !important; }",
+  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] {",
+  '  position: fixed !important; z-index: 61 !important;',
+  '  left: var(--zf-foot-x, 10px) !important; width: var(--zf-foot-w, 272px) !important;',
+  '  top: auto !important; bottom: var(--zf-foot-b, 10px) !important; right: auto !important;',
+  '  height: auto !important; max-height: 30vh !important; overflow: hidden auto !important; overscroll-behavior: contain;',
+  '  display: flex !important; flex-direction: column !important; justify-content: flex-start !important; align-items: stretch !important; gap: 2px !important;',
+  '  padding: 6px !important; box-sizing: border-box !important;',
+  '  border-radius: 0 0 var(--zf-foot-r, 16px) var(--zf-foot-r, 16px) !important;',
+  '  border-top: 1px solid rgba(235, 219, 178, 0.08) !important;',
+  '  background: transparent !important; box-shadow: none !important;',
+  '  transform: none !important; clip-path: none !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important;',
+  '  scrollbar-width: thin;',
+  '}',
+  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] > div { flex-direction: column !important; align-items: stretch !important; gap: 0 !important; overflow: visible !important; }",
+  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] > div:empty { display: none !important; }",
+  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] > div + div:not(:empty) { border-top: 1px solid rgba(235, 219, 178, 0.07) !important; margin-top: 3px !important; padding-top: 3px !important; }",
+  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] > div > * {",
+  '  height: 22px !important; min-height: 22px !important; width: 100% !important; justify-content: flex-start !important;',
+  '  padding: 0 8px !important; gap: 8px !important; border-radius: 6px !important; font-size: 12px !important;',
+  '  color: var(--zf-ink-1, #ebdbb2) !important; background: transparent !important; transform: none !important; opacity: 1 !important;',
+  '}',
+  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] > div > *:hover { background: rgba(235, 219, 178, 0.07) !important; }",
+  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] svg { width: 13px !important; height: 13px !important; flex: none; color: var(--zf-ink-3, #a89984) !important; }",
+
+  // the command center folds to one header row; shut by default
+  "html:not([data-zf-cc-open='1']) body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] { display: none !important; }",
+  '#zf-cc-head {',
+  '  position: fixed; z-index: 61; display: none; box-sizing: border-box;',
+  '  left: var(--zf-foot-x, 10px); width: var(--zf-foot-w, 272px);',
+  '  bottom: calc(var(--zf-foot-b, 10px) + var(--zf-foot-h, 0px));',
+  '  height: 28px; padding: 0 0.7rem 0 0.75rem; gap: 0.5rem; align-items: center; cursor: pointer; outline: none;',
+  '  border: 0 !important; border-top: 1px solid rgba(235, 219, 178, 0.08) !important; border-radius: 0 !important; background: transparent !important;',
+  '  font-size: 10.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;',
+  '  color: var(--zf-sd-lab-color, var(--zf-ink-2, #d5c4a1)); transition: color 150ms ease;',
+  '}',
+  "html[data-zf-arc-ready='1'] #zf-cc-head { display: flex; }",
+  '#zf-cc-head:hover, #zf-cc-head:focus-visible { color: var(--zf-ink-0, #fbf1c7); }',
+  '#zf-cc-head svg { width: 0.75rem; height: 0.75rem; flex: none; }',
+  '#zf-cc-head > span:not(.zf-cc-sum) { flex: none; white-space: nowrap; }',
+  '#zf-cc-head .zf-cc-sum { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: auto;',
+  '  text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 11px; color: var(--zf-ink-3, #a89984); }',
+  '#zf-cc-head .zf-cc-chev { transform: rotate(-90deg); transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }',
+  "html[data-zf-cc-open='1'] #zf-cc-head .zf-cc-chev { transform: none; }",
+  "html[data-zf-cc-open='1'] #zf-cc-head .zf-cc-sum { display: none; }",
+  // footer no longer carries the top rule; the head does
+  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] { border-top: 0 !important; padding-top: 2px !important; }",
+  // ── Snippets: one slim row above the status data; opens upward
+  '#zephyr-snips[data-zf-stale] { display: none !important; }',
+  'html body #zephyr-snips[data-zf-arc-snips][data-zf-arc-snips] {',
+  '  position: fixed !important; z-index: 61 !important;',
+  '  left: var(--zf-foot-x, 10px) !important; width: var(--zf-foot-w, 272px) !important;',
+  '  top: auto !important; bottom: calc(var(--zf-foot-b, 10px) + var(--zf-foot-h, 0px) + var(--zf-cc-h, 0px)) !important;',
+  '  height: auto !important; max-height: 30vh !important; box-sizing: border-box !important;',
+  '  border-radius: 0 !important; border: 0 !important; border-top: 1px solid rgba(235, 219, 178, 0.08) !important;',
+  '  background: transparent !important; box-shadow: none !important; margin: 0 !important;',
+  '}',
+  'html body #zephyr-snips[data-zf-arc-snips][data-zf-arc-snips] .zf-lib-head { height: 28px !important; font-size: 10.5px !important; }',
+  'html body #zephyr-snips[data-zf-arc-snips][data-zf-arc-snips]:not([data-open]) .zf-lib-rows { display: none !important; }',
+
+  // everything that rides on the card slides with it
+  "html[data-zf-arc='1'] body :is(footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot], #zephyr-snips[data-zf-arc-snips][data-zf-arc-snips], #zf-cc-head) {",
+  '  translate: calc(-100% - 28px) 0; opacity: 0 !important; pointer-events: none !important;',
+  '  transition: translate 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease;',
+  '  will-change: translate, opacity;',
+  '}',
+  "html[data-zf-arc='1'][data-zf-arc-open='1'] body :is(footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot], #zephyr-snips[data-zf-arc-snips][data-zf-arc-snips], #zf-cc-head) {",
+  '  translate: 0 0; opacity: 1 !important; pointer-events: auto !important;',
+  '  transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease;',
+  '}',
+  '@media (prefers-reduced-motion: reduce) {',
+  "  [data-zf-arc-col], footer[data-zf-arc-foot], #zephyr-snips[data-zf-arc-snips], #zf-cc-head { transition: none !important; }",
+  '}',
+
+  // Two text roles still resolved to a colour the theme never chose — the pane
+  // tab label and the sidebar timestamps both computed to rgb(33 3 25), which is
+  // 1.1:1 on this ground. Named explicitly rather than guessed at the token.
+  "[data-slot='pane-tab'] :is(span, div) {",
+  '  color: var(--zf-ink-2, #d5c4a1) !important;',
+  '}',
+  "[data-slot='pane-tab']:is([aria-selected='true'], [data-active='true']) :is(span, div) {",
+  '  color: var(--zf-ink-0, #fbf1c7) !important;',
+  '}',
+  "[data-slot='sidebar'] time, time[tooltip-trigger] {",
+  '  color: var(--zf-ink-3, #a89984) !important;',
+  '}',
+
+  "[role='tab'][data-tree-tab]:not([data-slot='pane-tab']) :is(span, div) {",
+  '  text-overflow: ellipsis;',
+  '}',
+
+  // Floating surfaces: menus, dialogs, popovers and tooltips share one radius
+  // and one shadow, instead of each carrying its own.
+  ":is([role='menu'], [role='dialog'], [role='listbox'], [role='tooltip'], [data-slot*='popover']) {",
+  '  border-radius: var(--zf-r-card) !important;',
+  '}',
+  ":is([role='tooltip']) {",
+  '  border-radius: 6px !important;',
+  '  padding: 4px 8px !important;',
+  '  font-size: 11px !important;',
+  '}',
+  ":is([role='menu'], [role='dialog'], [role='listbox']) {",
+  '  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42), 0 2px 6px rgba(0, 0, 0, 0.28) !important;',
+  '}',
+]
+
+const GRUVBOX_TEXT_CSS = [
+  /* one soft-focus layer for the reading column: the picture stays as colour
+     and light, not as detail competing with letterforms */
+  // One glass band across the WHOLE window: edge to edge, left side of the
+  // screen to the right, so there is no vertical seam anywhere — the panes are
+  // translucent, so the blur simply shows through all of them. Only the top and
+  // bottom fade, because those are the only edges that are actually visible.
+  //
+  // It hangs off html::after rather than a thread element precisely because a
+  // thread element's width ends at the pane boundary, and that boundary is the
+  // hard line we are trying to get rid of.
+  "html[data-zf-chat='1']::after {",
+  "  content: '';",
+  '  position: fixed; left: 0; right: 0; top: 0; bottom: 0; z-index: -1;',
+  '  pointer-events: none;',
+  '  background: radial-gradient(120% 90% at 50% 40%, rgba(92, 50, 24, 0.20), rgba(40, 20, 10, 0.34));',
+  `  backdrop-filter: blur(${skinNumber(SKIN.blur, 16)}px) sepia(0.32) saturate(${skinNumber(SKIN.saturate, 1.35)}) brightness(${skinNumber(SKIN.brightness, 0.84)});`,
+  '}',
+  '::selection { background: #7c4f37 !important; color: #fbf1c7 !important; }',
+
+  // Title
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) :is(h1, h2, h3, h4, h5, h6) {",
+  '  color: var(--zf-ink-0, #fbf1c7) !important;',
+  '}',
+  // Underlined
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) a {",
+  '  color: #83a598 !important;',
+  '  text-decoration: underline !important;',
+  '  text-decoration-color: rgba(131, 165, 152, 0.55) !important;',
+  '}',
+  // Constant
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) :is(code, kbd, samp) {",
+  '  color: #d3869b !important;',
+  '  background: rgba(26, 20, 17, 0.78) !important;',
+  `  border: 1px solid ${SKIN.edge} !important;`,
+  '}',
+  // String / Special in blocks: the fence keeps bg0_hard, the border is bg2
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) pre {",
+  '  background: rgba(26, 20, 17, 0.90) !important;',
+  '  border: 1px solid #6a5140 !important;',
+  '  color: #ebdbb2 !important;',
+  '}',
+  // PreProc
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) blockquote {",
+  '  border-left: 2px solid #8ec07c !important;',
+  '  color: #d5c4a1 !important;',
+  '}',
+  // LineNr
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) hr {",
+  '  border-color: #6a5140 !important;',
+  '}',
+  // prose shadow: cheap insurance on the last translucent surface in the stack
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message'], [data-slot='assistant-message']) :is(p, li, td, th, dd, dt, figcaption) {",
+  '  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 2px 7px rgba(0, 0, 0, 0.38);',
+  '}',
+  "[data-slot='aui_intro'] :is(p, h1, h2, h3, [class*='wordmark']), [data-slot='statusbar'] {",
+  '  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.50), 0 2px 7px rgba(0, 0, 0, 0.32);',
+  '}'
+]
+
+// Read by skyStyleFor, which is a pure function of (date, gl) everywhere else.
+// The look is a module-level switch so the sheet builder stays a single path.
+let LOOK_MODE = 'sunset'
+const setLookMode = mode => { LOOK_MODE = mode === 'gruvbox' ? 'gruvbox' : 'sunset' }
 
 const WORK_ICONS = {
   brain: '<svg width="14" height="14" viewBox="0 0 256 256" fill="#ffffff"><path d="M216,72a48,48,0,0,0-88-26.49A48,48,0,0,0,40,72v1.39a56,56,0,0,0,0,101.22V176a48,48,0,0,0,88,26.49A48,48,0,0,0,216,176v-1.39A56.09,56.09,0,0,0,248,124,56.11,56.11,0,0,0,216,72ZM120,208a32,32,0,0,1-32-32,48,48,0,0,1,32-45.26Zm0-93.26A48,48,0,0,1,88,69.26,32,32,0,0,1,120,40Zm16-74.74A32,32,0,0,1,168,69.26a48,48,0,0,1-32,45.48Zm0,93.26A48,48,0,0,1,168,176a32,32,0,0,1-32,32Z"/></svg>',
@@ -236,11 +996,11 @@ const getAnchors = (solar = getSolar()) => {
     { hour: hDawn, top: [36, 30, 58], mid: [68, 58, 92], low: [121, 84, 102], horizon: [168, 115, 95], base: [51, 41, 74], orb: [255, 196, 150], orbAlpha: 0.22, exposure: 0.25 },
     { hour: hMorning, top: [32, 55, 79], mid: [47, 83, 117], low: [79, 126, 164], horizon: [140, 180, 205], base: [49, 85, 111], orb: [255, 250, 230], orbAlpha: 0.16, exposure: 0.72 },
     { hour: hNoon, top: [28, 52, 76], mid: [43, 79, 112], low: [74, 121, 158], horizon: [150, 190, 214], base: [45, 80, 106], orb: [255, 252, 240], orbAlpha: 0.18, exposure: 1 },
-    { hour: hAfternoon, top: [26, 48, 76], mid: [42, 76, 112], low: [76, 118, 154], horizon: [195, 160, 130], base: [42, 70, 96], orb: [255, 235, 190], orbAlpha: 0.2, exposure: 0.85 },
-    { hour: hGolden, top: [24, 46, 76], mid: [38, 70, 110], low: [68, 108, 146], horizon: [205, 155, 105], base: [38, 64, 92], orb: [255, 210, 140], orbAlpha: 0.22, exposure: 0.76 },
-    { hour: hSunset, top: [22, 38, 68], mid: [42, 54, 86], low: [85, 75, 98], horizon: [210, 125, 70], base: [52, 44, 62], orb: [255, 145, 80], orbAlpha: 0.25, exposure: 0.55 },
-    { hour: hDusk, top: [20, 28, 54], mid: [36, 36, 64], low: [68, 52, 78], horizon: [135, 75, 68], base: [38, 30, 48], orb: [220, 130, 75], orbAlpha: 0.2, exposure: 0.35 },
-    { hour: hLateDusk, top: [14, 24, 54], mid: [22, 36, 76], low: [36, 50, 96], horizon: [56, 68, 120], base: [16, 26, 56], orb: [215, 170, 120], orbAlpha: 0.16, exposure: 0.22 },
+    { hour: hAfternoon, top: [22, 40, 64], mid: [36, 62, 94], low: [62, 96, 130], horizon: [152, 118, 98], base: [32, 54, 78], orb: [255, 216, 172], orbAlpha: 0.18, exposure: 0.82 },
+    { hour: hGolden, top: [17, 29, 48], mid: [29, 48, 72], low: [52, 80, 106], horizon: [168, 106, 78], base: [27, 41, 58], orb: [255, 176, 108], orbAlpha: 0.2, exposure: 0.64 },
+    { hour: hSunset, top: [15, 17, 33], mid: [30, 27, 46], low: [62, 40, 60], horizon: [186, 84, 52], base: [32, 23, 38], orb: [255, 122, 62], orbAlpha: 0.26, exposure: 0.42 },
+    { hour: hDusk, top: [11, 13, 28], mid: [22, 21, 40], low: [46, 31, 52], horizon: [108, 50, 50], base: [20, 17, 28], orb: [198, 104, 62], orbAlpha: 0.2, exposure: 0.3 },
+    { hour: hLateDusk, top: [8, 11, 26], mid: [14, 19, 42], low: [23, 31, 60], horizon: [38, 44, 86], base: [11, 17, 34], orb: [188, 148, 108], orbAlpha: 0.14, exposure: 0.2 },
     { hour: hNight, top: [10, 20, 48], mid: [15, 30, 68], low: [22, 42, 92], horizon: [30, 56, 115], base: [12, 22, 50], orb: [210, 228, 255], orbAlpha: 0.18, exposure: 0.18 }
   ]
 
@@ -454,20 +1214,31 @@ const horizonTiltAt = (date = new Date()) => {
 // ══ §5 APP CSS (skyStyleFor: layout, glass material, every surface) ════════
 
 const skyStyleFor = (date, gl = false) => {
+  const gruv = LOOK_MODE === 'gruvbox'
   const sky = skyAt(date)
-  const isNight = phaseAt(date) === 'night'
+  const isNight = !gruv && phaseAt(date) === 'night'
   const horizonTilt = horizonTiltAt(date)
   const scrim = ((1 - sky.exposure) * 0.08).toFixed(3)
   // Panels get denser as the sky gets brighter; the neutrals are the app's own
   // quality knob, and making them translucent is what lets the sky read through.
-  const zf = zephyrMaterial(sky)
-  const density = Math.min(0.92, 0.55 + 0.35 * sky.exposure + 0.24 * zf.night).toFixed(3)
+  // Gruvbox has no light level: it uses the same body dusk gets.
+  const zf = gruv ? gruvboxMaterial() : zephyrMaterial(sky)
+  const density = gruv ? String(skinNumber(SKIN.chrome, 0.88)) : Math.min(0.92, 0.55 + 0.35 * sky.exposure + 0.24 * zf.night).toFixed(3)
+  // The painting has real light and shade, unlike a sky gradient, so gruvbox
+  // tunes the three neutrals separately: the reading pane lets the painting
+  // through, the sidebar (smallest text) and the cards hold it back.
+  const sideDensity = gruv ? String(skinNumber(SKIN.sidebar, 0.92)) : density
+  const cardDensity = gruv ? String(skinNumber(SKIN.card, 0.96)) : density
   const glassPct = a => `${Math.round(a)}%`
+  // gruvbox has no white in its palette; fg0 is the brightest ink it uses.
+  const solidInk = gruv ? gbHex(GB.fg0) : '#ffffff'
 
   return [
-    `/* Zephyr sky. Blended for ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}, exposure ${sky.exposure.toFixed(2)}, horizon ${horizonTilt.angle.toFixed(1)}°. */`,
+    gruv
+      ? `/* Zephyr · gruvbox. The Backwater, ${BACKWATER_URL.split('/').pop()}, full ${4096}×${2428}, cover-fitted. */`
+      : `/* Zephyr sky. Blended for ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}, exposure ${sky.exposure.toFixed(2)}, horizon ${horizonTilt.angle.toFixed(1)}°. */`,
     'html {',
-    `  background-color: ${cssRgb(sky.base)};`,
+    `  background-color: ${gruv ? '#1d2021' : cssRgb(sky.base)};`,
     '}',
     // The app's own ground is `body { background: var(--ui-chat-surface-background) }`,
     // and that chrome colour is a color-mix whose second input is an OPAQUE
@@ -479,9 +1250,12 @@ const skyStyleFor = (date, gl = false) => {
     // glass, so it rests while the sky is on.
     "img[src*='filler-bg0'] { display: none; }",
     // With the GL sky on, the canvas is the sky: the painted CSS layers rest.
+    // In gruvbox the painting IS the background, so its own layer block is used.
     ...(gl
       ? ['html::before { content: none; }', 'body::before { content: none; }']
-      : [
+      : gruv
+        ? gruvboxLayers()
+        : [
     // Negative z-index is the whole trick: these layers paint above the canvas
     // but below every in-flow app surface, so no panel has to be restyled for
     // them, and nothing can cover them.
@@ -497,7 +1271,7 @@ const skyStyleFor = (date, gl = false) => {
     `    radial-gradient(115% 58% at ${horizonTilt.secondaryX.toFixed(1)}% ${horizonTilt.secondaryY.toFixed(1)}%, ${cssRgba(sky.horizon, (0.16 * sky.exposure).toFixed(3))} 0%, transparent 68%),`,
     `    radial-gradient(95% 48% at ${horizonTilt.ambientX.toFixed(1)}% 99%, ${cssRgba(sky.low, (0.15 * sky.exposure).toFixed(3))} 0%, transparent 64%),`,
     `    linear-gradient(180deg, rgba(0, 0, 0, ${scrim}), rgba(0, 0, 0, ${scrim})),`,
-    `    linear-gradient(180deg, ${cssRgb(sky.top)} 0%, ${cssRgb(sky.mid)} 32%, ${cssRgb(sky.low)} 62%, ${cssRgb(sky.horizon)} 88%, ${cssRgb(sky.horizon)} 100%);`,
+    `    linear-gradient(180deg, ${cssRgb(sky.top)} 0%, ${cssRgb(sky.mid)} 30%, ${cssRgb(sky.low)} 54%, ${cssRgb(sky.horizon)} 80%, ${cssRgb(sky.horizon)} 100%);`,
     '}',
     'body::before {',
     "  content: ''; position: fixed; left: 50%; top: 0; width: 62vmax; height: 62vmax;",
@@ -512,10 +1286,13 @@ const skyStyleFor = (date, gl = false) => {
     // Panel density, and it is deliberately mode-scoped: Zephyr's phases are
     // dark palettes, and a light-mode app would not want a translucent ground.
     ':root.dark {',
-    `  --theme-neutral-chrome: rgba(13, 13, 14, ${density});`,
-    `  --theme-neutral-sidebar: rgba(10, 10, 11, ${density});`,
-    `  --theme-neutral-card: rgba(22, 22, 24, ${density});`,
-    '  --ui-text-primary: #ffffff;',
+    // Tinted glass: in the sky looks these read as near-neutral black; in
+    // gruvbox they ARE the palette (bg0 chrome, bg0_hard sidebar, bg1 cards), so
+    // the pane is a gruvbox surface with the painting behind it, not soot.
+    `  --theme-neutral-chrome: rgba(${gruv ? hexTriple(SKIN.ground) : '13, 13, 14'}, ${density});`,
+    `  --theme-neutral-sidebar: rgba(${gruv ? '26, 20, 17' : '10, 10, 11'}, ${sideDensity});`,
+    `  --theme-neutral-card: rgba(${gruv ? hexTriple(SKIN.cardTint) : '22, 22, 24'}, ${cardDensity});`,
+    `  --ui-text-primary: ${gruv ? SKIN.ink : '#ffffff'};`,
     '  --ui-text-secondary: var(--zf-ink-2);',
     '  --ui-text-tertiary: var(--zf-ink-3);',
     '  --sidebar-foreground: var(--zf-ink-1);',
@@ -691,11 +1468,11 @@ const skyStyleFor = (date, gl = false) => {
     ":is([data-slot='aui_user-message-root'], [data-slot='user-message'], .composer-human-message, [class*='composer-human-message']) [class*='group-hover/user-message'] :is(time, span, div),",
     ":is([data-slot='aui_user-message-root'], [data-slot='user-message'], .composer-human-message, [class*='composer-human-message']) time,",
     ":is([data-slot='aui_user-message-root'], [data-slot='user-message']) :is([data-slot='timeline-timestamp'], [class*='timeline-timestamp']) time {",
-    '  color: var(--ui-accent, var(--accent, #9dc4e8)) !important;',
+    '  color: var(--zf-ink-3) !important;',
     '}',
     // Brighter, whiter text across transcript, chat bubbles, and sidebar
     ":is([data-slot='aui_thread-content'], [data-chat-surface], [data-slot='thread']) {",
-    '  color: #ffffff;',
+    `  color: ${solidInk};`,
     '  background: transparent !important;',
     '}',
     ":is([data-slot='aui_thread-content'], [data-slot='thread']) :is(p, li, span, h1, h2, h3, h4) {",
@@ -781,7 +1558,7 @@ const skyStyleFor = (date, gl = false) => {
     '}',
     "[data-sessions-mode] [data-row-actions] button:hover svg,",
     "[data-sessions-mode] [data-slot='sidebar-menu-action']:hover svg {",
-    '  color: #ffffff !important;',
+    `  color: ${solidInk} !important;`,
     '}',
     // ── Session status indicators in chat history panel ──────────────────────
     // Remove the traveling border laser/arc animation around running session rows
@@ -893,21 +1670,21 @@ const skyStyleFor = (date, gl = false) => {
     '  color: var(--zf-ink-2) !important;',
     '}',
     `${SWITCH_HOOK} > [role='tablist'] > [data-slot='pane-tab']:hover {`,
-    '  color: #ffffff !important;',
+    `  color: ${solidInk} !important;`,
     '}',
     `${SWITCH_HOOK} > [role='tablist'] > [data-slot='pane-tab'][data-active='true'] {`,
     '  color: var(--zf-ink-0) !important;',
     '}',
     // Hover state on panel items
     ":is([data-tour='sessions-sidebar'], [data-slot='sidebar-content'], [data-sessions-mode]) :is([data-slot='sidebar-menu-button'], button, a, [role='button']):hover {",
-    '  color: #ffffff !important;',
+    `  color: ${solidInk} !important;`,
     '  background-color: rgba(255, 255, 255, 0.08) !important;',
     '}',
     ":is([data-tour='sessions-sidebar'], [data-slot='sidebar-content'], [data-sessions-mode]) :is([data-slot='sidebar-menu-button'], button, a, [role='button']):hover * {",
-    '  color: #ffffff !important;',
+    `  color: ${solidInk} !important;`,
     '}',
     ":is([data-tour='sessions-sidebar'], [data-slot='sidebar-content'], [data-sessions-mode]) :is([data-slot='sidebar-menu-button'], button, a, [role='button']):hover :is(svg, [data-slot*='icon']) {",
-    '  color: #ffffff !important;',
+    `  color: ${solidInk} !important;`,
     '}',
     // Profile rail at the bottom
     "[data-slot='profile-rail'] :is(span, p, div, label) {",
@@ -918,7 +1695,7 @@ const skyStyleFor = (date, gl = false) => {
     '}',
     "[data-slot='user-message'] {",
     '  background: var(--zf-glass) !important;',
-    '  color: #ffffff !important;',
+    `  color: ${solidInk} !important;`,
     '}',
     // The zone headers (the tab bar and the SESSIONS | BOTS strip) stay BARE:
     // no fill, no edge, no radius. A card on the header AND a box on the tab
@@ -1324,8 +2101,15 @@ const skyStyleFor = (date, gl = false) => {
     `  --zf-ink-1: ${cssRgb(zf.ink[1])};`,
     `  --zf-ink-2: ${cssRgb(zf.ink[2])};`,
     `  --zf-ink-3: ${cssRgb(zf.ink[3])};`,
-    `  --zf-accent: ${zf.accent};`,
+    `  --zf-accent: ${gruv ? SKIN.accent : zf.accent};`,
     '}',
+    // Outside the :root block, on purpose: these are rules, not custom
+    // properties, and a stray `{` inside a declaration block makes the parser
+    // swallow everything after it.
+    ...SESSION_TAB_CSS,
+    ...PANE_RAIL_CSS,
+    ...(gruv ? GRUVBOX_TEXT_CSS : []),
+    ...polishCss(),
     // Sidebar cards, the composer and the switch pill share the material.
     "[data-slot='sidebar-content'] > [data-slot='sidebar-group'],",
     "[data-slot='sidebar-content'] > [data-sessions-mode],",
@@ -1354,7 +2138,7 @@ const skyStyleFor = (date, gl = false) => {
     '  transition: color 120ms ease;',
     '}',
     "[data-slot='sidebar-menu-button']:has([data-tour^='sidebar-nav-']):is(:hover, [class*='bg-(--ui-control-active-background)']) > :is(svg, i, [class*='codicon']) {",
-    '  color: var(--zf-accent) !important;',
+    '  color: var(--zf-ink-0) !important;',
     '}',
     ":is([data-slot='composer-surface'], [class~='group/composer-surface'], .composer-fallback-surface) {",
     '  background: var(--zf-glass) !important;',
@@ -1468,7 +2252,7 @@ const skyStyleFor = (date, gl = false) => {
     `${MENU_SURFACES} :is([data-slot$='-label'], [cmdk-group-heading]) { color: var(--zf-ink-3) !important; }`,
     `${MENU_SURFACES} :is([data-slot$='-separator'], [role='separator'], [cmdk-separator]) { background: var(--zf-edge) !important; }`,
     `${MENU_SURFACES} :is([data-slot$='-shortcut'], kbd, [data-slot='kbd']) { color: var(--zf-ink-3) !important; background: transparent !important; border-color: var(--zf-edge) !important; }`,
-    `${MENU_SURFACES} :is([data-slot$='-item-indicator'], [data-state='checked'] > span:first-child) svg { color: var(--zf-accent) !important; }`,
+    `${MENU_SURFACES} :is([data-slot$='-item-indicator'], [data-state='checked'] > span:first-child) svg { color: var(--zf-ink-0) !important; }`,
     `${MENU_SURFACES} [data-slot='command-input-wrapper'] { border-color: var(--zf-edge) !important; }`,
     `${MENU_SURFACES} [data-slot='command-input'] { background: transparent !important; color: var(--zf-ink-0); }`,
     "[data-slot='tooltip-content'] { border-radius: calc(var(--zf-radius) - 0.2rem) !important; }",
@@ -3186,7 +3970,7 @@ const createSky = (opts = {}) => {
   let liftNow = Object.assign({}, HS.LIFT_BASE, opts.lift || {})
   const scene = { cover: 30, low: 30, mid: 0, high: 0, code: 2, aod: null, wind: 9, windDir: 250 }
   const want = { ...scene }
-  const live = { lat: opts.lat ?? 43.65, lng: opts.lng ?? -79.38, fade: 0, clock: null, fast: false }
+  const live = { lat: opts.lat ?? 43.65, lng: opts.lng ?? -79.38, fade: 0, clock: null, fast: false, hold: null }
   const run = { on: false, disposed: false, timer: 0, last: 0, lastSky: -1e9, builtAt: -1e9, dirty: true, frame: null, fps: quality.fps, slowT: 1.5, driftOff: [0, 0], blur: 0, blurTo: 0, blurFrom: 0, blurT0: 0, sized: 0, dim: opts.dim ?? SKY_DIM }
 
   /* Weather weights (the plugin's genera weights) → the engine's builder inputs:
@@ -3224,7 +4008,7 @@ const createSky = (opts = {}) => {
   }
 
   const build = t => {
-    const d = live.clock ? live.clock() : new Date()
+    const d = live.clock ? live.clock() : live.hold ? new Date(live.hold) : new Date()
     HS.applyScene({
       hourly: false,
       hour: d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600,
@@ -3451,6 +4235,15 @@ const createSky = (opts = {}) => {
         run.dirty = true
       }
     },
+    /* Freeze the sun at one instant (the held sunset), or null for the wall
+       clock. The sky is still redrawn every frame; only the date is pinned. */
+    setHold(date) {
+      const next = date instanceof Date && !Number.isNaN(date.getTime()) ? date.getTime() : null
+      if (next === live.hold) return
+      live.hold = next
+      run.dirty = true
+      reschedule()
+    },
     /* a fast clock drives the day preview; anything else is the wall clock
        (the preview hands back `() => new Date()`, which must not keep the
        per-frame rebuild running forever) */
@@ -3655,16 +4448,16 @@ const SNIPPET_CSS = [
   '.zf-snip-head { display: flex; align-items: center; gap: 0.5rem; min-height: 1rem; }',
   '.zf-snip-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
   '  font-size: 0.64rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--zf-ink-3, var(--ui-text-tertiary)); }',
-  ".zf-snip[data-tone='accent'] .zf-snip-title { color: var(--zf-accent, var(--ui-accent)); }",
+  ".zf-snip[data-tone='accent'] .zf-snip-title { color: var(--zf-ink-0); }",
   '.zf-snip-acts { margin-left: auto; display: flex; gap: 0.1rem; opacity: 0; transition: opacity 140ms ease; }',
   '.zf-snip:is(:hover, :focus-within) .zf-snip-acts, .zf-snip-acts:has([data-on]) { opacity: 1; }',
   '.zf-snip-act { display: grid; place-items: center; width: 1.4rem; height: 1.4rem; padding: 0; border: 0; border-radius: calc(var(--zf-radius, 0.6rem) - 0.3rem);',
   '  background: transparent; color: var(--zf-ink-3, var(--ui-text-tertiary)); cursor: pointer; transition: background-color 120ms ease, color 120ms ease; }',
   '.zf-snip-act:hover, .zf-snip-act:focus-visible { background: var(--zf-hover, rgba(255,255,255,.065)); color: var(--zf-ink-0, var(--ui-text-primary)); outline: none; }',
-  '.zf-snip-act[data-on] { color: var(--zf-accent, var(--ui-accent)); }',
+  '.zf-snip-act[data-on] { color: var(--zf-ink-0); }',
   '.zf-snip-act .zf-snip-done { display: none; }',
   '.zf-snip-act[data-done] .zf-snip-idle { display: none; }',
-  '.zf-snip-act[data-done] .zf-snip-done { display: inline-flex; color: var(--zf-accent, var(--ui-accent)); }',
+  '.zf-snip-act[data-done] .zf-snip-done { display: inline-flex; color: var(--zf-ink-1); }',
   '.zf-snip-value { font-size: 0.95rem; line-height: 1.45; color: var(--zf-ink-0, var(--ui-text-primary)); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }',
   '.zf-snip-note { font-size: 0.8125rem; line-height: 1.55; color: var(--zf-ink-2, var(--ui-text-secondary)); }',
   '.zf-snip-source { font-size: 0.6875rem; color: var(--zf-ink-3, var(--ui-text-tertiary)); }',
@@ -3771,7 +4564,7 @@ const SNIPPET_CSS = [
   '#zephyr-snip-drawer .zf-dw-icon { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; padding: 0; border: 0; cursor: pointer; flex: none;',
   '  border-radius: calc(var(--zf-radius, 0.6rem) - 0.2rem); background: transparent; color: var(--zf-ink-3, #7d889a); transition: background-color 120ms ease, color 120ms ease; }',
   '#zephyr-snip-drawer .zf-dw-icon:hover, #zephyr-snip-drawer .zf-dw-icon:focus-visible { background: var(--zf-hover, rgba(255,255,255,.065)); color: var(--zf-ink-0, #fff); outline: none; }',
-  '#zephyr-snip-drawer .zf-dw-icon[data-on] { color: var(--zf-accent, #9cf); }',
+  '#zephyr-snip-drawer .zf-dw-icon[data-on] { color: var(--zf-ink-0); }',
   '#zephyr-snip-drawer .zf-dw-icon svg { width: 0.85rem; height: 0.85rem; }',
   '#zephyr-snip-drawer .zf-dw-list { flex: 1; min-height: 0; overflow: hidden auto; overscroll-behavior: contain; scrollbar-width: none; padding: 0 0.35rem 0.4rem;',
   '  display: flex; flex-direction: column; gap: 0.1rem; -webkit-mask: linear-gradient(transparent, #000 0.5rem, #000 calc(100% - 0.75rem), transparent); mask: linear-gradient(transparent, #000 0.5rem, #000 calc(100% - 0.75rem), transparent); }',
@@ -4029,10 +4822,113 @@ export default {
       }
     }
 
+    // A collapsed pane collapses to a sliver; the app clips rather than hides its
+    // tab labels, which leaves a word stacked one letter per line. Measure the
+    // tabs and mark them so the sheet can drop the word (PANE_RAIL_CSS).
+    // ⌘⌥←/→ walks the session tabs. Skipped inside text fields,
+    // where the same chord is macOS "jump by paragraph", and it stops the event
+    // in the capture phase so the app's own chord handling can't fight it.
+    if (typeof window !== 'undefined') {
+      // Session tabs, not the pane tabs: the rows in the tree that each hold one
+      // session (workspace + session-tile:<id>), which is what "the session
+      // tabs" means. Pane tabs are [data-slot='pane-tab'] and are excluded.
+      const tabFrom = (node, dir) => {
+        const tabs = Array.from(document.querySelectorAll("[role='tab'][data-tree-tab]"))
+          .filter(tab => tab.dataset.slot !== 'pane-tab')
+          .filter(tab => tab.getClientRects().length > 0)
+        if (tabs.length < 2) return null
+        const current = tabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true')
+        const from = current < 0 ? 0 : current
+        return tabs[(from + dir + tabs.length) % tabs.length]
+      }
+      // A tab may listen on pointer/mouse rather than click; fire the whole
+      // sequence so the switch happens either way.
+      const pressTab = tab => {
+        if (!tab) return
+        const r = tab.getBoundingClientRect()
+        const at = {
+          bubbles: true, cancelable: true, view: window, button: 0,
+          clientX: r.left + r.width / 2, clientY: r.top + r.height / 2
+        }
+        const pointer = { ...at, pointerId: 1, isPrimary: true, pointerType: 'mouse' }
+        tab.dispatchEvent(new PointerEvent('pointerdown', pointer))
+        tab.dispatchEvent(new MouseEvent('mousedown', at))
+        tab.dispatchEvent(new PointerEvent('pointerup', pointer))
+        tab.dispatchEvent(new MouseEvent('mouseup', at))
+        tab.click()
+      }
+      const onTabChord = event => {
+        if (!event.metaKey || !event.altKey || event.ctrlKey || event.shiftKey) return
+        const dir = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+        if (!dir) return
+        const target = event.target
+        if (target instanceof Element) {
+          if (target.isContentEditable || target.closest("input, textarea, [contenteditable='true'], [contenteditable='']")) return
+        }
+        const next = tabFrom(target, dir)
+        if (!next) return
+        event.preventDefault()
+        event.stopPropagation()
+        pressTab(next)
+      }
+      window.addEventListener('keydown', onTabChord, true)
+      ctx.onDispose?.(() => window.removeEventListener('keydown', onTabChord, true))
+    }
+
+    if (typeof document !== 'undefined' && typeof ResizeObserver !== 'undefined') {
+      const seenTabs = new WeakSet()
+      const railObs = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const tab = entry.target
+          const rail = entry.contentRect.width < 56 ? 'true' : 'false'
+          if (tab.dataset.zfRail !== rail) {
+            tab.dataset.zfRail = rail
+            // collapsed, the label is gone, so the hover title has to carry it
+            if (rail === 'true') {
+              const label = (tab.textContent || '').trim()
+              if (label && !tab.dataset.zfTitle) {
+                tab.dataset.zfTitle = label
+                tab.setAttribute('title', label)
+              }
+            } else if (tab.dataset.zfTitle) {
+              tab.removeAttribute('title')
+              delete tab.dataset.zfTitle
+            }
+          }
+        }
+      })
+      const scanTabs = () => {
+        for (const tab of document.querySelectorAll("[data-slot='pane-tab']")) {
+          if (seenTabs.has(tab)) continue
+          seenTabs.add(tab)
+          railObs.observe(tab)
+        }
+      }
+      scanTabs()
+      const tabObserver = new MutationObserver(() => scanTabs())
+      tabObserver.observe(document.documentElement, { childList: true, subtree: true })
+      ctx.onDispose?.(() => {
+        tabObserver.disconnect()
+        railObs.disconnect()
+      })
+    }
+
     const pins = atom(stored(STORE_KEYS.pins) || [])
     const auto = atom(stored(STORE_KEYS.auto) !== false)
     const tint = atom(stored(STORE_KEYS.tint) === true)
     const sky = atom(stored(STORE_KEYS.sky) !== false)
+    // The held sunset: the local build's whole point. On by default, so the app
+    // opens on the dark ember band instead of whatever the clock currently says.
+    const held = atom(stored(STORE_KEYS.hold) !== false)
+    // 'sunset' = the painted sky; 'gruvbox' = The Backwater under gruvbox glass.
+    // Default is gruvbox: this build's new skin.
+    const LOOKS = ['sunset', 'gruvbox', 'custom']
+    const lookStore = stored(STORE_KEYS.look)
+    const look = atom(LOOKS.includes(lookStore) ? lookStore : 'gruvbox')
+    // 'sunset' = the painted sky; 'gruvbox' = the built-in Backwater skin at its
+    // shipped defaults; 'custom' = the same skin driven by your own picture and
+    // knobs. Built-in and custom differ only in which values the sheet reads.
+    setLookMode(look.get() === 'sunset' ? 'sunset' : 'gruvbox')
     const margins = atom(stored(STORE_KEYS.margins) === true)
     const collapseWork = atom(stored(STORE_KEYS.collapseWork) !== false)
     const motion = atom(stored(STORE_KEYS.motion) !== false)
@@ -4049,6 +4945,8 @@ export default {
       ctx.storage.set(STORE_KEYS.auto, auto.get())
       ctx.storage.set(STORE_KEYS.tint, tint.get())
       ctx.storage.set(STORE_KEYS.sky, sky.get())
+      ctx.storage.set(STORE_KEYS.hold, held.get())
+      ctx.storage.set(STORE_KEYS.look, look.get())
       ctx.storage.set(STORE_KEYS.margins, margins.get())
       ctx.storage.set(STORE_KEYS.collapseWork, collapseWork.get())
       ctx.storage.set(STORE_KEYS.motion, motion.get())
@@ -6786,6 +7684,23 @@ export default {
       style.setProperty('--zephyr-sun', value)
     }
 
+    // ── Hold the light at sunset ──────────────────────────────────────────
+    // The clock is the only thing that decides the look, so holding the light
+    // needs one override, not four: `nowAt()` returns the wall clock normally
+    // and a fixed "just after sunset" instant when `held` is on. Everything
+    // downstream (anchors, phase, theme, accent, sun readout, GL clock) takes
+    // its date from here, so the whole app settles on the dusk band and stays.
+    const SUNSET_HOLD_OFFSET = 0.3   // hours past the sunset anchor: the ember
+    const sunsetMoment = (base = new Date()) => {
+      const { set } = getSolar(base)
+      const h = Math.min(23.9, Math.max(0, set + SUNSET_HOLD_OFFSET))
+      const d = new Date(base)
+      d.setHours(Math.floor(h), Math.round((h % 1) * 60), 0, 0)
+      return d
+    }
+    const heldMoment = () => (held.get() ? sunsetMoment() : null)
+    const nowAt = () => (held.get() ? sunsetMoment() : new Date())
+
     // ── GL sky lifecycle ──────────────────────────────────────────────────
     let glSky = null
     let glFailed = false
@@ -6877,7 +7792,10 @@ export default {
         clearSky()
         return
       }
-      const gl = glOn.get() ? ensureGl() : (dropGl(), null)
+      // gruvbox is a still painting, so there is no canvas sky and no clock to
+      // hold; gl=true would also blank the image layer, so it is forced off.
+      const gl = look.get() === 'gruvbox' ? (dropGl(), null) : glOn.get() ? ensureGl() : (dropGl(), null)
+      if (gl) gl.setHold(heldMoment())
       paintSky(now, Boolean(gl))
     }
 
@@ -6898,6 +7816,12 @@ export default {
 
       renderSky(now)
 
+      if (look.get() === 'gruvbox') {
+        requestTheme(GRUVBOX_THEME)
+        if (tint.get()) setAccentOverride(GRUVBOX_ACCENT)
+        return
+      }
+
       if (!auto.get()) return
 
       requestTheme(phaseThemeName(next))
@@ -6906,7 +7830,7 @@ export default {
     }
 
     const tick = () => {
-      const now = new Date()
+      const now = nowAt()
       writeSun(now)
       if (sky.get()) renderSky(now)
       if (glSky && weatherMode.get() === 'live' && !liveWeather) applyWeather()
@@ -6935,11 +7859,11 @@ export default {
       groups.forEach(g => processTurn(g, true))
     }, 1000)
     const flareTimer = setInterval(() => { if (typeof document !== 'undefined' && !document.hidden && scrollSettled()) fitStatusStack() }, 1000)
-    apply(new Date())
+    apply(nowAt())
     syncSolar(ctx)
       .then(() => {
         if (glSky && liveSolar?.lat != null) glSky.setLocation(liveSolar.lat, liveSolar.lng)
-        apply(new Date())
+        apply(nowAt())
         return refreshWeather()
       })
       .catch(() => {})
@@ -6948,6 +7872,19 @@ export default {
     for (const name of PHASES) {
       ctx.register({ id: `theme.${name}`, area: THEMES_AREA, order: 40, data: themeFor(name) })
     }
+
+    // The gruvbox skin: same theme contract as the phases, its own ground.
+    ctx.register({
+      id: 'theme.gruvbox',
+      area: THEMES_AREA,
+      order: 39,
+      data: {
+        name: GRUVBOX_THEME,
+        label: 'Zephyr Gruvbox',
+        description: 'The Backwater behind gruvbox glass: same shapes, warm greys, orange accent.',
+        colors: GRUVBOX_GROUNDS
+      }
+    })
 
     // ── snippet cards: the medium for "small boxes I can copy and pin" ──
     ensureSnippetStyle()
@@ -6985,7 +7922,7 @@ export default {
             const next = !auto.get()
             auto.set(next)
             persist()
-            if (next) apply(new Date())
+            if (next) apply(nowAt())
             else setAccentOverride(null)
           }
         })
@@ -7013,6 +7950,690 @@ export default {
         ]
       })
 
+    // ── the skin as state: wallpaper + every knob the editor exposes ──────────
+    // The image is stored under its own key because a full-resolution picture
+    // can be megabytes; the rest is one small object.
+    const storedSkin = stored(STORE_KEYS.skin)
+    const customSkin = storedSkin && typeof storedSkin === 'object' ? { ...SKIN_DEFAULTS, ...storedSkin } : { ...SKIN_DEFAULTS }
+    const storedPicture = stored(STORE_KEYS.skinImage)
+    if (typeof storedPicture === 'string' && storedPicture.length > 32) customSkin.image = storedPicture
+    // the built-in look always paints the shipped defaults
+    setSkin(look.get() === 'custom' ? customSkin : { ...SKIN_DEFAULTS })
+    ensurePictureStyle(SKIN.image)
+    const skin = atom({ ...(look.get() === 'custom' ? customSkin : SKIN_DEFAULTS) })
+    const pushSkin = patch => {
+      const next = { ...skin.get(), ...patch }
+      // Touching a knob means "I want my own version": switch onto Custom so the
+      // change is actually on screen, rather than silently stored for later.
+      if (look.get() !== 'custom') {
+        look.set('custom')
+        persist()
+        setLookMode('gruvbox')
+      }
+      for (const key of Object.keys(next)) if (next[key] === undefined) next[key] = SKIN_DEFAULTS[key]
+      skin.set(next)
+      setSkin(next)
+      ctx.storage.set(STORE_KEYS.skin, next)
+      if (patch.image !== undefined) {
+        ctx.storage.set(STORE_KEYS.skinImage, next.image)
+        ensurePictureStyle(next.image)
+      }
+      apply(nowAt())
+    }
+    const resetSkin = () => {
+      skin.set({ ...SKIN_DEFAULTS })
+      setSkin({ ...SKIN_DEFAULTS })
+      ctx.storage.set(STORE_KEYS.skin, { ...SKIN_DEFAULTS })
+      ctx.storage.set(STORE_KEYS.skinImage, SKIN_DEFAULTS.image)
+      ensurePictureStyle(SKIN_DEFAULTS.image)
+      apply(nowAt())
+    }
+    const readAsDataUrl = file => new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || ''))
+      reader.onerror = () => resolve('')
+      reader.readAsDataURL(file)
+    })
+    // Keep the original bytes whenever the store can take them; only re-encode
+    // when a picture is too big for the browser's storage, and then once.
+    const shrinkDataUrl = (dataUrl, max = 2560) => new Promise(resolve => {
+      const img = new Image()
+      img.onload = () => {
+        if (!img.naturalWidth || img.naturalWidth <= max) return resolve(dataUrl)
+        const scale = max / img.naturalWidth
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale))
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+        resolve(canvas.toDataURL('image/jpeg', 0.92))
+      }
+      img.onerror = () => resolve(dataUrl)
+      img.src = dataUrl
+    })
+    const useImageFile = async file => {
+      if (!file) return
+      const raw = await readAsDataUrl(file)
+      if (!raw) return
+      const fitted = raw.length > 3_200_000 ? await shrinkDataUrl(raw) : raw
+      pushSkin({ image: fitted })
+    }
+
+    // ── Arclike ─────────────────────────────────────────────────────────────
+    // The app unmounts the whole sidebar tree when it collapses, and remounting
+    // it on every hover was the lag. So the app's sidebar is kept open, and
+    // "collapsed" is ours: the column is lifted out of the flow and parked
+    // off-screen, and a touch on the left edge slides it in. The app's own
+    // toggle (button or shortcut) flips between this and a pinned sidebar.
+    if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') try {
+      window.__zfRailGen = (window.__zfRailGen || 0) + 1
+      const railGen = window.__zfRailGen
+      const alive = () => window.__zfRailGen === railGen
+      const root = document.documentElement
+      const ARC_KEY = 'zephyr.arc.v1'
+      let arc = (() => { try { return localStorage.getItem(ARC_KEY) !== '0' } catch { return true } })()
+      let open = false
+      let autoUntil = 0
+      let closeTimer = 0
+
+      document.querySelectorAll('#zf-rail-hot, #zf-status-panel, #zf-card-foot').forEach(el => el.remove())
+      for (const k of ['zfRail', 'zfRailOpen', 'zfRailClosing']) delete root.dataset[k]
+      delete document.body.dataset.zfCardOpen
+      root.style.removeProperty('--zf-rail-shift')
+      document.querySelectorAll('[data-zf-card], [data-zf-card-owner], [data-zf-docked], [data-zf-rail-void]').forEach(el => {
+        delete el.dataset.zfCard; delete el.dataset.zfCardOwner; delete el.dataset.zfDocked; delete el.dataset.zfRailVoid
+      })
+
+      // command center header: folds the status data, shut by default
+      const CC_KEY = 'zephyr.arc.cc.v1'
+      document.querySelectorAll('#zf-cc-head').forEach(el => el.remove())
+      const ccHead = document.createElement('div')
+      ccHead.id = 'zf-cc-head'
+      ccHead.setAttribute('role', 'button')
+      ccHead.tabIndex = 0
+      ccHead.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>'
+        + '<span>Command center</span><span class="zf-cc-sum"></span>'
+        + '<svg class="zf-cc-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>'
+      document.body.appendChild(ccHead)
+      const ccOpen = () => { try { return localStorage.getItem(CC_KEY) === '1' } catch { return false } }
+      const applyCC = () => {
+        const on = ccOpen()
+        if (on) root.dataset.zfCcOpen = '1'
+        else delete root.dataset.zfCcOpen
+        ccHead.setAttribute('aria-expanded', String(on))
+        ccHead.title = on ? 'Collapse command center' : 'Expand command center'
+      }
+      const flipCC = () => {
+        try { localStorage.setItem(CC_KEY, ccOpen() ? '0' : '1') } catch {}
+        applyCC()
+        requestAnimationFrame(() => measureFoot())
+      }
+      document.querySelectorAll('#zf-mode-btn').forEach(el => el.remove())
+      const modeBtn = document.createElement('button')
+      modeBtn.type = 'button'
+      modeBtn.id = 'zf-mode-btn'
+      modeBtn.className = 'zf-mode-btn'
+      modeBtn.setAttribute('aria-label', 'Toggle sidebar mode')
+      document.body.appendChild(modeBtn)
+      const ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>'
+      const ICON_FLOAT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><rect x="6" y="7" width="5" height="10" rx="1.5"/></svg>'
+      const paintMode = () => {
+        modeBtn.innerHTML = arc ? ICON_PIN : ICON_FLOAT
+        modeBtn.title = arc ? 'Pin sidebar (⌘S)' : 'Float sidebar (⌘S)'
+        modeBtn.setAttribute('aria-label', modeBtn.title)
+      }
+      modeBtn.addEventListener('click', e => {
+        e.stopPropagation(); e.preventDefault()
+        if (arc) { morph(() => setArc(false)); return }
+        morph(() => { setArc(true); setOpen(true, true) })
+      })
+      modeBtn.addEventListener('keydown', e => e.stopPropagation())
+      ccHead.addEventListener('click', flipCC)
+      ccHead.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flipCC() } })
+      applyCC()
+
+      const hot = document.createElement('div')
+      hot.id = 'zf-rail-hot'
+      hot.setAttribute('aria-hidden', 'true')
+      document.body.appendChild(hot)
+
+      const toggleBtn = () => Array.from(document.querySelectorAll('button'))
+        .find(el => /^(show|hide) sidebar/i.test(el.getAttribute('aria-label') || ''))
+      const press = el => {
+        autoUntil = Date.now() + 400
+        el.click()
+      }
+      const column = () => {
+        const side = document.querySelector("[data-slot='sidebar']")
+        let node = side
+        while (node && node.parentElement && !node.parentElement.hasAttribute('data-tree-split')) node = node.parentElement
+        return node && node.parentElement ? node : null
+      }
+
+      // Cmd+S / the mode button morph between pinned and floating: the column
+      // and the main pane are captured and glide to their new boxes
+      const morph = fn => {
+        if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) { fn(); return }
+        const col = column()
+        const split = col && col.parentElement
+        const main = split && Array.from(split.children).filter(c => c !== col && c.getClientRects().length).sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0]
+        if (col) col.style.viewTransitionName = 'zf-side'
+        if (main) main.style.viewTransitionName = 'zf-main'
+        root.dataset.zfMorph = '1'
+        const t = document.startViewTransition(fn)
+        t.finished.finally(() => {
+          if (col) col.style.viewTransitionName = ''
+          if (main) main.style.viewTransitionName = ''
+          delete root.dataset.zfMorph
+        })
+      }
+      const setArc = value => {
+        arc = value
+        try { localStorage.setItem(ARC_KEY, value ? '1' : '0') } catch {}
+        setOpen(false, true)
+        sync()
+      }
+      const setOpen = (value, instant) => {
+        clearTimeout(closeTimer)
+        if (open === value) return
+        open = value
+        if (value) root.dataset.zfArcOpen = '1'
+        else delete root.dataset.zfArcOpen
+        if (instant) {
+          const col = column()
+          const els = [col, document.querySelector('footer[data-zf-arc-foot]'), document.querySelector('#zephyr-snips[data-zf-arc-snips]')].filter(Boolean)
+          els.forEach(el => { el.style.transition = 'none' })
+          requestAnimationFrame(() => els.forEach(el => { el.style.transition = '' }))
+        }
+      }
+
+      // footer + snippets geometry follows the column (card or pinned)
+      let footRO = null
+      const measureFoot = () => {
+        const foot = document.querySelector('footer[data-zf-arc-foot]')
+        const snips = document.querySelector('#zephyr-snips[data-zf-arc-snips]')
+        const fh = foot && root.dataset.zfCcOpen === '1' ? foot.offsetHeight : 0
+        const hh = ccHead.offsetHeight
+        const sh = snips && !snips.hidden ? snips.offsetHeight : 0
+        root.style.setProperty('--zf-foot-h', fh + 'px')
+        root.style.setProperty('--zf-cc-h', hh + 'px')
+        root.style.setProperty('--zf-arc-foot', (fh + hh + sh) + 'px')
+      }
+      let lastFoot = null
+      let lastSnips = null
+      const sync = () => {
+        if (!alive()) return
+        const side = document.querySelector("[data-slot='sidebar']")
+        if (!side) {
+          // the app collapsed it (button, shortcut, or our own first run):
+          // that is a toggle of the arclike, then the tree comes back
+          if (Date.now() > autoUntil) {
+            const btn = toggleBtn()
+            if (btn && /^show sidebar/i.test(btn.getAttribute('aria-label') || '')) {
+              arc = !arc || !root.dataset.zfArcSeen ? true : !arc
+              try { localStorage.setItem(ARC_KEY, arc ? '1' : '0') } catch {}
+              setOpen(false, true)
+              press(btn)
+            }
+          }
+          return
+        }
+        root.dataset.zfArcSeen = '1'
+        const col = column()
+        document.querySelectorAll('[data-zf-arc-col]').forEach(el => { if (el !== col) delete el.dataset.zfArcCol })
+        if (col && !col.dataset.zfArcCol) col.dataset.zfArcCol = '1'
+        if (col && modeBtn.parentElement !== col) col.appendChild(modeBtn)
+        if (arc) { if (root.dataset.zfArc !== '1') root.dataset.zfArc = '1' }
+        else if (root.dataset.zfArc) delete root.dataset.zfArc
+        if (modeBtn.dataset.arc !== String(arc)) { modeBtn.dataset.arc = String(arc); paintMode() }
+
+        const foot = document.querySelector("footer[data-slot='statusbar']")
+        if (foot && !foot.hasAttribute('data-zf-arc-foot')) foot.setAttribute('data-zf-arc-foot', '')
+        if (!root.dataset.zfArcReady) root.dataset.zfArcReady = '1'
+        // one-line summary on the folded header: the backend state
+        const sumEl = ccHead.querySelector('.zf-cc-sum')
+        let sum = ''
+        if (foot) {
+          const row = Array.from(foot.querySelectorAll(':scope > div > *')).find(el => /ready|connect|offline|error|starting|stopped/i.test(el.textContent || ''))
+          sum = row ? Array.from(row.querySelectorAll('*')).filter(el => !el.children.length).map(el => el.textContent.trim()).filter(Boolean).join(' ') : ''
+        }
+        if (sumEl.textContent !== sum) sumEl.textContent = sum
+        // chat tabs clear the sidebar toggle wherever the window chrome puts it
+        const tb = toggleBtn()
+        if (tb) {
+          const right = Math.round(tb.getBoundingClientRect().right + 10)
+          if (root.style.getPropertyValue('--zf-tb-left') !== right + 'px') root.style.setProperty('--zf-tb-left', right + 'px')
+        }
+        const all = Array.from(document.querySelectorAll('#zephyr-snips'))
+        const snips = all[all.length - 1] || null
+        all.forEach(el => { if (el !== snips) el.setAttribute('data-zf-stale', ''); else el.removeAttribute('data-zf-stale') })
+        if (snips && !snips.hasAttribute('data-zf-arc-snips')) snips.setAttribute('data-zf-arc-snips', '')
+
+        if (arc) {
+          root.style.setProperty('--zf-foot-x', '10px')
+          root.style.setProperty('--zf-foot-w', '272px')
+          root.style.setProperty('--zf-foot-b', '10px')
+          root.style.setProperty('--zf-foot-r', '16px')
+        } else if (col) {
+          const r = col.getBoundingClientRect()
+          root.style.setProperty('--zf-foot-x', Math.round(r.left) + 'px')
+          root.style.setProperty('--zf-foot-w', Math.round(r.width) + 'px')
+          root.style.setProperty('--zf-foot-b', Math.max(0, Math.round(innerHeight - r.bottom)) + 'px')
+          root.style.setProperty('--zf-foot-r', '0px')
+        }
+        if (foot !== lastFoot || snips !== lastSnips) {
+          lastFoot = foot
+          lastSnips = snips
+          if (footRO) footRO.disconnect()
+          if (typeof ResizeObserver === 'function') {
+            footRO = new ResizeObserver(measureFoot)
+            if (foot) footRO.observe(foot)
+            footRO.observe(ccHead)
+            if (snips) footRO.observe(snips)
+            if (col) footRO.observe(col)
+          }
+          measureFoot()
+        }
+      }
+      let queued = false
+      const schedule = () => {
+        if (queued) return
+        queued = true
+        requestAnimationFrame(() => { queued = false; sync() })
+      }
+      // landing / chat state of the visible pane
+      document.querySelectorAll('#zf-landing').forEach(el => el.remove())
+      const landing = document.createElement('div')
+      landing.id = 'zf-landing'
+      landing.setAttribute('aria-hidden', 'true')
+      const LINES = ['Where should we begin?', 'What are we making today?', 'Bring the stuck part. We will work it out.', 'Drop in a task, a file, or a rough idea.', 'What should Hermes tackle?']
+      landing.innerHTML = '<div class="zf-land-mark">HERMES AGENT</div><div class="zf-land-line"></div>'
+      landing.lastElementChild.textContent = LINES[Math.floor(Math.random() * LINES.length)]
+      document.body.appendChild(landing)
+      let landKey = ''
+      const syncLanding = () => {
+        // several tabs keep their thread mounted in the same spot; the visible
+        // one is whichever the pointer would actually hit
+        const vps = Array.from(document.querySelectorAll("[data-slot='aui_thread-viewport']")).filter(el => el.getClientRects().length && el.getBoundingClientRect().width > 200)
+        // only a viewport the pointer would actually hit counts: a page like
+        // Capabilities sits on top of a still-mounted thread
+        let vp = null
+        for (const v of vps) {
+          const r = v.getBoundingClientRect()
+          const hits = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height * 0.3).filter(h => h !== landing && !landing.contains(h))
+          if (hits.length && v.contains(hits[0])) { vp = v; break }
+        }
+        const hasMsg = vp ? Boolean(vp.querySelector("[data-slot*='message']")) : false
+        const intro = vp ? vp.querySelector("[data-slot='aui_intro']") : null
+        const introShown = Boolean(intro && intro.getClientRects().length)
+        if (!landing.dataset.cloned && !intro) {
+          const any = document.querySelector("[data-slot='aui_intro']")
+          if (any) {
+            const copy = any.cloneNode(true)
+            copy.removeAttribute('data-slot')
+            copy.querySelectorAll('[data-slot]').forEach(el => el.removeAttribute('data-slot'))
+            landing.replaceChildren(copy)
+            landing.dataset.cloned = '1'
+          }
+        }
+        // the painting is sharp only on a landing; every other page is frosted
+        const chat = !introShown && !(vp && !hasMsg)
+        if (chat) root.dataset.zfChat = '1'
+        else delete root.dataset.zfChat
+        // borrow the app's own intro (font-fitted wordmark and all) once seen
+        if (introShown && !landing.dataset.cloned) {
+          const copy = intro.cloneNode(true)
+          copy.removeAttribute('data-slot')
+          copy.querySelectorAll('[data-slot]').forEach(el => el.removeAttribute('data-slot'))
+          landing.replaceChildren(copy)
+          landing.dataset.cloned = '1'
+        }
+        const want = Boolean(vp) && !hasMsg && !introShown
+        if (want) {
+          const r = vp.getBoundingClientRect()
+          const key = [r.left, r.top, r.width, r.height].map(Math.round).join('/')
+          if (key !== landKey) {
+            landKey = key
+            Object.assign(landing.style, { left: Math.round(r.left) + 'px', top: Math.round(r.top) + 'px', width: Math.round(r.width) + 'px', height: Math.round(r.height * 0.82) + 'px' })
+          }
+          if (root.dataset.zfLanding !== '1') {
+            if (!landing.dataset.cloned) landing.lastElementChild.textContent = LINES[Math.floor(Math.random() * LINES.length)]
+            root.dataset.zfLanding = '1'
+          }
+        } else if (root.dataset.zfLanding) {
+          delete root.dataset.zfLanding
+        }
+      }
+      const baseSync = sync
+      const fullSync = () => { baseSync(); if (alive()) syncLanding() }
+      let queued2 = false
+      const schedule2 = () => {
+        if (queued2) return
+        queued2 = true
+        requestAnimationFrame(() => { queued2 = false; fullSync() })
+      }
+      new MutationObserver(schedule2).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected', 'data-state', 'hidden'] })
+      window.addEventListener('resize', schedule2)
+      fullSync()
+
+      // Cmd+S: hide / show the sidebar (pinned <-> arclike)
+      window.addEventListener('keydown', event => {
+        if (!alive()) return
+        if (event.metaKey && !event.shiftKey && !event.altKey && !event.ctrlKey && (event.key === 's' || event.key === 'S')) {
+          event.preventDefault()
+          event.stopImmediatePropagation()
+          if (!document.querySelector("[data-slot='sidebar']")) {
+            const btn = toggleBtn()
+            if (btn) press(btn)
+            setArc(false)
+            return
+          }
+          morph(() => setArc(!arc))
+        }
+      }, true)
+
+      // the app's toggle flips arclike <-> pinned instead of unmounting the tree
+      window.addEventListener('click', event => {
+        if (!alive() || !event.isTrusted) return
+        const btn = event.target instanceof Element ? event.target.closest('button') : null
+        if (!btn || !/^(show|hide) sidebar/i.test(btn.getAttribute('aria-label') || '')) return
+        if (!document.querySelector("[data-slot='sidebar']")) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        setArc(!arc)
+      }, true)
+
+      // A session clicked in the sidebar opens in the tab you are in. The app
+      // always routes a row click to the first (workspace) tab; when a session
+      // tab is active, open the row as a tab through the row's own menu and
+      // retire the tab it replaces.
+      const topTabs = () => Array.from(document.querySelectorAll("[role='tab'][data-tree-tab]")).filter(t => !t.closest('[data-zf-arc-col]'))
+      let swapping = false
+      document.addEventListener('click', event => {
+        if (!alive() || swapping || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+        // the whole row counts (it is ~62px tall; the title button is 18px),
+        // except its own controls: the actions menu and the reorder handle
+        const t = event.target
+        if (!t.closest || !t.closest("[data-slot='sidebar']")) return
+        if (t.closest("button:not([data-slot='row-button']), [aria-label^='Reorder'], input, [role='menu']")) return
+        const row = t.closest("[data-slot='context-menu-trigger']")
+        const btn = row && row.querySelector("button[data-slot='row-button']")
+        if (!btn) return
+        const active = topTabs().find(t => t.getAttribute('aria-selected') === 'true')
+        const oldId = active && active.dataset.treeTab
+        if (!row || !oldId || !oldId.startsWith('session-tile:')) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        swapping = true
+        root.dataset.zfGhostMenu = '1'
+        const r = btn.getBoundingClientRect()
+        row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 20, clientY: r.top + r.height / 2, button: 2 }))
+        const finish = () => { swapping = false; delete root.dataset.zfGhostMenu }
+        let tries = 0
+        const pick = () => {
+          const items = Array.from(document.querySelectorAll("[role='menuitem']"))
+          if (!items.length && tries++ < 20) { requestAnimationFrame(pick); return }
+          const item = items.find(i => /new tab/i.test(i.textContent))
+          if (!item) {
+            // already open somewhere: close the menu, let the app route it
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+            setTimeout(() => { finish(); btn.click() }, 60)
+            return
+          }
+          const before = new Set(topTabs().map(t => t.dataset.treeTab))
+          item.click()
+          let waits = 0
+          const retire = () => {
+            const fresh = topTabs().find(t => !before.has(t.dataset.treeTab))
+            if (!fresh && waits++ < 40) { setTimeout(retire, 25); return }
+            finish()
+            const old = topTabs().find(t => t.dataset.treeTab === oldId)
+            const close = old && old.querySelector("button[aria-label='Close']")
+            if (fresh && close) {
+              close.click()
+              // a running tab asks first; keep it rather than surprise anyone
+              setTimeout(() => {
+                const dlg = document.querySelector("[role='alertdialog'], [role='dialog'][data-state='open']")
+                if (dlg && /running/i.test(dlg.textContent)) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+              }, 120)
+            }
+          }
+          retire()
+        }
+        requestAnimationFrame(pick)
+      }, true)
+
+      // reveal / tuck away
+      hot.addEventListener('mouseenter', () => { if (alive() && arc) setOpen(true) })
+      const busy = () => Boolean(document.querySelector('[data-radix-popper-content-wrapper], [role=menu], [role=dialog][data-state=open]'))
+      document.addEventListener('mousemove', event => {
+        if (!alive() || !arc || !open) return
+        const limit = 10 + 272 + 6
+        if (event.clientX <= limit) { clearTimeout(closeTimer); closeTimer = 0; return }
+        if (closeTimer || busy()) return
+        closeTimer = setTimeout(() => { closeTimer = 0; if (!busy()) setOpen(false) }, 40)
+      }, { passive: true })
+      document.documentElement.addEventListener('mouseleave', () => {
+        if (!alive() || !arc || !open || busy()) return
+        clearTimeout(closeTimer)
+        closeTimer = setTimeout(() => { closeTimer = 0; setOpen(false) }, 60)
+      })
+      window.addEventListener('keydown', event => {
+        if (alive() && arc && open && event.key === 'Escape' && !busy()) setOpen(false)
+      })
+
+      ctx.onDispose?.(() => { hot.remove(); ccHead.remove(); modeBtn.remove(); landing.remove(); if (footRO) footRO.disconnect() })
+    } catch (err) {
+      console.error('[zf-rail] failed: ' + (err && err.stack || err))
+    }
+
+    // ── a big, unmissable close on anything that opens on the right ───────────
+    // PDF viewers, previews, browser panes and drawers all slide in from the
+    // right edge and each one ships its own small, easy-to-miss control. This
+    // puts one 36px × in the same place on all of them, and drives whichever
+    // close control the panel actually has.
+    if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined'
+        && typeof requestAnimationFrame === 'function' && typeof PointerEvent !== 'undefined') {
+      const PANEL_SELECTOR = [
+        "[data-slot*='panel']", "[data-slot*='preview']", "[data-slot*='viewer']",
+        "[data-slot*='drawer']", "[data-slot*='artifact']", "[data-slot*='artefact']",
+        "[data-slot*='split']", "[data-slot*='webview']", "[data-slot*='browser']",
+        'aside'
+      ].join(',')
+
+      const findPanel = () => {
+        const width = window.innerWidth
+        const height = window.innerHeight
+        return Array.from(document.querySelectorAll(PANEL_SELECTOR))
+          .filter(el => {
+            if (el.closest("[data-slot='sidebar']")) return false
+            if (el.closest('#zf-panel-close')) return false
+            // the conversation pane also reaches the right edge; a side panel
+            // never contains the thread or the composer
+            if (el.querySelector("[data-slot='aui_thread'], [data-slot='aui_thread-content'], [data-slot='composer']")) return false
+            const rect = el.getBoundingClientRect()
+            if (rect.width < 240 || rect.height < 260) return false
+            if (rect.right < width - 6) return false          // must hug the right edge
+            if (rect.left < width * 0.32) return false        // and be a side panel, not the page
+            if (rect.height < height * 0.35) return false
+            const style = getComputedStyle(el)
+            if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) < 0.2) return false
+            return true
+          })
+          // narrowest wins: a side panel is the smallest thing hugging the edge
+          .sort((a, b) => a.getBoundingClientRect().width - b.getBoundingClientRect().width)[0] || null
+      }
+
+      const press = el => {
+        const rect = el.getBoundingClientRect()
+        const opts = { bubbles: true, cancelable: true, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2, button: 0 }
+        el.dispatchEvent(new PointerEvent('pointerdown', { ...opts, pointerId: 1, isPrimary: true }))
+        el.dispatchEvent(new MouseEvent('mousedown', opts))
+        el.dispatchEvent(new PointerEvent('pointerup', { ...opts, pointerId: 1, isPrimary: true }))
+        el.dispatchEvent(new MouseEvent('mouseup', opts))
+        el.dispatchEvent(new MouseEvent('click', opts))
+      }
+
+      const closePanel = panel => {
+        // 1. the panel's own labelled control, if it ships one
+        const own = Array.from(panel.querySelectorAll('button, [role="button"], a'))
+          .find(el => /close|dismiss|hide|collapse/i.test(el.getAttribute('aria-label') || el.title || el.textContent || ''))
+        if (own) press(own)
+        // 2. always also send Escape, which is what the app binds to dismiss a
+        //    preview pane. Harmless when the pane already closed itself above.
+        const target = document.activeElement || panel
+        for (const type of ['keydown', 'keyup']) {
+          target.dispatchEvent(new KeyboardEvent(type, { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }))
+          document.dispatchEvent(new KeyboardEvent(type, { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }))
+        }
+        return Boolean(own)
+      }
+
+      const button = document.createElement('button')
+      button.id = 'zf-panel-close'
+      button.type = 'button'
+      button.setAttribute('aria-label', 'Close panel')
+      button.title = 'Close'
+      button.textContent = '\u00d7'
+      Object.assign(button.style, {
+        position: 'fixed',
+        zIndex: '2147483000',
+        display: 'none',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '36px',
+        height: '36px',
+        padding: '0',
+        borderRadius: '10px',
+        border: '1px solid var(--zf-hair, rgba(255, 255, 255, 0.14))',
+        background: 'rgba(20, 16, 14, 0.72)',
+        backdropFilter: 'blur(10px) saturate(1.2)',
+        WebkitBackdropFilter: 'blur(10px) saturate(1.2)',
+        color: 'var(--zf-ink-1, #ebdbb2)',
+        fontSize: '22px',
+        lineHeight: '1',
+        fontWeight: '400',
+        cursor: 'pointer',
+        boxShadow: '0 4px 14px rgba(0, 0, 0, 0.38)',
+        transition: 'background-color 120ms ease, color 120ms ease, border-color 120ms ease'
+      })
+      button.addEventListener('mouseenter', () => {
+        button.style.background = 'var(--zf-accent, #fe8019)'
+        button.style.color = '#1d2021'
+        button.style.borderColor = 'transparent'
+      })
+      button.addEventListener('mouseleave', () => {
+        button.style.background = 'rgba(20, 16, 14, 0.72)'
+        button.style.color = 'var(--zf-ink-1, #ebdbb2)'
+        button.style.borderColor = 'var(--zf-hair, rgba(255, 255, 255, 0.14))'
+      })
+      button.addEventListener('click', event => {
+        event.preventDefault()
+        event.stopPropagation()
+        // act on the panel this button was positioned for; a fresh lookup can
+        // race with the panel unmounting and pick something else entirely
+        const panel = currentPanel && document.contains(currentPanel) ? currentPanel : findPanel()
+        if (panel) closePanel(panel)
+      })
+      document.body.appendChild(button)
+
+      let raf = 0
+      let currentPanel = null
+      const place = () => {
+        raf = 0
+        const panel = findPanel()
+        currentPanel = panel
+        if (!panel) { button.style.display = 'none'; button.dataset.target = ''; return }
+        const rect = panel.getBoundingClientRect()
+        button.style.display = 'flex'
+        button.style.top = `${Math.round(rect.top + 10)}px`
+        button.style.left = `${Math.round(rect.right - 46)}px`
+        button.dataset.target = panel.dataset.slot || panel.tagName.toLowerCase()
+      }
+      const schedule = () => { if (!raf) raf = requestAnimationFrame(place) }
+
+      // panels come and go, resize, and slide; watching the tree plus a slow
+      // poll is cheaper than a scroll listener on every ancestor
+      const panelObserver = new MutationObserver(schedule)
+      panelObserver.observe(document.body, { childList: true, subtree: true })
+      window.addEventListener('resize', schedule)
+      window.addEventListener('scroll', schedule, true)
+      const timer = setInterval(schedule, 700)
+      schedule()
+      ctx.onDispose?.(() => {
+        clearInterval(timer)
+        panelObserver.disconnect()
+        window.removeEventListener('resize', schedule)
+        window.removeEventListener('scroll', schedule, true)
+        button.remove()
+      })
+    }
+
+    // ── the picture + glass editor ───────────────────────────────────────────
+    // Plain inputs on purpose: a range, a colour swatch, a file picker and a URL
+    // box cover every knob the skin has, and none of them depend on a Tailwind
+    // class that may not exist in the app's compiled sheet.
+    const SkinRow = (label, control) =>
+      jsxs('div', { className: 'flex items-center justify-between gap-3 py-1', children: [
+        jsx('span', { className: 'text-[length:var(--conversation-text-font-size)] text-(--ui-text-secondary)', children: label }),
+        control
+      ]})
+
+    const SkinEditor = () => {
+      const cfg = useValue(skin)
+      const slider = ([key, label, min, max, step]) =>
+        SkinRow(label, jsx('input', {
+          type: 'range', min, max, step, value: cfg[key],
+          style: { width: '10rem', accentColor: 'var(--zf-accent)' },
+          onChange: event => pushSkin({ [key]: Number(event.target.value) })
+        }))
+      const swatch = ([key, label]) =>
+        SkinRow(label, jsx('input', {
+          type: 'color', value: cfg[key],
+          style: { width: '2.25rem', height: '1.5rem', padding: '0', border: '1px solid var(--zf-edge)', borderRadius: '0.375rem', background: 'transparent' },
+          onChange: event => pushSkin({ [key]: event.target.value })
+        }))
+      const isUpload = typeof cfg.image === 'string' && cfg.image.startsWith('data:')
+      return jsxs('div', { className: 'mt-1 flex flex-col gap-0.5', children: [
+        jsxs('div', { className: 'flex flex-wrap items-center gap-2 pb-2', children: [
+          jsx('label', {
+            className: 'cursor-pointer rounded-md px-2 py-1 text-[0.75rem]',
+            style: { border: '1px solid var(--zf-edge)' },
+            children: [
+              'Choose image…',
+              jsx('input', {
+                type: 'file', accept: 'image/*', style: { display: 'none' },
+                onChange: event => {
+                  const file = event.target.files && event.target.files[0]
+                  void useImageFile(file)
+                  event.target.value = ''
+                }
+              })
+            ]
+          }),
+          jsx('input', {
+            type: 'text',
+            value: isUpload ? '' : String(cfg.image || ''),
+            placeholder: isUpload ? '(uploaded image)' : 'image URL or file path',
+            className: 'rounded-md bg-transparent px-2 py-1 text-[0.75rem]',
+            style: { flex: '1 1 12rem', minWidth: '10rem', border: '1px solid var(--zf-edge)' },
+            onChange: event => {
+              const value = event.target.value.trim()
+              if (value) pushSkin({ image: value })
+            }
+          }),
+          jsx('button', {
+            type: 'button',
+            className: 'rounded-md px-2 py-1 text-[0.75rem]',
+            style: { border: '1px solid var(--zf-edge)' },
+            onClick: () => resetSkin(),
+            children: 'Reset'
+          })
+        ]}),
+        ...SKIN_SLIDERS.map(slider),
+        ...SKIN_COLORS.map(swatch)
+      ]})
+    }
+
     ctx.registerSettingsPage?.({
       id: 'zephyr',
       title: 'Zephyr',
@@ -7027,14 +8648,18 @@ export default {
         const isStatusDock = useValue(statusDock)
         const isLibrary = useValue(library)
         const isGl = useValue(glOn)
+        const isHold = useValue(held)
+        const lookNow = useValue(look)
         const mode = useValue(weatherMode)
         const q = useValue(quality)
         const nowWeather = useValue(weatherNow)
         const nowPhase = useValue(phase)
         const list = useValue(pins)
-        const realistic = isSky && isGl && !glFailed
+        const realistic = isSky && isGl && !glFailed && lookNow === 'sunset'
 
-        const status = [
+        const status = lookNow === 'gruvbox'
+          ? ['Gruvbox', 'The Backwater, Wyllie', '4096 × 2428 at full size', !isSky ? 'background off' : 'painting behind glass'].join('  ·  ')
+          : [
           `${PHASE_TITLE[nowPhase] || nowPhase}, ${PHASE_BLURB[nowPhase]}`,
           realistic ? (mode === 'live' ? (nowWeather ? `live weather: ${nowWeather}` : 'live weather') : WEATHER_LABEL[mode]) : null,
           !isSky ? 'sky off' : realistic ? `sky at ${QUALITY_FPS[q]} fps` : 'painted sky'
@@ -7067,6 +8692,33 @@ export default {
         })
 
         const skySection = section('cloud', 'Sky', [
+          jsx(ListRow, {
+            title: 'Background',
+            description: lookNow === 'sunset'
+              ? 'The sky where you are, painted from the real sun, with the clock driving dawn, day, dusk and night.'
+              : lookNow === 'gruvbox'
+                ? 'The built-in look: The Backwater (Wyllie), 4096×2428, behind warm gruvbox glass. Its own theme in Appearance, too.'
+                : 'Your own picture, with your own glass. Every knob below is yours; the built-in look stays one click away.',
+            action: jsx(SegmentedControl, {
+              value: lookNow,
+              options: [
+                { id: 'sunset', label: 'Sky' },
+                { id: 'gruvbox', label: 'Built-in' },
+                { id: 'custom', label: 'Custom' }
+              ],
+              onChange: next => {
+                if (next === look.get()) return
+                look.set(next)
+                persist()
+                setLookMode(next === 'sunset' ? 'sunset' : 'gruvbox')
+                // built-in always paints the shipped defaults; custom paints yours
+                setSkin(next === 'custom' ? { ...skin.get() } : { ...SKIN_DEFAULTS })
+                ensurePictureStyle(SKIN.image)
+                apply(nowAt())
+                if (sky.get()) renderSky(nowAt())
+              }
+            })
+          }),
           jsx(ToggleRow, {
             checked: isSky,
             description: 'Show the sky behind the app. Off gives a plain dark background.',
@@ -7074,7 +8726,7 @@ export default {
             onChange: on => {
               sky.set(on)
               persist()
-              renderSky(new Date())
+              renderSky(nowAt())
             }
           }),
           isSky
@@ -7088,7 +8740,7 @@ export default {
                 onChange: on => {
                   glOn.set(on)
                   persist()
-                  renderSky(new Date())
+                  renderSky(nowAt())
                 }
               })
             : null,
@@ -7130,7 +8782,7 @@ export default {
                     quality.set(next)
                     persist()
                     dropGl()
-                    renderSky(new Date())
+                    renderSky(nowAt())
                   }
                 })
               })
@@ -7151,7 +8803,7 @@ export default {
                     if (previewTimer) clearTimeout(previewTimer)
                     previewTimer = setTimeout(() => {
                       previewTimer = null
-                      if (glSky) glSky.setClock(() => new Date(), false)
+                      if (glSky) glSky.setClock(null, false)
                     }, 60_000)
                   },
                   children: 'Play'
@@ -7160,7 +8812,29 @@ export default {
             : null
         ])
 
+        const skinSection = section('paintcan', 'Picture & glass', [
+          jsx(ListRow, {
+            title: 'Wallpaper',
+            description: lookNow === 'custom'
+              ? 'Your picture, at its own resolution. Anything the browser can decode: JPG, PNG, WebP, AVIF, HEIC on macOS. Large files are downscaled once, only if the store cannot hold the original.'
+              : 'Switch Background to Custom to paint your own picture. Built-in uses The Backwater.',
+            action: jsx('span', { className: 'text-[0.75rem] text-(--ui-text-tertiary)', children: lookNow === 'custom' ? 'Custom' : lookNow === 'gruvbox' ? 'Built-in' : 'Sky' })
+          }),
+          jsx(SkinEditor, {})
+        ])
+
         const lightSection = section('symbol-color', 'Light', [
+          jsx(ToggleRow, {
+            checked: isHold,
+            description: 'On by default in this build. Holds the sky and the colours at the half hour after sunset all day, so Hermes keeps a dark ember look instead of drifting into daylight blues or the flat night. Off follows the real sun again.',
+            label: 'Hold the light at sunset',
+            onChange: on => {
+              held.set(on)
+              persist()
+              apply(nowAt())
+              if (sky.get()) renderSky(nowAt())
+            }
+          }),
           jsx(ToggleRow, {
             checked: isAuto,
             description: 'On by default. Switches Hermes\'s colours between the dawn, day, dusk and night themes as the sun moves. Off keeps the theme you pick in Appearance. The sky follows the real sun either way.',
@@ -7168,7 +8842,7 @@ export default {
             onChange: on => {
               auto.set(on)
               persist()
-              if (on) apply(new Date())
+              if (on) apply(nowAt())
               else setAccentOverride(null)
             }
           }),
@@ -7269,7 +8943,7 @@ export default {
             : null
         ])
 
-        return jsxs('div', { children: [header, skySection, lightSection, chatSection, pinSection].filter(Boolean) })
+        return jsxs('div', { children: [header, skySection, skinSection, lightSection, chatSection, pinSection].filter(Boolean) })
       }
     })
 

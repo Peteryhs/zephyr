@@ -74,7 +74,6 @@ Zephyr has two kinds of look, and you can switch between them either in **Settin
 - **Zephyr Sky**: the live sky. It follows the real sun all day, and Hermes's colours move with it through dawn, day, dusk and night while the theme stays selected.
 - **Zephyr Dawn, Day, Dusk, Night**: hold one sky, whatever the time.
 - **Zephyr Gruvbox**: a painting, The Backwater, behind tinted glass, with gruvbox cream text.
-- **Custom**: your own picture and colours, from the controls in Settings or from `zephyr-theme.json` (below).
 
 ### Your own look: `zephyr-theme.json`
 
@@ -117,6 +116,15 @@ The Custom look lives in one file, `<HERMES_HOME>/zephyr-theme.json`. **Settings
 | `edge` | Hairlines, borders and the text selection. |
 | `accent` | Buttons and toggles. Never used for text. |
 | `ink`, `ink2` | Text, and quieter text. |
+
+The floating sidebar stays solid whatever you set, because it sits over text.
+
+## Sidebar
+
+**Cmd+S** switches the sidebar between two modes. The button at the top left of the sidebar does the same.
+
+- **Pinned**: the sidebar is a glass card inset from the window edge.
+- **Floating**: the sidebar is hidden until you touch the left edge of the window. It slides in over the chat and tucks away as soon as you move off it. The command center starts folded.
 
 ## Snippet cards
 

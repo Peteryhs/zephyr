@@ -24,7 +24,7 @@ It's one JavaScript file. There's no build step, and it doesn't modify Hermes it
   <img src="assets/sky-weather.png" alt="The same sky under clear, cloudy, stormy and foggy weather" width="100%">
 </p>
 
-**Time-of-day themes.** Hermes switches between dawn, day, dusk and night themes as the sun moves. The accent colour (links, buttons, selection) can shift too.
+**Time-of-day themes.** Pick Zephyr Sky in Appearance and Hermes's colours follow the sun through dawn, day, dusk and night. Zephyr Dawn, Day, Dusk and Night each hold one sky. The accent colour (links, buttons, selection) can shift too.
 
 **Glass panels.** The panels pick up a soft tint from the sky behind them, and they go darker at night so text stays easy to read.
 
@@ -58,7 +58,7 @@ Open **Settings > Zephyr**.
 | Weather | Live weather, or one fixed sky type. |
 | Smoothness | Low, Balanced or High (4, 8 or 16 frames a second). Clouds drift slowly, so Balanced looks the same as High and uses half the power. |
 | Preview a day | Plays the next 24 hours of sky in one minute, then goes back to now. |
-| Time-of-day themes | Switches Hermes between the dawn, day, dusk and night themes. Off keeps the theme you picked in Appearance. |
+| Time-of-day themes | Keeps Hermes on Zephyr Sky, whose colours move with the sun. Off keeps the theme you picked in Appearance. |
 | Tint the accent | Shifts the accent colour to match the time of day. |
 | Spacious margins | A narrower reading column with wide margins. |
 | Fold finished work | Folds finished replies' steps into one line. |

@@ -473,6 +473,12 @@ const polishCss = () => [
   '  color: var(--zf-ink-1, #ebdbb2);',
   '}',
 
+  // Sky: white text over a bright or overcast day sky needs a soft lift to
+  // stay readable; the glass alone cannot darken a pale cloud enough.
+  ...(LOOK_MODE === 'sunset' ? [
+    "[data-slot='aui_thread-content'] :is(p, li, td, th, dd, dt, h1, h2, h3, h4, blockquote, figcaption) { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.40), 0 0 10px rgba(0, 0, 0, 0.22); }"
+  ] : []),
+
   // The 16px overflow: message groups are flex children that refuse to shrink.
   "[data-slot='aui_message-group'], [data-slot='aui_turn-pair'],",
   "[data-slot='aui_message-group'] > *, [data-slot='aui_turn-pair'] > * {",

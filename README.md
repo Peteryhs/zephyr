@@ -75,7 +75,49 @@ Zephyr has two kinds of look, and you can switch between them either in **Settin
 - **Zephyr Sky**: the live sky. It follows the real sun all day, and Hermes's colours move with it through dawn, day, dusk and night while the theme stays selected.
 - **Zephyr Dawn, Day, Dusk, Night**: hold one sky, whatever the time.
 - **Zephyr Gruvbox**: a painting, The Backwater, behind tinted glass, with gruvbox cream text.
-- **Custom** (Settings > Zephyr only): your own picture and glass, from the controls under Picture & glass.
+- **Custom**: your own picture and colours, from the controls in Settings or from `zephyr-theme.json` (below).
+
+### Your own look: `zephyr-theme.json`
+
+The Custom look lives in one file, `<HERMES_HOME>/zephyr-theme.json`. **Settings > Zephyr > Theme file** creates it and shows it in Finder. Edit it in any editor and Hermes follows within two seconds; moving a control in Settings writes it back. Every key is optional, and a missing key keeps its default.
+
+```json
+{
+  "image": "~/Pictures/my-wallpaper.jpg",
+  "fit": "cover",
+  "posX": 46,
+  "posY": 45,
+  "scrim": 0.31,
+  "blur": 18,
+  "saturate": 1.3,
+  "brightness": 0.9,
+  "chrome": 0.74,
+  "sidebar": 0.74,
+  "card": 0.78,
+  "bubble": 0.78,
+  "ground": "#16261e",
+  "deeper": "#0c1612",
+  "cardTint": "#1d3328",
+  "bubbleTint": "#2b4636",
+  "edge": "#4f7360",
+  "accent": "#fe8019",
+  "ink": "#fbf1c7",
+  "ink2": "#ebdbb2"
+}
+```
+
+| Key | What it controls |
+| --- | --- |
+| `image` | The picture: a path (`~/…` works), a URL, or `"uploaded"` for one picked in Settings. |
+| `fit`, `posX`, `posY` | `cover` or `contain`, and which part of the picture stays in view (percent). |
+| `scrim` | How much the picture is darkened behind everything. |
+| `blur`, `saturate`, `brightness` | The frosted glass behind the chat. |
+| `chrome`, `sidebar`, `card`, `bubble` | How solid the chat pane, the pinned sidebar, cards and your messages are (0 to 1). |
+| `ground`, `deeper` | The glass colours: the chat, and the sidebar and darkest surfaces. |
+| `cardTint`, `bubbleTint` | Cards and the message box; your messages and tabs. |
+| `edge` | Hairlines, borders and the text selection. |
+| `accent` | Buttons and toggles. Never used for text. |
+| `ink`, `ink2` | Text, and quieter text. |
 
 ## Snippet cards
 

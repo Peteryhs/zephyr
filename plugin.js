@@ -5940,26 +5940,75 @@ export default {
     /* Live turns: when each started (keyed by the user message it answers,
        whose id holds steady through the turn even across a chat switch), so
        the tile can count up from the first moment the agent works. */
-    const liveStarts = new Map()
+    // Hermes renames a message while it is in flight (user-queued-… becomes the
+    // real id), and a session you left and came back to is rebuilt from scratch,
+    // so an id is not a steady name for a turn. The text of the prompt is: the
+    // key is the session plus a hash of the prompt. Starts are kept in storage
+    // too, so leaving a running session from the sidebar and coming back does
+    // not count from zero. A turn that stops looking live is only marked done:
+    // a short gap between steps picks the same start back up, while the same
+    // prompt typed again later starts a new count.
+    const LIVE_STARTS_KEY = 'liveStarts'
+    const LIVE_START_TTL = 12 * 3600 * 1000
+    const LIVE_DONE_GRACE = 90 * 1000
+    const savedStarts = (() => {
+      const v = ctx.storage.get(LIVE_STARTS_KEY, null)
+      if (!v || typeof v !== 'object') return {}
+      for (const k of Object.keys(v)) if (typeof v[k] === 'number') v[k] = { t: v[k] }
+      return v
+    })()
+    let savedStartsTimer = 0
+    const saveStarts = () => {
+      if (savedStartsTimer) return
+      savedStartsTimer = setTimeout(() => {
+        savedStartsTimer = 0
+        const now = Date.now()
+        for (const k of Object.keys(savedStarts)) if (!savedStarts[k] || now - savedStarts[k].t > LIVE_START_TTL) delete savedStarts[k]
+        const keys = Object.keys(savedStarts)
+        for (let i = 0; i < keys.length - 60; i++) delete savedStarts[keys[i]]
+        try { ctx.storage.set(LIVE_STARTS_KEY, savedStarts) } catch {}
+      }, 1000)
+    }
     const liveKey = root => {
       const pair = root.closest?.("[data-slot='aui_turn-pair']")
-      const user = pair?.querySelector?.("[data-slot='aui_user-message-root'][data-message-id]")
-      return user ? user.getAttribute('data-message-id') : null
+      const user = pair?.querySelector?.("[data-slot='aui_user-message-root']")
+      if (!user) return null
+      const text = (user.textContent || '').replace(/\s*\d{1,2}:\d{2}\s?[AP]M\s*$/i, '').replace(/\s+/g, ' ').trim().slice(0, 400)
+      if (!text) return user.getAttribute('data-message-id')
+      let h = 0x811c9dc5
+      for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
+      const session = typeof location !== 'undefined' ? String(location.hash || '').replace(/^#\/?/, '').split(/[?/#]/)[0] : ''
+      return `${session}|${h.toString(36)}.${text.length}`
+    }
+    // the start for a key, unless that turn finished a while ago (a repeat prompt)
+    const savedStart = key => {
+      const e = key ? savedStarts[key] : null
+      if (!e) return undefined
+      const now = Date.now()
+      if (now - e.t > LIVE_START_TTL) return undefined
+      if (e.d && now - e.d > LIVE_DONE_GRACE) return undefined
+      return e.t
+    }
+    const rememberStart = (key, t) => { savedStarts[key] = { t }; saveStarts() }
+    const markLive = root => {
+      const e = savedStarts[liveKey(root)]
+      if (e && e.d) { delete e.d; saveStarts() }
+    }
+    const markDone = root => {
+      const e = savedStarts[liveKey(root)]
+      if (e && !e.d) { e.d = Date.now(); saveStarts() }
     }
     const startOf = root => {
       if (root.dataset.zfStart) return Number(root.dataset.zfStart)
       const key = liveKey(root)
-      let t = key ? liveStarts.get(key) : undefined
+      let t = savedStart(key)
       if (t === undefined) {
         // Hermes's own pre-first-token timer counts from the turn's start
         const timer = root.querySelector?.("[data-slot='aui_response-loading']")
         const m = (timer?.textContent || '').match(/(?:(\d+):)?(\d+)(?::(\d{2})|s)/)
         const ago = m ? (m[3] ? (parseInt(m[1] || '0', 10) * 60 + parseInt(m[2], 10)) * 60 + parseInt(m[3], 10) : parseInt(m[2], 10)) : 0
         t = Date.now() - ago * 1000
-        if (key) {
-          liveStarts.set(key, t)
-          if (liveStarts.size > 50) liveStarts.delete(liveStarts.keys().next().value)
-        }
+        if (key) rememberStart(key, t)
       }
       root.dataset.zfStart = String(t)
       return t
@@ -6214,6 +6263,7 @@ export default {
         toggle.setAttribute('data-live', 'true')
         const { verbs, icons, detail } = classifyWork(scaffolds)
         const secs = (Date.now() - startOf(livePart.root)) / 1000
+        markLive(livePart.root)
         paintToggle(toggle, icons, `${joinVerbs(verbs)} for ${formatDuration(secs)}`, detail)
         return
       }
@@ -6223,6 +6273,7 @@ export default {
       const counted = toggle.getAttribute('data-live') === 'true' && started
         ? (Date.now() - Number(started)) / 1000 : null
       toggle.removeAttribute('data-live')
+      if (counted !== null) markDone(info[0].root)
 
       // Finished turns don't change: once summarised with the same scaffold
       // count, skip the text heuristics entirely.

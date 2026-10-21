@@ -314,6 +314,62 @@ const ensurePictureStyle = url => {
   if (el.textContent !== value) el.textContent = value
 }
 
+// Session tabs (the session rows in the tree — `data-tree-tab`, workspace or
+// session-tile): wide pills, the active one a raised piece of glass. The pane
+// tabs (Sessions / Bots) are NOT these; they keep their own look.
+const SESSION_TAB_CSS = [
+  // Top tabs: soft pills, sentence case, no rules between them. The active tab
+  // is a raised piece of the same dark glass as the cards; the rest stay quiet
+  // until hovered.
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) {",
+  '  position: relative;',
+  '  height: 26px !important; min-height: 26px !important; margin: 4px 1px 0 !important;',
+  '  padding-inline: 4px 6px !important;',
+  '  border: 0 !important; border-radius: 8px !important;',
+  '  background: transparent !important; box-shadow: none !important;',
+  '  color: var(--zf-ink-2, #ebdbb2) !important; opacity: 0.78;',
+  '  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;',
+  '}',
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *)::before { display: none !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) .uppercase {",
+  '  text-transform: none !important; letter-spacing: 0 !important;',
+  '  font-size: 12px !important; font-weight: 500 !important;',
+  '}',
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):is(:hover, [aria-selected='true']) { opacity: 1; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):hover {",
+  '  color: var(--zf-ink-1, #ebdbb2) !important;',
+  '  background: rgba(var(--zf-hi), 0.06) !important;',
+  '}',
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *)[aria-selected='true'] {",
+  '  color: var(--zf-ink-0, #fbf1c7) !important;',
+  '  background: var(--zf-m-tab) !important;',
+  '  box-shadow: inset 0 0 0 1px rgba(var(--zf-hi), 0.10), 0 4px 14px rgba(0, 0, 0, 0.28) !important;',
+  '}',
+  // the + button: a quiet rounded square in line with the pills
+  "button[aria-label='New session tab'] {",
+  '  width: 26px !important; height: 26px !important; margin: 4px 0 0 4px !important; border-radius: 8px !important;',
+  '  color: var(--zf-ink-3, #d5c4a1) !important; background: transparent !important; border: 0 !important;',
+  '  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;',
+  '}',
+  "button[aria-label='New session tab']:hover { background: rgba(var(--zf-hi), 0.08) !important; color: var(--zf-ink-0, #fbf1c7) !important; }",
+  "button[aria-label='New session tab']:active { transform: scale(0.94); }",
+  "button[aria-label='New session tab'] :is(svg, i) { width: 14px !important; height: 14px !important; font-size: 14px !important; }",
+  // a tab's close button: hidden until the tab is hovered or active
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button { border-radius: 5px !important; opacity: 0; transition: opacity 120ms ease, background-color 120ms ease; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):is(:hover, [aria-selected='true']) button { opacity: 0.7; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button:hover { opacity: 1; background: rgba(var(--zf-hi), 0.10) !important; }",
+  // Wider tabs: the app caps them at 12rem and sizes them to the title. Give
+  // every tab a generous fixed span (Chrome-style), shrinking only when crowded.
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) { flex: 0 1 220px !important; width: 220px !important; min-width: 120px !important; max-width: 260px !important; height: 28px !important; padding-inline: 10px 6px !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) .truncate { flex: 1 1 auto !important; min-width: 0 !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button[aria-label='Close'] { width: 18px !important; height: 18px !important; margin-left: 6px !important; flex: none !important; align-self: center !important; }",
+  // the app hides the close slot (opacity 0, no pointer) until hover; show it on the active tab too
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):is(:hover, [aria-selected='true']) span:has(> button[aria-label='Close']) { opacity: 1 !important; pointer-events: auto !important; z-index: 2; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) .pane-tab-content { padding-right: 22px !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) span:has(> button[aria-label='Close']) { align-items: center !important; padding-right: 6px; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button[aria-label='Close'] .codicon { opacity: 1 !important; visibility: visible !important; font-size: 12px !important; color: var(--zf-ink-2, #ebdbb2) !important; }",
+]
+
 // ── Refinement pass ────────────────────────────────────────────────────────
 // The audit found ten different corner radii, ten font sizes, three border
 // colours that were not ours, and every message group 16px wider than the column
@@ -545,6 +601,15 @@ const polishCss = () => [
   // unread badge and tab dots: no orange
   "html body div.fixed:has(> button[aria-label*='sidebar' i]) [class*='bg-primary'] { background: var(--zf-ink-1, #e2dacb) !important; color: var(--zf-m-on) !important; }",
   "[role='tab'][data-tree-tab] [class*='rounded-full'][class*='bg-'] { background: var(--zf-ink-2, #cdc4b4) !important; }",
+  // Landing for an empty tab: the app only draws its intro for the very first
+  // draft, so a fresh tab was a blank smear. Same wordmark, same mood.
+  '#zf-landing { position: fixed; z-index: 1; pointer-events: none; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; opacity: 0; transition: opacity 260ms ease; }',
+  "html[data-zf-landing='1'] #zf-landing { display: flex; opacity: 1; }",
+  '#zf-landing .zf-land-mark { font-family: Collapse, ui-serif, serif; font-size: clamp(44px, 7.4vw, 112px); font-weight: 700; letter-spacing: 0.02em; line-height: 1; color: rgba(var(--zf-hi), 0.92); mix-blend-mode: plus-lighter; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35); white-space: nowrap; }',
+  '#zf-landing .zf-land-line { font-size: 15px; color: var(--zf-ink-2, #ebdbb2); text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6); max-width: 34rem; }',
+  "@keyframes zf-land-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }",
+  "html[data-zf-landing='1'] #zf-landing > * { animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }",
+  "html[data-zf-landing='1'] #zf-landing .zf-land-line { animation-delay: 80ms; }",
   // the sidebar's docked rows step back while Settings is open
   "html:has([class*='grid-cols-[13rem_minmax(0,1fr)]']) :is(#zf-cc-head, #zephyr-snips, footer[data-zf-arc-foot]) { visibility: hidden !important; }",
   // Settings is a floating sheet, solid enough that nothing reads through it
@@ -566,6 +631,7 @@ const polishCss = () => [
   "html body :focus-visible { outline: 1.5px solid rgba(var(--zf-hi), 0.38) !important; outline-offset: 2px; border-color: rgba(var(--zf-hi), 0.28) !important; }",
   "html body :is([data-slot='composer-rich-input'], [data-slot^='composer'] textarea, [data-slot^='composer'] [contenteditable='true'], [data-slot^='composer'] input):is(:focus, :focus-visible) { outline: none !important; box-shadow: none !important; border-color: transparent !important; }",
   "html body [data-slot='composer-surface']:focus-within { box-shadow: inset 0 0 0 1px rgba(var(--zf-hi), 0.16), var(--zf-lift, 0 8px 24px rgba(0,0,0,.3)) !important; }",
+  "html[data-zf-ghost-menu='1'] :is([data-radix-popper-content-wrapper], [role='menu']) { opacity: 0 !important; pointer-events: none !important; }",
   // mode morph timing
   "::view-transition-group(zf-side), ::view-transition-group(zf-main) { animation-duration: 300ms; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }",
   "::view-transition-old(zf-main), ::view-transition-new(zf-main) { width: 100%; height: 100%; object-fit: none; object-position: center top; animation-duration: 300ms; }",
@@ -2032,6 +2098,7 @@ const skyStyleFor = (date, gl = false) => {
     // properties, and a stray `{` inside a declaration block makes the parser
     // swallow everything after it.
     ...materialVars(gruv),
+    ...SESSION_TAB_CSS,
     ...(gruv ? gruvboxTextCss() : []),
     ...polishCss(),
     // Sidebar cards, the composer and the switch pill share the material.
@@ -8300,10 +8367,30 @@ export default {
 
     // ── Chat or empty page ───────────────────────────────────────────────────
     // The picture is sharp on an empty page and frosted behind a conversation:
-    // mark which one is on screen, and let the sheet do the rest.
+    // mark which one is on screen, and let the sheet do the rest. The app only
+    // draws its intro for the very first draft, so every other empty tab gets
+    // the same wordmark from here.
     if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') try {
       const root = document.documentElement
       let pageDead = false
+      document.querySelectorAll('#zf-landing').forEach(el => el.remove())
+      const landing = document.createElement('div')
+      landing.id = 'zf-landing'
+      landing.setAttribute('aria-hidden', 'true')
+      const LINES = ['Where should we begin?', 'What are we making today?', 'Bring the stuck part. We will work it out.', 'Drop in a task, a file, or a rough idea.', 'What should Hermes tackle?']
+      landing.innerHTML = '<div class="zf-land-mark">HERMES AGENT</div><div class="zf-land-line"></div>'
+      landing.lastElementChild.textContent = LINES[Math.floor(Math.random() * LINES.length)]
+      document.body.appendChild(landing)
+      // borrow the app's own intro (font-fitted wordmark and all) once seen
+      const borrowIntro = intro => {
+        if (landing.dataset.cloned || !intro) return
+        const copy = intro.cloneNode(true)
+        copy.removeAttribute('data-slot')
+        copy.querySelectorAll('[data-slot]').forEach(el => el.removeAttribute('data-slot'))
+        landing.replaceChildren(copy)
+        landing.dataset.cloned = '1'
+      }
+      let landKey = ''
       const syncPage = () => {
         if (pageDead) return
         // mid-morph the page is a set of transition snapshots, so hit-testing
@@ -8316,7 +8403,7 @@ export default {
         let vp = null
         for (const v of vps) {
           const r = v.getBoundingClientRect()
-          const hits = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height * 0.3)
+          const hits = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height * 0.3).filter(h => h !== landing && !landing.contains(h))
           if (hits.length && v.contains(hits[0])) { vp = v; break }
         }
         const hasMsg = vp ? Boolean(vp.querySelector("[data-slot*='message']")) : false
@@ -8325,6 +8412,21 @@ export default {
         const chat = !introShown && !(vp && !hasMsg)
         if (chat) root.dataset.zfChat = '1'
         else delete root.dataset.zfChat
+        borrowIntro(intro || document.querySelector("[data-slot='aui_intro']"))
+        if (vp && !hasMsg && !introShown) {
+          const r = vp.getBoundingClientRect()
+          const key = [r.left, r.top, r.width, r.height].map(Math.round).join('/')
+          if (key !== landKey) {
+            landKey = key
+            Object.assign(landing.style, { left: Math.round(r.left) + 'px', top: Math.round(r.top) + 'px', width: Math.round(r.width) + 'px', height: Math.round(r.height * 0.82) + 'px' })
+          }
+          if (root.dataset.zfLanding !== '1') {
+            if (!landing.dataset.cloned) landing.lastElementChild.textContent = LINES[Math.floor(Math.random() * LINES.length)]
+            root.dataset.zfLanding = '1'
+          }
+        } else if (root.dataset.zfLanding) {
+          delete root.dataset.zfLanding
+        }
       }
       let pageQueued = false
       const schedulePage = () => {
@@ -8343,11 +8445,78 @@ export default {
         window.removeEventListener('resize', schedulePage)
         window.removeEventListener('zf-morph-end', schedulePage)
         delete root.dataset.zfChat
+        delete root.dataset.zfLanding
+        landing.remove()
       })
     } catch (err) {
       console.error('[zephyr] page state failed: ' + (err && err.stack || err))
     }
 
+    // ── Session clicks ───────────────────────────────────────────────────────
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement
+      // A session clicked in the sidebar opens in the tab you are in. The app
+      // always routes a row click to the first (workspace) tab; when a session
+      // tab is active, open the row as a tab through the row's own menu and
+      // retire the tab it replaces.
+      const topTabs = () => Array.from(document.querySelectorAll("[role='tab'][data-tree-tab]")).filter(t => !t.closest('[data-zf-arc-col]'))
+      let swapping = false
+      const onRowClick = event => {
+        if (swapping || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+        // the whole row counts (it is ~62px tall; the title button is 18px),
+        // except its own controls: the actions menu and the reorder handle
+        const t = event.target
+        if (!t.closest || !t.closest("[data-slot='sidebar']")) return
+        if (t.closest("button:not([data-slot='row-button']), [aria-label^='Reorder'], input, [role='menu']")) return
+        const row = t.closest("[data-slot='context-menu-trigger']")
+        const btn = row && row.querySelector("button[data-slot='row-button']")
+        if (!btn) return
+        const active = topTabs().find(t => t.getAttribute('aria-selected') === 'true')
+        const oldId = active && active.dataset.treeTab
+        if (!row || !oldId || !oldId.startsWith('session-tile:')) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        swapping = true
+        root.dataset.zfGhostMenu = '1'
+        const r = btn.getBoundingClientRect()
+        row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 20, clientY: r.top + r.height / 2, button: 2 }))
+        const finish = () => { swapping = false; delete root.dataset.zfGhostMenu }
+        let tries = 0
+        const pick = () => {
+          const items = Array.from(document.querySelectorAll("[role='menuitem']"))
+          if (!items.length && tries++ < 20) { requestAnimationFrame(pick); return }
+          const item = items.find(i => /new tab/i.test(i.textContent))
+          if (!item) {
+            // already open somewhere: close the menu, let the app route it
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+            setTimeout(() => { finish(); btn.click() }, 60)
+            return
+          }
+          const before = new Set(topTabs().map(t => t.dataset.treeTab))
+          item.click()
+          let waits = 0
+          const retire = () => {
+            const fresh = topTabs().find(t => !before.has(t.dataset.treeTab))
+            if (!fresh && waits++ < 40) { setTimeout(retire, 25); return }
+            finish()
+            const old = topTabs().find(t => t.dataset.treeTab === oldId)
+            const close = old && old.querySelector("button[aria-label='Close']")
+            if (fresh && close) {
+              close.click()
+              // a running tab asks first; keep it rather than surprise anyone
+              setTimeout(() => {
+                const dlg = document.querySelector("[role='alertdialog'], [role='dialog'][data-state='open']")
+                if (dlg && /running/i.test(dlg.textContent)) document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+              }, 120)
+            }
+          }
+          retire()
+        }
+        requestAnimationFrame(pick)
+      }
+      document.addEventListener('click', onRowClick, true)
+      ctx.onDispose?.(() => document.removeEventListener('click', onRowClick, true))
+    }
 
     // ── the picture + glass editor ───────────────────────────────────────────
     // Plain inputs on purpose: a range, a colour swatch, a file picker and a URL

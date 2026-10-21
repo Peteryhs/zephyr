@@ -34,6 +34,7 @@ It's one JavaScript file. There's no build step, and it doesn't modify Hermes it
 - Spacious margins: a narrower reading column that lines up with the message box.
 - Fold finished work: when a reply is done, its thinking and tool steps fold into one line that shows how long it took.
 - Status panel: in Simple mode, the status bar (model, context, agents, radio) becomes a card in the sessions sidebar. Drag a status row onto the panel title to pin it.
+- Tab keys: Cmd+Option+Left/Right moves between tabs, and a collapsed pane drops its labels instead of stacking them letter by letter.
 
 ## Install
 

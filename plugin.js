@@ -68,12 +68,12 @@ const GROUNDS = {
     sidebarBackground: 'rgba(16, 24, 36, 0.60)', sidebarBorder: '#25374d', userBubble: 'rgba(32, 44, 62, 0.62)', userBubbleBorder: '#314661'
   },
   dusk: {
-    background: 'rgba(22, 20, 34, 0.72)', foreground: '#f4e8e8', card: 'rgba(30, 26, 42, 0.68)', cardForeground: '#f4e8e8',
-    muted: 'rgba(46, 38, 58, 0.55)', mutedForeground: '#d0b4b8', popover: 'rgba(26, 22, 38, 0.88)', popoverForeground: '#f4e8e8',
-    primary: '#f0934e', primaryForeground: '#0f172a', secondary: 'rgba(56, 42, 64, 0.55)', secondaryForeground: '#e8d6d8',
-    accent: '#f0934e', accentForeground: '#0f172a', border: '#38304c', input: 'rgba(46, 38, 58, 0.55)', ring: '#f0934e',
+    background: 'rgba(13, 11, 20, 0.82)', foreground: '#f5e7e0', card: 'rgba(21, 17, 27, 0.80)', cardForeground: '#f5e7e0',
+    muted: 'rgba(34, 26, 38, 0.62)', mutedForeground: '#bfa4a4', popover: 'rgba(15, 13, 21, 0.94)', popoverForeground: '#f5e7e0',
+    primary: '#e6863f', primaryForeground: '#140d08', secondary: 'rgba(42, 32, 46, 0.62)', secondaryForeground: '#e8d2cf',
+    accent: '#e6863f', accentForeground: '#140d08', border: '#33242e', input: 'rgba(34, 26, 38, 0.62)', ring: '#e6863f',
     destructive: '#e05a52', destructiveForeground: '#fff5f5',
-    sidebarBackground: 'rgba(18, 17, 28, 0.60)', sidebarBorder: '#322a42', userBubble: 'rgba(40, 34, 52, 0.62)', userBubbleBorder: '#3d3450'
+    sidebarBackground: 'rgba(9, 8, 14, 0.72)', sidebarBorder: '#2b1f28', userBubble: 'rgba(30, 23, 34, 0.74)', userBubbleBorder: '#3a2833'
   },
   night: {
     background: 'rgba(10, 18, 38, 0.72)', foreground: '#ffffff', card: 'rgba(10, 16, 36, 0.76)', cardForeground: '#ffffff',
@@ -85,7 +85,7 @@ const GROUNDS = {
   }
 }
 
-const PHASE_ACCENT = { dawn: '#e8a07a', day: '#9dc4e8', dusk: '#f0934e', night: '#b9c7e8' }
+const PHASE_ACCENT = { dawn: '#e8a07a', day: '#9dc4e8', dusk: '#e6863f', night: '#b9c7e8' }
 
 const WORK_ICONS = {
   brain: '<svg width="14" height="14" viewBox="0 0 256 256" fill="#ffffff"><path d="M216,72a48,48,0,0,0-88-26.49A48,48,0,0,0,40,72v1.39a56,56,0,0,0,0,101.22V176a48,48,0,0,0,88,26.49A48,48,0,0,0,216,176v-1.39A56.09,56.09,0,0,0,248,124,56.11,56.11,0,0,0,216,72ZM120,208a32,32,0,0,1-32-32,48,48,0,0,1,32-45.26Zm0-93.26A48,48,0,0,1,88,69.26,32,32,0,0,1,120,40Zm16-74.74A32,32,0,0,1,168,69.26a48,48,0,0,1-32,45.48Zm0,93.26A48,48,0,0,1,168,176a32,32,0,0,1-32,32Z"/></svg>',
@@ -236,11 +236,11 @@ const getAnchors = (solar = getSolar()) => {
     { hour: hDawn, top: [36, 30, 58], mid: [68, 58, 92], low: [121, 84, 102], horizon: [168, 115, 95], base: [51, 41, 74], orb: [255, 196, 150], orbAlpha: 0.22, exposure: 0.25 },
     { hour: hMorning, top: [32, 55, 79], mid: [47, 83, 117], low: [79, 126, 164], horizon: [140, 180, 205], base: [49, 85, 111], orb: [255, 250, 230], orbAlpha: 0.16, exposure: 0.72 },
     { hour: hNoon, top: [28, 52, 76], mid: [43, 79, 112], low: [74, 121, 158], horizon: [150, 190, 214], base: [45, 80, 106], orb: [255, 252, 240], orbAlpha: 0.18, exposure: 1 },
-    { hour: hAfternoon, top: [26, 48, 76], mid: [42, 76, 112], low: [76, 118, 154], horizon: [195, 160, 130], base: [42, 70, 96], orb: [255, 235, 190], orbAlpha: 0.2, exposure: 0.85 },
-    { hour: hGolden, top: [24, 46, 76], mid: [38, 70, 110], low: [68, 108, 146], horizon: [205, 155, 105], base: [38, 64, 92], orb: [255, 210, 140], orbAlpha: 0.22, exposure: 0.76 },
-    { hour: hSunset, top: [22, 38, 68], mid: [42, 54, 86], low: [85, 75, 98], horizon: [210, 125, 70], base: [52, 44, 62], orb: [255, 145, 80], orbAlpha: 0.25, exposure: 0.55 },
-    { hour: hDusk, top: [20, 28, 54], mid: [36, 36, 64], low: [68, 52, 78], horizon: [135, 75, 68], base: [38, 30, 48], orb: [220, 130, 75], orbAlpha: 0.2, exposure: 0.35 },
-    { hour: hLateDusk, top: [14, 24, 54], mid: [22, 36, 76], low: [36, 50, 96], horizon: [56, 68, 120], base: [16, 26, 56], orb: [215, 170, 120], orbAlpha: 0.16, exposure: 0.22 },
+    { hour: hAfternoon, top: [22, 40, 64], mid: [36, 62, 94], low: [62, 96, 130], horizon: [152, 118, 98], base: [32, 54, 78], orb: [255, 216, 172], orbAlpha: 0.18, exposure: 0.82 },
+    { hour: hGolden, top: [17, 29, 48], mid: [29, 48, 72], low: [52, 80, 106], horizon: [168, 106, 78], base: [27, 41, 58], orb: [255, 176, 108], orbAlpha: 0.2, exposure: 0.64 },
+    { hour: hSunset, top: [15, 17, 33], mid: [30, 27, 46], low: [62, 40, 60], horizon: [186, 84, 52], base: [32, 23, 38], orb: [255, 122, 62], orbAlpha: 0.26, exposure: 0.42 },
+    { hour: hDusk, top: [11, 13, 28], mid: [22, 21, 40], low: [46, 31, 52], horizon: [108, 50, 50], base: [20, 17, 28], orb: [198, 104, 62], orbAlpha: 0.2, exposure: 0.3 },
+    { hour: hLateDusk, top: [8, 11, 26], mid: [14, 19, 42], low: [23, 31, 60], horizon: [38, 44, 86], base: [11, 17, 34], orb: [188, 148, 108], orbAlpha: 0.14, exposure: 0.2 },
     { hour: hNight, top: [10, 20, 48], mid: [15, 30, 68], low: [22, 42, 92], horizon: [30, 56, 115], base: [12, 22, 50], orb: [210, 228, 255], orbAlpha: 0.18, exposure: 0.18 }
   ]
 
@@ -497,7 +497,7 @@ const skyStyleFor = (date, gl = false) => {
     `    radial-gradient(115% 58% at ${horizonTilt.secondaryX.toFixed(1)}% ${horizonTilt.secondaryY.toFixed(1)}%, ${cssRgba(sky.horizon, (0.16 * sky.exposure).toFixed(3))} 0%, transparent 68%),`,
     `    radial-gradient(95% 48% at ${horizonTilt.ambientX.toFixed(1)}% 99%, ${cssRgba(sky.low, (0.15 * sky.exposure).toFixed(3))} 0%, transparent 64%),`,
     `    linear-gradient(180deg, rgba(0, 0, 0, ${scrim}), rgba(0, 0, 0, ${scrim})),`,
-    `    linear-gradient(180deg, ${cssRgb(sky.top)} 0%, ${cssRgb(sky.mid)} 32%, ${cssRgb(sky.low)} 62%, ${cssRgb(sky.horizon)} 88%, ${cssRgb(sky.horizon)} 100%);`,
+    `    linear-gradient(180deg, ${cssRgb(sky.top)} 0%, ${cssRgb(sky.mid)} 30%, ${cssRgb(sky.low)} 54%, ${cssRgb(sky.horizon)} 80%, ${cssRgb(sky.horizon)} 100%);`,
     '}',
     'body::before {',
     "  content: ''; position: fixed; left: 50%; top: 0; width: 62vmax; height: 62vmax;",

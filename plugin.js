@@ -37,7 +37,7 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 const THEMES_AREA = 'themes'
 const DIRECTIVE_AREA = 'transcript.directives'
 
-const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', phasePin: 'phasePin' }
+const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin' }
 
 // ── Theme palettes ─────────────────────────────────────────────────────────
 // Hermes keeps its amber; the ground shifts with the hour. Four phases, four
@@ -86,6 +86,529 @@ const GROUNDS = {
 }
 
 const PHASE_ACCENT = { dawn: '#e8a07a', day: '#9dc4e8', dusk: '#f0934e', night: '#b9c7e8' }
+
+// ── Gruvbox · The Backwater ──────────────────────────────────────────────────
+// Dressed from gruvbox's own element table, not from "brown and orange". Every
+// role below maps onto a named highlight group in morhetz/gruvbox (dark, medium
+// contrast), so the app reads the way the colorscheme reads:
+//
+//   Normal        fg1 on bg0        -> body text on the reading ground
+//   Comment       gray, italic      -> folds, timestamps, tertiary labels
+//   Visual        bg3               -> selection
+//   VertSplit     bg3               -> borders
+//   Pmenu         fg1 on bg2        -> user bubble, menus
+//   PmenuSel      bg2 on blue, bold -> selected row
+//   CursorLine    bg1               -> hover / raised surface
+//   CursorLineNr  yellow on bg1     -> focus ring
+//   Search        yellow, inversed  -> ring / find
+//   IncSearch     orange            -> the thing the eye should land on
+//   Title         bold green        -> headings
+//   Underlined    blue, underline   -> links
+//   Constant      purple            -> numbers, literals, inline code
+//   String        green             -> strings
+//   Type          yellow            -> types
+//   PreProc       aqua              -> quotes / preprocessor
+//   Special       orange            -> highlights
+//   Statement     red               -> errors, destructive, keywords
+//   LineNr        bg4               -> hairlines
+//   Folded        gray on bg1, italic
+//
+// The painting is the ground under all of it: 4096×2428, its own bytes, no
+// resize and no re-encode. Panels are gruvbox surfaces at high alpha — tinted
+// glass rather than a clear pane — because fg1 on bg0 is a 9.5:1 pair and that
+// is the only way prose stays readable over a picture with real highlights.
+const GRUVBOX_THEME = 'zephyr-gruvbox'
+const GRUVBOX_ACCENT = '#fe8019'
+// Resolved at startup from wherever the plugin is installed (assets/ in a
+// clone, or next to plugin.js); see resolvePluginFiles.
+let BACKWATER_URL = 'data:,'
+const BACKWATER_FILE = 'backwater.jpg'
+
+// The palette, verbatim from gruvbox.vim's `s:gb` dictionary.
+const GB = {
+  bg0h: [29, 32, 33], bg0: [40, 40, 40], bg0s: [50, 48, 47], bg1: [60, 56, 54],
+  bg2: [80, 73, 69], bg3: [102, 92, 84], bg4: [124, 111, 100],
+  gray: [146, 131, 116], fg0: [251, 241, 199], fg1: [235, 219, 178], fg2: [213, 196, 161],
+  fg3: [189, 174, 147], fg4: [168, 153, 132],
+  red: '#fb4934', green: '#b8bb26', yellow: '#fabd2f', blue: '#83a598',
+  purple: '#d3869b', aqua: '#8ec07c', orange: '#fe8019'
+}
+const gbA = (rgb, a) => `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a})`
+// Gruvbox's own bg ladder is nearly neutral, which over a painting reads grey.
+// These are the same values pushed toward the river in the picture: equal or
+// lower luminance than bg0, but with hue and chroma, so the panes stay dark
+// while reading as deep green glass instead of soot. Deliberately outside the
+// palette.
+const RIVER = { deep: [13, 23, 19], pane: [19, 32, 26], card: [27, 43, 35], bubble: [38, 58, 46] }
+const RIVER_EDGE = '#466553'
+
+// ── The skin, as data ───────────────────────────────────────────────────────
+// Everything below is what the editor writes: the artwork, how the glass sits on
+// it, and the panel colours. Defaults reproduce the shipped look exactly, so a
+// fresh install paints what you saw before anyone touched a control.
+const SKIN_DEFAULTS = {
+  image: BACKWATER_URL,
+  fit: 'cover',
+  posX: 46,
+  posY: 45,
+  scrim: 0.31,
+  blur: 18,
+  saturate: 1.3,
+  brightness: 0.90,
+  chrome: 0.74,
+  sidebar: 0.74,
+  card: 0.78,
+  bubble: 0.78,
+  ground: '#16261e',
+  deeper: '#0c1612',
+  cardTint: '#1d3328',
+  bubbleTint: '#2b4636',
+  edge: '#4f7360',
+  accent: '#fe8019',
+  ink: '#fbf1c7',
+  ink2: '#ebdbb2'
+}
+const SKIN_SLIDERS = [
+  ['scrim', 'Picture scrim', 0, 0.9, 0.01],
+  ['blur', 'Glass blur (px)', 0, 40, 1],
+  ['saturate', 'Glass saturation', 0.5, 2, 0.05],
+  ['brightness', 'Glass brightness', 0.5, 1.1, 0.01],
+  ['chrome', 'Chat pane opacity', 0.4, 1, 0.01],
+  ['sidebar', 'Sidebar opacity', 0.4, 1, 0.01],
+  ['card', 'Card opacity', 0.4, 1, 0.01],
+  ['bubble', 'Your message opacity', 0.4, 1, 0.01]
+]
+const SKIN_COLORS = [
+  ['ground', 'Chat ground'],
+  ['deeper', 'Sidebar ground'],
+  ['cardTint', 'Card'],
+  ['bubbleTint', 'Your messages'],
+  ['edge', 'Edges'],
+  ['accent', 'Accent'],
+  ['ink', 'Text'],
+  ['ink2', 'Quiet text']
+]
+let SKIN = { ...SKIN_DEFAULTS }
+const setSkin = next => { SKIN = { ...SKIN_DEFAULTS, ...next } }
+const skinNumber = (value, fallback) => (Number.isFinite(Number(value)) ? Number(value) : fallback)
+// '#221a16' -> '34, 26, 22' (the app's neutral tokens are bare RGB triples)
+const hexTriple = hex => {
+  const h = String(hex || '').replace('#', '')
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h.padEnd(6, '0').slice(0, 6)
+  return [0, 2, 4].map(i => parseInt(full.slice(i, i + 2), 16) || 0).join(', ')
+}
+const picUrl = () => String(SKIN.image || BACKWATER_URL).replace(/"/g, '%22')
+const hexRgb = hex => hexTriple(hex).split(', ').map(Number)
+
+// Every surface Zephyr paints reads these, so a look (or a user skin) is one
+// set of numbers instead of a hunt through the stylesheet.
+const mixHex = (a, b, t) => hexRgb(a).map((v, i) => Math.round(v + (hexRgb(b)[i] - v) * t))
+const materialVars = gruv => {
+  const tri = rgb => rgb.join(', ')
+  if (!gruv) {
+    return [
+      'html:root {',
+      '  --zf-hi: 255, 255, 255;',
+      '  --zf-m-solid: rgb(17, 18, 24);',
+      '  --zf-m-tab: rgba(255, 255, 255, 0.10);',
+      '  --zf-m-pin-a: rgba(16, 17, 24, 0.46); --zf-m-pin-b: rgba(10, 11, 16, 0.56);',
+      '  --zf-m-comp-a: rgba(24, 25, 34, 0.46); --zf-m-comp-b: rgba(14, 15, 22, 0.54);',
+      '  --zf-m-bub-a: rgba(255, 255, 255, 0.10); --zf-m-bub-b: rgba(255, 255, 255, 0.07);',
+      '  --zf-m-sheet: rgba(14, 15, 22, 0.74);',
+      '  --zf-m-on: #11121a;',
+      '  --ui-row-active-background: rgba(255, 255, 255, 0.10) !important;',
+      '}'
+    ]
+  }
+  const deep = SKIN.deeper, ground = SKIN.ground, card = SKIN.cardTint, bub = SKIN.bubbleTint
+  const g = k => skinNumber(SKIN[k], 0.78)
+  return [
+    'html:root {',
+    `  --zf-hi: ${hexTriple(SKIN.ink)};`,
+    `  --zf-m-solid: rgb(${tri(mixHex(deep, ground, 0.6))});`,
+    `  --zf-m-tab: rgba(${hexTriple(bub)}, 0.86);`,
+    `  --zf-m-pin-a: rgba(${hexTriple(ground)}, ${(g('sidebar') * 0.68).toFixed(3)}); --zf-m-pin-b: rgba(${hexTriple(deep)}, ${(g('sidebar') * 0.78).toFixed(3)});`,
+    `  --zf-m-comp-a: rgba(${hexTriple(bub)}, ${(g('chrome') * 0.62).toFixed(3)}); --zf-m-comp-b: rgba(${hexTriple(card)}, ${(g('chrome') * 0.70).toFixed(3)});`,
+    `  --zf-m-bub-a: rgba(${hexTriple(bub)}, ${(g('bubble') * 0.60).toFixed(3)}); --zf-m-bub-b: rgba(${hexTriple(card)}, ${(g('bubble') * 0.68).toFixed(3)});`,
+    `  --zf-m-sheet: rgba(${tri(mixHex(deep, ground, 0.5))}, ${(g('card') * 0.92).toFixed(3)});`,
+    `  --zf-m-on: ${deep};`,
+    `  --ui-row-active-background: rgba(${tri(mixHex(bub, SKIN.ink, 0.18))}, 0.62) !important;`,
+    '}'
+  ]
+}
+
+const gbHex = rgb => `#${rgb.map(v => v.toString(16).padStart(2, '0')).join('')}`
+
+const GRUVBOX_GROUNDS = {
+  // Deep green ground: the luminance of bg0_hard with the river's green in it,
+  // so prose keeps its contrast while the app stops reading as grey.
+  background: gbA(RIVER.pane, 0.88), foreground: gbHex(GB.fg0),
+  card: gbA(RIVER.card, 0.96), cardForeground: gbHex(GB.fg0),
+  muted: gbA(GB.bg1, 0.80), mutedForeground: gbHex(GB.fg3),
+  popover: gbA(RIVER.deep, 0.98), popoverForeground: gbHex(GB.fg0),
+  primary: GB.orange, primaryForeground: gbHex(GB.bg0h),
+  secondary: gbA(RIVER.card, 0.90), secondaryForeground: gbHex(GB.fg2),
+  accent: GB.orange, accentForeground: gbHex(GB.bg0h),
+  border: RIVER_EDGE, input: gbA(RIVER.card, 0.95),
+  ring: GB.yellow, destructive: GB.red, destructiveForeground: gbHex(GB.bg0h),
+  sidebarBackground: gbA(RIVER.deep, 0.92), sidebarBorder: RIVER_EDGE,
+  userBubble: gbA(RIVER.bubble, 0.95), userBubbleBorder: RIVER_EDGE
+}
+
+// Zephyr derives a glass material from the sky; here it comes from bg1/bg2 so
+// every Zephyr surface (sidebar cards, snippet cards, composer) is a gruvbox
+// pane. The ink ramp is gruvbox's own fg ladder.
+const gruvboxMaterial = () => ({
+  tint: hexRgb(SKIN.ground),
+  tintHi: hexRgb(SKIN.bubbleTint),
+  // ink3 lands on every 10-11px uppercase label in the app — section headers,
+  // the status bar, the fold line, shortcuts — and gruvbox's Comment grey is
+  // simply too quiet at that size over a tinted ground, so the quiet tier sits
+  // at fg1. This is the one place the theme deliberately out-contrasts gruvbox.
+  ink: [hexRgb(SKIN.ink), hexRgb(SKIN.ink2), hexRgb(GB.fg2), hexRgb(SKIN.ink2)],
+  night: 0.2,
+  accent: SKIN.accent
+})
+
+// The painting as the ground. The scrim is what makes the glass tinted rather
+// than clear: it drops the picture's peak brightness so the panels above it can
+// stay translucent without letting a highlight sit under a line of prose.
+const gruvboxLayers = () => {
+  const scrim = skinNumber(SKIN.scrim, 0.44)
+  return [
+    'html::before {',
+    "  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;",
+    '  background-image:',
+    // left: the sidebar's column of small text sits over the dress and the
+    // sunlit grass; top/bottom: titlebar and composer edges.
+    // fine grain: dark gradients over 8-bit colour step visibly; a faint
+    // noise breaks the steps up so the falloff reads as a smooth curve
+    `    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),`,
+    // one soft vignette (eased, many stops) + one even scrim: no ramps that end
+    // in a visible line
+    `    radial-gradient(125% 115% at 50% 42%, rgba(${hexTriple(SKIN.deeper)}, 0) 0%, rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 0.10).toFixed(3)}) 35%, rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 0.32).toFixed(3)}) 55%, rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 0.62).toFixed(3)}) 72%, rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 0.90).toFixed(3)}) 88%, rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 1.05).toFixed(3)}) 100%),`,
+    `    linear-gradient(rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 0.70).toFixed(3)}), rgba(${hexTriple(SKIN.deeper)}, ${(scrim * 0.70).toFixed(3)})),`,
+    // the artwork itself: a custom property, so swapping the picture is one tiny
+    // style element instead of rebuilding a multi-megabyte CSS string
+    `    var(--zf-pic, url("${BACKWATER_URL}"));`,
+    `  background-size: 160px 160px, cover, cover, ${SKIN.fit === 'contain' ? 'contain' : 'cover'};`,
+    `  background-position: 0 0, center, center, ${skinNumber(SKIN.posX, 46)}% ${skinNumber(SKIN.posY, 45)}%;`,
+    '  background-repeat: repeat, no-repeat, no-repeat, no-repeat;',
+    `  background-color: ${SKIN.deeper};`,
+    '}',
+    'body::before { content: none; }'
+  ]
+}
+
+// The picture lives in its own style element: a 5 MB data URL must not be
+// re-stringified on every clock tick.
+const ensurePictureStyle = url => {
+  if (typeof document === 'undefined' || !document.head) return
+  let el = document.getElementById('zephyr-picture')
+  if (!el) {
+    el = document.createElement('style')
+    el.id = 'zephyr-picture'
+    document.head.appendChild(el)
+  }
+  const value = `:root { --zf-pic: url("${String(url).replace(/"/g, '%22')}"); }`
+  if (el.textContent !== value) el.textContent = value
+}
+
+// ── Refinement pass ────────────────────────────────────────────────────────
+// The audit found ten different corner radii, ten font sizes, three border
+// colours that were not ours, and every message group 16px wider than the column
+// it sits in. This layer puts the app on one scale: four radii, one border
+// colour, one hover, one focus ring, and prose that cannot overflow.
+const polishCss = () => [
+  // The app's ink tiers were landing on values that read as invisible against
+  // this ground: secondary computed to rgb(33 3 25) (1.09:1) and quaternary to
+  // 36% ink (1.01:1). Pane-tab labels, timestamps and session subtitles were
+  // effectively black on black. `html:root` outranks whatever sets them later.
+  'html:root {',
+  // !important because the app writes these tokens inline on <html> when it
+  // applies a theme, and inline declarations otherwise beat any stylesheet.
+  `  --ui-text-primary: ${LOOK_MODE === 'sunset' ? '#ffffff' : SKIN.ink} !important;`,
+  `  --ui-text-secondary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.86)' : SKIN.ink2} !important;`,
+  `  --ui-text-tertiary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.72)' : '#bdae93'} !important;`,
+  `  --ui-text-quaternary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.58)' : '#a89984'} !important;`,
+  '}',
+  // `--zf-` is the app's namespace too: it ships its own --zf-ink-2, which is
+  // rgb(33 3 25) — near-black. Every rule of ours that said
+  // var(--zf-ink-2, #d5c4a1) got the app's value instead of the fallback, which
+  // is why pane-tab labels and timestamps stayed invisible. Reclaim the ramp.
+  'html:root {',
+  `  --zf-ink-0: ${LOOK_MODE === 'sunset' ? '#ffffff' : SKIN.ink} !important;`,
+  `  --zf-ink-1: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.92)' : SKIN.ink2} !important;`,
+  `  --zf-ink-2: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.78)' : SKIN.ink2} !important;`,
+  `  --zf-ink-3: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.60)' : '#d5c4a1'} !important;`,
+  '}',
+  ':root {',
+  '  --zf-r-chip: 4px;',
+  '  --zf-r-control: 8px;',
+  '  --zf-r-card: 12px;',
+  // the app's own scale, set once: its radius utilities read these
+  '  --radius: 12px;',
+  '  --radius-md: 8px;',
+  '  --radius-lg: 12px;',
+  '  --radius-sm: 6px;',
+  '  --zf-radius: 8px;',
+  '  --zf-radius-lg: 12px;',
+  `  --zf-hair: rgba(${hexTriple(SKIN.edge)}, 0.55);`,
+  '  --zf-ease: cubic-bezier(0.2, 0, 0, 1);',
+  '}',
+
+  // One radius per role. Buttons, inputs and rows are controls; cards and code
+  // are surfaces; chips are inline.
+  "button:not([class*='rounded-full']), input, select, textarea, [role='button']:not([class*='rounded-full']), [role='tab'], [role='option'] {",
+  '  border-radius: var(--zf-r-control) !important;',
+  '}',
+  "[data-slot='aui_message'] :is(pre, table),",
+  "[data-slot='aui_message'] :is(.rounded-lg, .rounded-xl, .rounded-2xl) {",
+  '  border-radius: var(--zf-r-card) !important;',
+  '}',
+  "[data-slot='aui_message'] :not(pre) > code {",
+  '  border-radius: var(--zf-r-chip) !important;',
+  '}',
+
+  // One hairline colour everywhere a border is drawn by the app, so dividers
+  // stop being three different greys.
+  // `[class]` is here to outrank Tailwind's own class-level !important
+  // declarations (border-white/5 and friends), which otherwise win on
+  // specificity no matter how early this sheet is injected.
+  // ...but never on an edge the app meant to be invisible: re-colouring
+  // border-transparent drew a box around every nav row in Settings and the sidebar.
+  "html body :is(div, span, button, a, li, table, th, td, input, textarea, select, section, header, footer, aside, nav)[class]:not([class*='border-transparent']) {",
+  '  border-color: var(--zf-hair) !important;',
+  '}',
+  // the accent is for state, not decoration: a focused control keeps its ring
+  ':focus-visible {',
+  '  border-color: color-mix(in srgb, var(--zf-accent, #fe8019) 55%, transparent) !important;',
+  '}',
+
+  // Focus is visible, consistent, and only on keyboard focus.
+  ':focus-visible {',
+  '  outline: 2px solid color-mix(in srgb, var(--zf-accent, #fe8019) 70%, transparent);',
+  '  outline-offset: 2px;',
+  '}',
+
+  // One hover, one duration. The app animates some rows and snaps others.
+  "button, [role='button'], [role='tab'], [role='option'], [role='menuitem'] {",
+  '  transition: background-color 120ms var(--zf-ease), color 120ms var(--zf-ease), border-color 120ms var(--zf-ease);',
+  '}',
+  "@media (prefers-reduced-motion: reduce) {",
+  "  button, [role='button'], [role='tab'], [role='option'] { transition: none !important; }",
+  '}',
+
+  // Scrollbars: thin, tinted, no full-width gutter.
+  '::-webkit-scrollbar { width: 10px; height: 10px; }',
+  '::-webkit-scrollbar-track { background: transparent; }',
+  '::-webkit-scrollbar-thumb {',
+  '  background: color-mix(in srgb, var(--zf-ink-3, #a89984) 26%, transparent);',
+  '  border: 3px solid transparent;',
+  '  border-radius: 999px;',
+  '  background-clip: content-box;',
+  '}',
+  '::-webkit-scrollbar-thumb:hover {',
+  '  background: color-mix(in srgb, var(--zf-ink-3, #a89984) 44%, transparent);',
+  '  background-clip: content-box;',
+  '}',
+
+  // ── Prose: rhythm, and nothing overflowing the column ────────────────────
+  "[data-slot='aui_thread-content'] :is(p, li, td, th, h1, h2, h3, h4, blockquote) {",
+  '  overflow-wrap: anywhere;',
+  '}',
+  "[data-slot='aui_thread-content'] p { margin-block: 0.7em !important; }",
+  "[data-slot='aui_thread-content'] :is(h1, h2, h3, h4) {",
+  '  letter-spacing: -0.011em;',
+  '  margin-block: 1.15em 0.5em;',
+  '  line-height: 1.3;',
+  '}',
+  "[data-slot='aui_thread-content'] :is(ul, ol) { padding-inline-start: 1.35em; margin-block: 0.6em; }",
+  "[data-slot='aui_thread-content'] li { margin-block: 0.22em !important; }",
+  "[data-slot='aui_thread-content'] li::marker { color: var(--zf-ink-3, #a89984); }",
+  "[data-slot='aui_thread-content'] hr {",
+  '  border: 0; border-top: 1px solid var(--zf-hair); margin-block: 1.4em;',
+  '}',
+  "[data-slot='aui_thread-content'] blockquote {",
+  '  border-inline-start: 2px solid var(--zf-hair);',
+  '  padding-inline-start: 0.9em;',
+  '  margin-inline: 0;',
+  '  color: var(--zf-ink-2, #d5c4a1);',
+  '}',
+  "[data-slot='aui_thread-content'] a {",
+  '  text-underline-offset: 2px;',
+  '  text-decoration-thickness: 1px;',
+  '  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);',
+  '}',
+  "[data-slot='aui_thread-content'] a:hover { text-decoration-color: currentColor; }",
+  "[data-slot='aui_thread-content'] img { max-width: 100%; border-radius: var(--zf-r-control); }",
+
+  // Code: one padding, one radius, one border, tabular figures in blocks.
+  "[data-slot='aui_thread-content'] pre {",
+  '  padding: 13px 15px !important;',
+  '  border-radius: var(--zf-r-card) !important;',
+  '  border: 1px solid var(--zf-hair) !important;',
+  '  line-height: 1.55 !important;',
+  '  font-variant-numeric: tabular-nums;',
+  '}',
+  "[data-slot='aui_thread-content'] :not(pre) > code {",
+  '  padding: 0.12em 0.36em;',
+  '  font-size: 0.92em;',
+  '}',
+
+  // Tables scroll instead of pushing the column wide.
+  "[data-slot='aui_thread-content'] table {",
+  '  border-collapse: collapse;',
+  '  width: 100%;',
+  '  display: block;',
+  '  overflow-x: auto;',
+  '}',
+  "[data-slot='aui_thread-content'] :is(th, td) {",
+  '  padding: 6px 10px;',
+  '  border-bottom: 1px solid var(--zf-hair);',
+  '  text-align: start;',
+  '}',
+  "[data-slot='aui_thread-content'] th {",
+  '  font-weight: 600;',
+  '  color: var(--zf-ink-1, #ebdbb2);',
+  '}',
+
+  // Sky: white text over a bright or overcast day sky needs a soft lift to
+  // stay readable; the glass alone cannot darken a pale cloud enough.
+  ...(LOOK_MODE === 'sunset' ? [
+    "[data-slot='aui_thread-content'] :is(p, li, td, th, dd, dt, h1, h2, h3, h4, blockquote, figcaption) { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.40), 0 0 10px rgba(0, 0, 0, 0.22); }"
+  ] : []),
+
+  // The 16px overflow: message groups are flex children that refuse to shrink.
+  "[data-slot='aui_message-group'], [data-slot='aui_turn-pair'],",
+  "[data-slot='aui_message-group'] > *, [data-slot='aui_turn-pair'] > * {",
+  '  max-width: 100% !important;',
+  '  min-width: 0 !important;',
+  '}',
+
+  // Settings nav: the open group is shown by its children, not by a second
+  // filled box above the selected child
+  "html body button[data-tour][class*='bg-(--ui-bg-tertiary)'][class*='border-(--ui-stroke-tertiary)'] { background: transparent !important; border-color: transparent !important; color: var(--zf-ink-0, #fbf1c7) !important; }",
+  // No orange or yellow text, anywhere: the app's accent-coloured text
+  // utilities, spinners and time stamps all fall back to the ink ramp.
+  "html body :is([class*='text-(--ui-accent)'], [class*='text-(--accent)'], [class*='text-primary']:not([class*='text-primary-foreground']), [class*='text-amber'], [class*='text-yellow'], [class*='text-orange'], [class*='text-(--theme-primary)'], .glyph-spinner, .glyph-spinner *) { color: var(--zf-ink-2, #cdc4b4) !important; }",
+  "html body time { color: var(--zf-ink-3, #a8a092) !important; }",
+  // unread badge and tab dots: no orange
+  "html body div.fixed:has(> button[aria-label*='sidebar' i]) [class*='bg-primary'] { background: var(--zf-ink-1, #e2dacb) !important; color: var(--zf-m-on) !important; }",
+  "[role='tab'][data-tree-tab] [class*='rounded-full'][class*='bg-'] { background: var(--zf-ink-2, #cdc4b4) !important; }",
+  // Settings is a floating sheet, solid enough that nothing reads through it
+  "div.rounded-xl:has(> * [class*='grid-cols-[13rem_minmax(0,1fr)]']), div.rounded-xl:has(> [class*='grid-cols-[13rem_minmax(0,1fr)]']) { background: var(--zf-m-sheet) !important; box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 30px 80px rgba(0, 0, 0, 0.55) !important; isolation: isolate; }",
+  "[class*='grid-cols-[13rem_minmax(0,1fr)]'] > aside { background: rgba(0, 0, 0, 0.16) !important; }",
+  // focus: a soft cream ring, never the orange accent; the composer gets none
+  "html body :focus-visible { outline: 1.5px solid rgba(var(--zf-hi), 0.38) !important; outline-offset: 2px; border-color: rgba(var(--zf-hi), 0.28) !important; }",
+  "html body :is([data-slot='composer-rich-input'], [data-slot^='composer'] textarea, [data-slot^='composer'] [contenteditable='true'], [data-slot^='composer'] input):is(:focus, :focus-visible) { outline: none !important; box-shadow: none !important; border-color: transparent !important; }",
+  "html body [data-slot='composer-surface']:focus-within { box-shadow: inset 0 0 0 1px rgba(var(--zf-hi), 0.16), var(--zf-lift, 0 8px 24px rgba(0,0,0,.3)) !important; }",
+  // Glass: the composer, your messages, cards and sheets let the frosted
+  // picture through.
+  "html body div[data-slot='composer-surface'][data-slot][class] { background: linear-gradient(var(--zf-m-comp-a), var(--zf-m-comp-b)) !important; backdrop-filter: blur(18px) saturate(1.25) brightness(1.08) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 10px 30px rgba(0, 0, 0, 0.22) !important; }",
+  "html body :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) { background: linear-gradient(var(--zf-m-bub-a), var(--zf-m-bub-b)) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 6px 20px rgba(0, 0, 0, 0.16) !important; border-color: transparent !important; }",
+  "div.rounded-xl:has(> * [class*='grid-cols-[13rem_minmax(0,1fr)]']), div.rounded-xl:has(> [class*='grid-cols-[13rem_minmax(0,1fr)]']) { background: var(--zf-m-sheet) !important; backdrop-filter: blur(28px) saturate(1.1) !important; }",
+
+  // Two text roles still resolved to a colour the theme never chose — the pane
+  // tab label and the sidebar timestamps both computed to rgb(33 3 25), which is
+  // 1.1:1 on this ground. Named explicitly rather than guessed at the token.
+  "[data-slot='pane-tab'] :is(span, div) {",
+  '  color: var(--zf-ink-2, #d5c4a1) !important;',
+  '}',
+  "[data-slot='pane-tab']:is([aria-selected='true'], [data-active='true']) :is(span, div) {",
+  '  color: var(--zf-ink-0, #fbf1c7) !important;',
+  '}',
+  "[data-slot='sidebar'] time, time[tooltip-trigger] {",
+  '  color: var(--zf-ink-3, #a89984) !important;',
+  '}',
+
+  "[role='tab'][data-tree-tab]:not([data-slot='pane-tab']) :is(span, div) {",
+  '  text-overflow: ellipsis;',
+  '}',
+
+  // Floating surfaces: menus, dialogs, popovers and tooltips share one radius
+  // and one shadow, instead of each carrying its own.
+  ":is([role='menu'], [role='dialog'], [role='listbox'], [role='tooltip'], [data-slot*='popover']) {",
+  '  border-radius: var(--zf-r-card) !important;',
+  '}',
+  ":is([role='tooltip']) {",
+  '  border-radius: 6px !important;',
+  '  padding: 4px 8px !important;',
+  '  font-size: 11px !important;',
+  '}',
+  ":is([role='menu'], [role='dialog'], [role='listbox']) {",
+  '  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42), 0 2px 6px rgba(0, 0, 0, 0.28) !important;',
+  '}',
+]
+
+// The prose layer wears the syntax side of gruvbox: headings are Title (bold
+// green), links are Underlined (blue), inline code is Constant (purple) on
+// bg0_hard, quotes are PreProc (aqua), hairlines are LineNr (bg4), selection is
+// Visual (bg3). This is the half of the colorscheme a chat window actually uses.
+const gruvboxTextCss = () => [
+  /* one soft-focus layer for the reading column: the picture stays as colour
+     and light, not as detail competing with letterforms */
+  // One glass band across the WHOLE window: edge to edge, left side of the
+  // screen to the right, so there is no vertical seam anywhere — the panes are
+  // translucent, so the blur simply shows through all of them. Only the top and
+  // bottom fade, because those are the only edges that are actually visible.
+  //
+  // It hangs off html::after rather than a thread element precisely because a
+  // thread element's width ends at the pane boundary, and that boundary is the
+  // hard line we are trying to get rid of.
+  "html[data-zf-chat='1']::after {",
+  "  content: '';",
+  '  position: fixed; left: 0; right: 0; top: 0; bottom: 0; z-index: -1;',
+  '  pointer-events: none;',
+  `  background: radial-gradient(120% 90% at 50% 40%, rgba(${hexTriple(SKIN.deeper)}, ${(skinNumber(SKIN.scrim, 0.44) * 0.45).toFixed(3)}), rgba(${hexTriple(SKIN.deeper)}, ${(skinNumber(SKIN.scrim, 0.44) * 0.95).toFixed(3)}));`,
+  `  backdrop-filter: blur(${skinNumber(SKIN.blur, 16)}px) saturate(${skinNumber(SKIN.saturate, 1.35)}) brightness(${skinNumber(SKIN.brightness, 0.84)});`,
+  '}',
+  `::selection { background: ${SKIN.edge} !important; color: ${SKIN.ink} !important; }`,
+
+  // Title
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) :is(h1, h2, h3, h4, h5, h6) {",
+  '  color: var(--zf-ink-0, #fbf1c7) !important;',
+  '}',
+  // Underlined
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) a {",
+  '  color: #83a598 !important;',
+  '  text-decoration: underline !important;',
+  '  text-decoration-color: rgba(131, 165, 152, 0.55) !important;',
+  '}',
+  // Constant
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) :is(code, kbd, samp) {",
+  '  color: #d3869b !important;',
+  `  background: rgba(${hexTriple(SKIN.deeper)}, 0.78) !important;`,
+  `  border: 1px solid ${SKIN.edge} !important;`,
+  '}',
+  // String / Special in blocks: the fence keeps bg0_hard, the border is bg2
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) pre {",
+  `  background: rgba(${hexTriple(SKIN.deeper)}, 0.90) !important;`,
+  `  border: 1px solid ${SKIN.edge} !important;`,
+  '  color: #ebdbb2 !important;',
+  '}',
+  // PreProc
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) blockquote {",
+  '  border-left: 2px solid #8ec07c !important;',
+  '  color: #d5c4a1 !important;',
+  '}',
+  // LineNr
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) hr {",
+  `  border-color: ${SKIN.edge} !important;`,
+  '}',
+  // prose shadow: cheap insurance on the last translucent surface in the stack
+  ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message'], [data-slot='assistant-message']) :is(p, li, td, th, dd, dt, figcaption) {",
+  '  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 2px 7px rgba(0, 0, 0, 0.38);',
+  '}',
+  "[data-slot='aui_intro'] :is(p, h1, h2, h3, [class*='wordmark']), [data-slot='statusbar'] {",
+  '  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.50), 0 2px 7px rgba(0, 0, 0, 0.32);',
+  '}'
+]
+
+// Read by skyStyleFor, which is a pure function of (date, gl) everywhere else.
+// The look is a module-level switch so the sheet builder stays a single path.
+let LOOK_MODE = 'sunset'
+const setLookMode = mode => { LOOK_MODE = mode === 'gruvbox' ? 'gruvbox' : 'sunset' }
 
 const WORK_ICONS = {
   brain: '<svg width="14" height="14" viewBox="0 0 256 256" fill="#ffffff"><path d="M216,72a48,48,0,0,0-88-26.49A48,48,0,0,0,40,72v1.39a56,56,0,0,0,0,101.22V176a48,48,0,0,0,88,26.49A48,48,0,0,0,216,176v-1.39A56.09,56.09,0,0,0,248,124,56.11,56.11,0,0,0,216,72ZM120,208a32,32,0,0,1-32-32,48,48,0,0,1,32-45.26Zm0-93.26A48,48,0,0,1,88,69.26,32,32,0,0,1,120,40Zm16-74.74A32,32,0,0,1,168,69.26a48,48,0,0,1-32,45.48Zm0,93.26A48,48,0,0,1,168,176a32,32,0,0,1-32,32Z"/></svg>',
@@ -454,20 +977,31 @@ const horizonTiltAt = (date = new Date()) => {
 // ══ §5 APP CSS (skyStyleFor: layout, glass material, every surface) ════════
 
 const skyStyleFor = (date, gl = false) => {
+  const gruv = LOOK_MODE === 'gruvbox'
   const sky = skyAt(date)
-  const isNight = phaseAt(date) === 'night'
+  const isNight = !gruv && phaseAt(date) === 'night'
   const horizonTilt = horizonTiltAt(date)
   const scrim = ((1 - sky.exposure) * 0.08).toFixed(3)
   // Panels get denser as the sky gets brighter; the neutrals are the app's own
   // quality knob, and making them translucent is what lets the sky read through.
-  const zf = zephyrMaterial(sky)
-  const density = Math.min(0.92, 0.55 + 0.35 * sky.exposure + 0.24 * zf.night).toFixed(3)
+  // Gruvbox has no light level: it uses the same body dusk gets.
+  const zf = gruv ? gruvboxMaterial() : zephyrMaterial(sky)
+  const density = gruv ? String(skinNumber(SKIN.chrome, 0.88)) : Math.min(0.92, 0.55 + 0.35 * sky.exposure + 0.24 * zf.night).toFixed(3)
+  // The painting has real light and shade, unlike a sky gradient, so gruvbox
+  // tunes the three neutrals separately: the reading pane lets the painting
+  // through, the sidebar (smallest text) and the cards hold it back.
+  const sideDensity = gruv ? String(skinNumber(SKIN.sidebar, 0.92)) : density
+  const cardDensity = gruv ? String(skinNumber(SKIN.card, 0.96)) : density
   const glassPct = a => `${Math.round(a)}%`
+  // gruvbox has no white in its palette; fg0 is the brightest ink it uses.
+  const solidInk = gruv ? gbHex(GB.fg0) : '#ffffff'
 
   return [
-    `/* Zephyr sky. Blended for ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}, exposure ${sky.exposure.toFixed(2)}, horizon ${horizonTilt.angle.toFixed(1)}°. */`,
+    gruv
+      ? `/* Zephyr · gruvbox. The Backwater, ${BACKWATER_FILE}, full ${4096}×${2428}, cover-fitted. */`
+      : `/* Zephyr sky. Blended for ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}, exposure ${sky.exposure.toFixed(2)}, horizon ${horizonTilt.angle.toFixed(1)}°. */`,
     'html {',
-    `  background-color: ${cssRgb(sky.base)};`,
+    `  background-color: ${gruv ? '#1d2021' : cssRgb(sky.base)};`,
     '}',
     // The app's own ground is `body { background: var(--ui-chat-surface-background) }`,
     // and that chrome colour is a color-mix whose second input is an OPAQUE
@@ -479,9 +1013,12 @@ const skyStyleFor = (date, gl = false) => {
     // glass, so it rests while the sky is on.
     "img[src*='filler-bg0'] { display: none; }",
     // With the GL sky on, the canvas is the sky: the painted CSS layers rest.
+    // In gruvbox the painting IS the background, so its own layer block is used.
     ...(gl
       ? ['html::before { content: none; }', 'body::before { content: none; }']
-      : [
+      : gruv
+        ? gruvboxLayers()
+        : [
     // Negative z-index is the whole trick: these layers paint above the canvas
     // but below every in-flow app surface, so no panel has to be restyled for
     // them, and nothing can cover them.
@@ -512,10 +1049,13 @@ const skyStyleFor = (date, gl = false) => {
     // Panel density, and it is deliberately mode-scoped: Zephyr's phases are
     // dark palettes, and a light-mode app would not want a translucent ground.
     ':root.dark {',
-    `  --theme-neutral-chrome: rgba(13, 13, 14, ${density});`,
-    `  --theme-neutral-sidebar: rgba(10, 10, 11, ${density});`,
-    `  --theme-neutral-card: rgba(22, 22, 24, ${density});`,
-    '  --ui-text-primary: #ffffff;',
+    // Tinted glass: in the sky looks these read as near-neutral black; in
+    // gruvbox they ARE the palette (bg0 chrome, bg0_hard sidebar, bg1 cards), so
+    // the pane is a gruvbox surface with the painting behind it, not soot.
+    `  --theme-neutral-chrome: rgba(${gruv ? hexTriple(SKIN.ground) : '13, 13, 14'}, ${density});`,
+    `  --theme-neutral-sidebar: rgba(${gruv ? hexTriple(SKIN.deeper) : '10, 10, 11'}, ${sideDensity});`,
+    `  --theme-neutral-card: rgba(${gruv ? hexTriple(SKIN.cardTint) : '22, 22, 24'}, ${cardDensity});`,
+    `  --ui-text-primary: ${gruv ? SKIN.ink : '#ffffff'};`,
     '  --ui-text-secondary: var(--zf-ink-2);',
     '  --ui-text-tertiary: var(--zf-ink-3);',
     '  --sidebar-foreground: var(--zf-ink-1);',
@@ -691,11 +1231,11 @@ const skyStyleFor = (date, gl = false) => {
     ":is([data-slot='aui_user-message-root'], [data-slot='user-message'], .composer-human-message, [class*='composer-human-message']) [class*='group-hover/user-message'] :is(time, span, div),",
     ":is([data-slot='aui_user-message-root'], [data-slot='user-message'], .composer-human-message, [class*='composer-human-message']) time,",
     ":is([data-slot='aui_user-message-root'], [data-slot='user-message']) :is([data-slot='timeline-timestamp'], [class*='timeline-timestamp']) time {",
-    '  color: var(--ui-accent, var(--accent, #9dc4e8)) !important;',
+    '  color: var(--zf-ink-3) !important;',
     '}',
     // Brighter, whiter text across transcript, chat bubbles, and sidebar
     ":is([data-slot='aui_thread-content'], [data-chat-surface], [data-slot='thread']) {",
-    '  color: #ffffff;',
+    `  color: ${solidInk};`,
     '  background: transparent !important;',
     '}',
     ":is([data-slot='aui_thread-content'], [data-slot='thread']) :is(p, li, span, h1, h2, h3, h4) {",
@@ -781,7 +1321,7 @@ const skyStyleFor = (date, gl = false) => {
     '}',
     "[data-sessions-mode] [data-row-actions] button:hover svg,",
     "[data-sessions-mode] [data-slot='sidebar-menu-action']:hover svg {",
-    '  color: #ffffff !important;',
+    `  color: ${solidInk} !important;`,
     '}',
     // ── Session status indicators in chat history panel ──────────────────────
     // Remove the traveling border laser/arc animation around running session rows
@@ -893,21 +1433,21 @@ const skyStyleFor = (date, gl = false) => {
     '  color: var(--zf-ink-2) !important;',
     '}',
     `${SWITCH_HOOK} > [role='tablist'] > [data-slot='pane-tab']:hover {`,
-    '  color: #ffffff !important;',
+    `  color: ${solidInk} !important;`,
     '}',
     `${SWITCH_HOOK} > [role='tablist'] > [data-slot='pane-tab'][data-active='true'] {`,
     '  color: var(--zf-ink-0) !important;',
     '}',
     // Hover state on panel items
     ":is([data-tour='sessions-sidebar'], [data-slot='sidebar-content'], [data-sessions-mode]) :is([data-slot='sidebar-menu-button'], button, a, [role='button']):hover {",
-    '  color: #ffffff !important;',
+    `  color: ${solidInk} !important;`,
     '  background-color: rgba(255, 255, 255, 0.08) !important;',
     '}',
     ":is([data-tour='sessions-sidebar'], [data-slot='sidebar-content'], [data-sessions-mode]) :is([data-slot='sidebar-menu-button'], button, a, [role='button']):hover * {",
-    '  color: #ffffff !important;',
+    `  color: ${solidInk} !important;`,
     '}',
     ":is([data-tour='sessions-sidebar'], [data-slot='sidebar-content'], [data-sessions-mode]) :is([data-slot='sidebar-menu-button'], button, a, [role='button']):hover :is(svg, [data-slot*='icon']) {",
-    '  color: #ffffff !important;',
+    `  color: ${solidInk} !important;`,
     '}',
     // Profile rail at the bottom
     "[data-slot='profile-rail'] :is(span, p, div, label) {",
@@ -918,7 +1458,7 @@ const skyStyleFor = (date, gl = false) => {
     '}',
     "[data-slot='user-message'] {",
     '  background: var(--zf-glass) !important;',
-    '  color: #ffffff !important;',
+    `  color: ${solidInk} !important;`,
     '}',
     // The zone headers (the tab bar and the SESSIONS | BOTS strip) stay BARE:
     // no fill, no edge, no radius. A card on the header AND a box on the tab
@@ -1324,8 +1864,14 @@ const skyStyleFor = (date, gl = false) => {
     `  --zf-ink-1: ${cssRgb(zf.ink[1])};`,
     `  --zf-ink-2: ${cssRgb(zf.ink[2])};`,
     `  --zf-ink-3: ${cssRgb(zf.ink[3])};`,
-    `  --zf-accent: ${zf.accent};`,
+    `  --zf-accent: ${gruv ? SKIN.accent : zf.accent};`,
     '}',
+    // Outside the :root block, on purpose: these are rules, not custom
+    // properties, and a stray `{` inside a declaration block makes the parser
+    // swallow everything after it.
+    ...materialVars(gruv),
+    ...(gruv ? gruvboxTextCss() : []),
+    ...polishCss(),
     // Sidebar cards, the composer and the switch pill share the material.
     "[data-slot='sidebar-content'] > [data-slot='sidebar-group'],",
     "[data-slot='sidebar-content'] > [data-sessions-mode],",
@@ -1354,7 +1900,7 @@ const skyStyleFor = (date, gl = false) => {
     '  transition: color 120ms ease;',
     '}',
     "[data-slot='sidebar-menu-button']:has([data-tour^='sidebar-nav-']):is(:hover, [class*='bg-(--ui-control-active-background)']) > :is(svg, i, [class*='codicon']) {",
-    '  color: var(--zf-accent) !important;',
+    '  color: var(--zf-ink-0) !important;',
     '}',
     ":is([data-slot='composer-surface'], [class~='group/composer-surface'], .composer-fallback-surface) {",
     '  background: var(--zf-glass) !important;',
@@ -1468,7 +2014,7 @@ const skyStyleFor = (date, gl = false) => {
     `${MENU_SURFACES} :is([data-slot$='-label'], [cmdk-group-heading]) { color: var(--zf-ink-3) !important; }`,
     `${MENU_SURFACES} :is([data-slot$='-separator'], [role='separator'], [cmdk-separator]) { background: var(--zf-edge) !important; }`,
     `${MENU_SURFACES} :is([data-slot$='-shortcut'], kbd, [data-slot='kbd']) { color: var(--zf-ink-3) !important; background: transparent !important; border-color: var(--zf-edge) !important; }`,
-    `${MENU_SURFACES} :is([data-slot$='-item-indicator'], [data-state='checked'] > span:first-child) svg { color: var(--zf-accent) !important; }`,
+    `${MENU_SURFACES} :is([data-slot$='-item-indicator'], [data-state='checked'] > span:first-child) svg { color: var(--zf-ink-0) !important; }`,
     `${MENU_SURFACES} [data-slot='command-input-wrapper'] { border-color: var(--zf-edge) !important; }`,
     `${MENU_SURFACES} [data-slot='command-input'] { background: transparent !important; color: var(--zf-ink-0); }`,
     "[data-slot='tooltip-content'] { border-radius: calc(var(--zf-radius) - 0.2rem) !important; }",
@@ -3666,16 +4212,16 @@ const SNIPPET_CSS = [
   '.zf-snip-head { display: flex; align-items: center; gap: 0.5rem; min-height: 1rem; }',
   '.zf-snip-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
   '  font-size: 0.64rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--zf-ink-3, var(--ui-text-tertiary)); }',
-  ".zf-snip[data-tone='accent'] .zf-snip-title { color: var(--zf-accent, var(--ui-accent)); }",
+  ".zf-snip[data-tone='accent'] .zf-snip-title { color: var(--zf-ink-0); }",
   '.zf-snip-acts { margin-left: auto; display: flex; gap: 0.1rem; opacity: 0; transition: opacity 140ms ease; }',
   '.zf-snip:is(:hover, :focus-within) .zf-snip-acts, .zf-snip-acts:has([data-on]) { opacity: 1; }',
   '.zf-snip-act { display: grid; place-items: center; width: 1.4rem; height: 1.4rem; padding: 0; border: 0; border-radius: calc(var(--zf-radius, 0.6rem) - 0.3rem);',
   '  background: transparent; color: var(--zf-ink-3, var(--ui-text-tertiary)); cursor: pointer; transition: background-color 120ms ease, color 120ms ease; }',
   '.zf-snip-act:hover, .zf-snip-act:focus-visible { background: var(--zf-hover, rgba(255,255,255,.065)); color: var(--zf-ink-0, var(--ui-text-primary)); outline: none; }',
-  '.zf-snip-act[data-on] { color: var(--zf-accent, var(--ui-accent)); }',
+  '.zf-snip-act[data-on] { color: var(--zf-ink-0); }',
   '.zf-snip-act .zf-snip-done { display: none; }',
   '.zf-snip-act[data-done] .zf-snip-idle { display: none; }',
-  '.zf-snip-act[data-done] .zf-snip-done { display: inline-flex; color: var(--zf-accent, var(--ui-accent)); }',
+  '.zf-snip-act[data-done] .zf-snip-done { display: inline-flex; color: var(--zf-ink-1); }',
   '.zf-snip-value { font-size: 0.95rem; line-height: 1.45; color: var(--zf-ink-0, var(--ui-text-primary)); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }',
   '.zf-snip-note { font-size: 0.8125rem; line-height: 1.55; color: var(--zf-ink-2, var(--ui-text-secondary)); }',
   '.zf-snip-source { font-size: 0.6875rem; color: var(--zf-ink-3, var(--ui-text-tertiary)); }',
@@ -3782,7 +4328,7 @@ const SNIPPET_CSS = [
   '#zephyr-snip-drawer .zf-dw-icon { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; padding: 0; border: 0; cursor: pointer; flex: none;',
   '  border-radius: calc(var(--zf-radius, 0.6rem) - 0.2rem); background: transparent; color: var(--zf-ink-3, #7d889a); transition: background-color 120ms ease, color 120ms ease; }',
   '#zephyr-snip-drawer .zf-dw-icon:hover, #zephyr-snip-drawer .zf-dw-icon:focus-visible { background: var(--zf-hover, rgba(255,255,255,.065)); color: var(--zf-ink-0, #fff); outline: none; }',
-  '#zephyr-snip-drawer .zf-dw-icon[data-on] { color: var(--zf-accent, #9cf); }',
+  '#zephyr-snip-drawer .zf-dw-icon[data-on] { color: var(--zf-ink-0); }',
   '#zephyr-snip-drawer .zf-dw-icon svg { width: 0.85rem; height: 0.85rem; }',
   '#zephyr-snip-drawer .zf-dw-list { flex: 1; min-height: 0; overflow: hidden auto; overscroll-behavior: contain; scrollbar-width: none; padding: 0 0.35rem 0.4rem;',
   '  display: flex; flex-direction: column; gap: 0.1rem; -webkit-mask: linear-gradient(transparent, #000 0.5rem, #000 calc(100% - 0.75rem), transparent); mask: linear-gradient(transparent, #000 0.5rem, #000 calc(100% - 0.75rem), transparent); }',
@@ -4044,6 +4590,14 @@ export default {
     const auto = atom(stored(STORE_KEYS.auto) !== false)
     const tint = atom(stored(STORE_KEYS.tint) === true)
     const sky = atom(stored(STORE_KEYS.sky) !== false)
+    // 'sunset' = the painted sky (the default); 'gruvbox' = the built-in
+    // Backwater skin at its shipped defaults; 'custom' = the same skin driven by
+    // your own picture and knobs (zephyr-theme.json). Built-in and custom differ
+    // only in which values the sheet reads.
+    const LOOKS = ['sunset', 'gruvbox', 'custom']
+    const lookStore = stored(STORE_KEYS.look)
+    const look = atom(LOOKS.includes(lookStore) ? lookStore : 'sunset')
+    setLookMode(look.get() === 'sunset' ? 'sunset' : 'gruvbox')
     const margins = atom(stored(STORE_KEYS.margins) === true)
     const collapseWork = atom(stored(STORE_KEYS.collapseWork) !== false)
     const motion = atom(stored(STORE_KEYS.motion) !== false)
@@ -4060,6 +4614,7 @@ export default {
       ctx.storage.set(STORE_KEYS.auto, auto.get())
       ctx.storage.set(STORE_KEYS.tint, tint.get())
       ctx.storage.set(STORE_KEYS.sky, sky.get())
+      ctx.storage.set(STORE_KEYS.look, look.get())
       ctx.storage.set(STORE_KEYS.margins, margins.get())
       ctx.storage.set(STORE_KEYS.collapseWork, collapseWork.get())
       ctx.storage.set(STORE_KEYS.motion, motion.get())
@@ -6908,7 +7463,9 @@ export default {
         clearSky()
         return
       }
-      const gl = glOn.get() ? ensureGl() : (dropGl(), null)
+      // gruvbox is a still painting, so there is no canvas sky and no clock to
+      // hold; gl=true would also blank the image layer, so it is forced off.
+      const gl = look.get() !== 'sunset' ? (dropGl(), null) : glOn.get() ? ensureGl() : (dropGl(), null)
       if (gl) gl.setHold(heldMoment())
       paintSky(now, Boolean(gl))
     }
@@ -6929,6 +7486,12 @@ export default {
       writeSun(now)
 
       renderSky(now)
+
+      if (look.get() !== 'sunset') {
+        requestTheme(GRUVBOX_THEME)
+        if (tint.get()) setAccentOverride(GRUVBOX_ACCENT)
+        return
+      }
 
       if (!auto.get()) return
 
@@ -7006,18 +7569,33 @@ export default {
       ctx.register({ id: `theme.${name}`, area: THEMES_AREA, order: 40, data: themeFor(name) })
     }
 
+    // The gruvbox skin: same theme contract as the phases, its own ground.
+    ctx.register({
+      id: 'theme.gruvbox',
+      area: THEMES_AREA,
+      order: 39,
+      data: {
+        name: GRUVBOX_THEME,
+        label: 'Zephyr Gruvbox',
+        description: 'The Backwater, a painting, behind green glass with gruvbox cream text.',
+        colors: GRUVBOX_GROUNDS
+      }
+    })
+
     // Appearance › Theme: Zephyr Sky follows the sun all day; a phase holds
-    // that sky whatever the time. Our own requestTheme calls land here too
-    // and are no-ops by construction.
+    // that sky whatever the time; Zephyr Gruvbox shows the painting. Our own
+    // requestTheme calls land here too and are no-ops by construction.
     let themeObs = null
     if (typeof MutationObserver === 'function' && typeof document !== 'undefined') {
       const onTheme = () => {
         const name = document.documentElement.dataset.hermesTheme || ''
+        if (name === GRUVBOX_THEME) { if (look.get() === 'sunset') switchLook('gruvbox'); return }
         const phase = PHASES.find(p => name === phaseThemeName(p))
         if (!phase && name !== SKY_THEME) return
         const want = phase || null
         if (name === SKY_THEME && !auto.get()) { auto.set(true); persist() }
         if (want !== pin.get()) { pin.set(want); ctx.storage.set(STORE_KEYS.phasePin, want) }
+        if (look.get() !== 'sunset') { switchLook('sunset'); return }
         apply(nowAt())
         if (sky.get()) renderSky(nowAt())
       }
@@ -7090,6 +7668,313 @@ export default {
         ]
       })
 
+    // ── the skin as state: wallpaper + every knob the editor exposes ──────────
+    // The image is stored under its own key because a full-resolution picture
+    // can be megabytes; the rest is one small object.
+    const storedSkin = stored(STORE_KEYS.skin)
+    const customSkin = storedSkin && typeof storedSkin === 'object' ? { ...SKIN_DEFAULTS, ...storedSkin } : { ...SKIN_DEFAULTS }
+    const storedPicture = stored(STORE_KEYS.skinImage)
+    if (typeof storedPicture === 'string' && storedPicture.length > 32) customSkin.image = storedPicture
+    // the built-in look always paints the shipped defaults
+    setSkin(look.get() === 'custom' ? customSkin : { ...SKIN_DEFAULTS })
+    ensurePictureStyle(SKIN.image)
+    const skin = atom({ ...(look.get() === 'custom' ? customSkin : SKIN_DEFAULTS) })
+    const switchLook = next => {
+      if (next === look.get()) return
+      look.set(next)
+      persist()
+      setLookMode(next === 'sunset' ? 'sunset' : 'gruvbox')
+      // built-in always paints the shipped defaults; custom paints yours
+      setSkin(next === 'custom' ? { ...skin.get() } : { ...SKIN_DEFAULTS })
+      ensurePictureStyle(SKIN.image)
+      apply(nowAt())
+      if (sky.get()) renderSky(nowAt())
+    }
+    const pushSkin = patch => {
+      const next = { ...skin.get(), ...patch }
+      // Touching a knob means "I want my own version": switch onto Custom so the
+      // change is actually on screen, rather than silently stored for later.
+      if (look.get() !== 'custom') {
+        look.set('custom')
+        persist()
+        setLookMode('gruvbox')
+      }
+      for (const key of Object.keys(next)) if (next[key] === undefined) next[key] = SKIN_DEFAULTS[key]
+      skin.set(next)
+      setSkin(next)
+      ctx.storage.set(STORE_KEYS.skin, next)
+      if (!fromFile) writeConfig(next)
+      if (patch.image !== undefined) {
+        ctx.storage.set(STORE_KEYS.skinImage, next.image)
+        ensurePictureStyle(next.image)
+      }
+      apply(nowAt())
+    }
+    const resetSkin = () => {
+      skin.set({ ...SKIN_DEFAULTS })
+      setSkin({ ...SKIN_DEFAULTS })
+      ctx.storage.set(STORE_KEYS.skin, { ...SKIN_DEFAULTS })
+      ctx.storage.set(STORE_KEYS.skinImage, SKIN_DEFAULTS.image)
+      ensurePictureStyle(SKIN_DEFAULTS.image)
+      writeConfig(SKIN_DEFAULTS)
+      apply(nowAt())
+    }
+    // ── files: the painting, and ~/.hermes/zephyr-theme.json ─────────────
+    // The theme file IS the Custom look. Every key is optional; anything left
+    // out keeps its default. Edit it in any editor and the app follows within
+    // a couple of seconds; moving a knob in Settings writes it back.
+    const desk = typeof window !== 'undefined' ? window.hermesDesktop : null
+    let configPath = null
+    let homeDir = ''
+    let lastConfigText = null
+    const pathToUrl = v => {
+      const t = String(v || '').trim()
+      if (!t || /^(file|https?|data|blob):/i.test(t)) return t
+      const abs = t.startsWith('~/') ? homeDir + t.slice(1) : t
+      return abs.startsWith('/') ? 'file://' + encodeURI(abs) : t
+    }
+    const urlToPath = v => {
+      const t = String(v || '')
+      if (t.startsWith('data:')) return 'uploaded'
+      if (!t.startsWith('file://')) return t
+      const abs = decodeURI(t.slice(7))
+      return homeDir && abs.startsWith(homeDir + '/') ? '~' + abs.slice(homeDir.length) : abs
+    }
+    const CONFIG_HELP = 'Zephyr Custom look. Edit and save; Hermes follows. image: a path (~/Pictures/x.jpg), a URL, or "uploaded" to keep the picture from Settings. Colours are hex; opacities and filters are numbers. Delete a key to get its default.'
+    const configText = sk => {
+      const out = { _help: CONFIG_HELP }
+      for (const key of Object.keys(SKIN_DEFAULTS)) out[key] = key === 'image' ? urlToPath(sk.image) : sk[key]
+      return JSON.stringify(out, null, 2) + '\n'
+    }
+    const writeConfig = sk => {
+      if (!configPath || !desk?.writeTextFile) return
+      const text = configText(sk)
+      if (text === lastConfigText) return
+      lastConfigText = text
+      desk.writeTextFile(configPath, text).catch?.(() => {})
+    }
+    const readConfig = async (switchTo = true) => {
+      if (!configPath || !desk?.readFileText) return
+      let res = null
+      try { res = await desk.readFileText(configPath) } catch { return }
+      const text = res && res.ok !== false && typeof res.text === 'string' ? res.text : null
+      if (text === null || text === lastConfigText) return
+      lastConfigText = text
+      let data
+      try { data = JSON.parse(text) } catch (error) { console.warn('[zephyr] zephyr-theme.json is not valid JSON:', String(error)); return }
+      if (!data || typeof data !== 'object') return
+      const patch = {}
+      for (const key of Object.keys(SKIN_DEFAULTS)) if (data[key] !== undefined && data[key] !== null && data[key] !== '') patch[key] = data[key]
+      if (patch.image === 'uploaded') delete patch.image
+      else if (patch.image) patch.image = pathToUrl(patch.image)
+      const next = { ...SKIN_DEFAULTS, ...(patch.image ? {} : { image: skin.get().image }), ...patch }
+      if (!switchTo && look.get() !== 'custom') {
+        // startup: seed Custom quietly, without changing what is on screen
+        ctx.storage.set(STORE_KEYS.skin, next)
+        return
+      }
+      fromFile = true
+      try { pushSkin(next) } finally { fromFile = false }
+    }
+    let fromFile = false
+    const resolvePluginFiles = async () => {
+      if (!desk?.desktopPluginsRoot || !desk?.readDir) return
+      const root = await desk.desktopPluginsRoot()
+      homeDir = root.replace(/\/\.hermes\/desktop-plugins\/?$/, '')
+      configPath = root.replace(/\/desktop-plugins\/?$/, '') + '/zephyr-theme.json'
+      const names = async dir => {
+        try { return ((await desk.readDir(dir)) || {}).entries || [] } catch { return [] }
+      }
+      const tops = await names(root)
+      const dirs = [...tops.filter(e => e.isDirectory && /zephyr/i.test(e.name)), ...tops.filter(e => e.isDirectory && !/zephyr/i.test(e.name))]
+      let found = null
+      for (const dir of dirs) {
+        const here = await names(dir.path)
+        if (!here.some(e => e.name === 'plugin.js')) continue
+        const direct = here.find(e => e.name === BACKWATER_FILE)
+        if (direct) { found = direct.path; break }
+        if (here.some(e => e.name === 'assets' && e.isDirectory)) {
+          const hit = (await names(dir.path + '/assets')).find(e => e.name === BACKWATER_FILE)
+          if (hit) { found = hit.path; break }
+        }
+      }
+      if (found) {
+        const url = 'file://' + encodeURI(found)
+        const was = BACKWATER_URL
+        BACKWATER_URL = url
+        SKIN_DEFAULTS.image = url
+        if (!SKIN.image || SKIN.image === was || SKIN.image === 'data:,') setSkin({ ...SKIN, image: url })
+        if (!skin.get().image || skin.get().image === was || skin.get().image === 'data:,') skin.set({ ...skin.get(), image: url })
+        ensurePictureStyle(SKIN.image)
+        apply(nowAt())
+      } else {
+        console.warn('[zephyr] could not find', BACKWATER_FILE, 'under', root)
+      }
+      await readConfig(false)
+    }
+    resolvePluginFiles().catch(error => console.warn('[zephyr] plugin files:', String(error)))
+    const configTimer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      readConfig(true)
+    }, 2000)
+    const openConfig = async () => {
+      if (!configPath) return
+      let exists = false
+      try { const r = await desk.readFileText(configPath); exists = Boolean(r && r.ok !== false) } catch {}
+      if (!exists) { lastConfigText = null; writeConfig(skin.get()); await new Promise(r => setTimeout(r, 200)) }
+      desk.revealPath?.(configPath)
+    }
+    const readAsDataUrl = file => new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || ''))
+      reader.onerror = () => resolve('')
+      reader.readAsDataURL(file)
+    })
+    // Keep the original bytes whenever the store can take them; only re-encode
+    // when a picture is too big for the browser's storage, and then once.
+    const shrinkDataUrl = (dataUrl, max = 2560) => new Promise(resolve => {
+      const img = new Image()
+      img.onload = () => {
+        if (!img.naturalWidth || img.naturalWidth <= max) return resolve(dataUrl)
+        const scale = max / img.naturalWidth
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale))
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+        resolve(canvas.toDataURL('image/jpeg', 0.92))
+      }
+      img.onerror = () => resolve(dataUrl)
+      img.src = dataUrl
+    })
+    const useImageFile = async file => {
+      if (!file) return
+      const raw = await readAsDataUrl(file)
+      if (!raw) return
+      const fitted = raw.length > 3_200_000 ? await shrinkDataUrl(raw) : raw
+      pushSkin({ image: fitted })
+    }
+
+
+    // ── Chat or empty page ───────────────────────────────────────────────────
+    // The picture is sharp on an empty page and frosted behind a conversation:
+    // mark which one is on screen, and let the sheet do the rest.
+    if (typeof document !== 'undefined' && typeof MutationObserver !== 'undefined') try {
+      const root = document.documentElement
+      let pageDead = false
+      const syncPage = () => {
+        if (pageDead) return
+        // several tabs keep their thread mounted in the same spot; only the one
+        // the pointer would actually hit counts (a page like Capabilities sits
+        // on top of a still-mounted thread)
+        const vps = Array.from(document.querySelectorAll("[data-slot='aui_thread-viewport']")).filter(el => el.getClientRects().length && el.getBoundingClientRect().width > 200)
+        let vp = null
+        for (const v of vps) {
+          const r = v.getBoundingClientRect()
+          const hits = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height * 0.3)
+          if (hits.length && v.contains(hits[0])) { vp = v; break }
+        }
+        const hasMsg = vp ? Boolean(vp.querySelector("[data-slot*='message']")) : false
+        const intro = vp ? vp.querySelector("[data-slot='aui_intro']") : null
+        const introShown = Boolean(intro && intro.getClientRects().length)
+        const chat = !introShown && !(vp && !hasMsg)
+        if (chat) root.dataset.zfChat = '1'
+        else delete root.dataset.zfChat
+      }
+      let pageQueued = false
+      const schedulePage = () => {
+        if (pageQueued) return
+        pageQueued = true
+        requestAnimationFrame(() => { pageQueued = false; syncPage() })
+      }
+      const pageObs = new MutationObserver(schedulePage)
+      pageObs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected', 'data-state', 'hidden'] })
+      window.addEventListener('resize', schedulePage)
+      syncPage()
+      ctx.onDispose?.(() => {
+        pageDead = true
+        pageObs.disconnect()
+        window.removeEventListener('resize', schedulePage)
+        delete root.dataset.zfChat
+      })
+    } catch (err) {
+      console.error('[zephyr] page state failed: ' + (err && err.stack || err))
+    }
+
+
+    // ── the picture + glass editor ───────────────────────────────────────────
+    // Plain inputs on purpose: a range, a colour swatch, a file picker and a URL
+    // box cover every knob the skin has, and none of them depend on a Tailwind
+    // class that may not exist in the app's compiled sheet.
+    const SkinRow = (label, control) =>
+      jsxs('div', { className: 'flex items-center justify-between gap-3 py-1', children: [
+        jsx('span', { className: 'text-[length:var(--conversation-text-font-size)] text-(--ui-text-secondary)', children: label }),
+        control
+      ]})
+
+    const SkinEditor = () => {
+      const cfg = useValue(skin)
+      const slider = ([key, label, min, max, step]) =>
+        SkinRow(label, jsx('input', {
+          type: 'range', min, max, step, value: cfg[key],
+          style: { width: '10rem', accentColor: 'var(--zf-accent)' },
+          onChange: event => pushSkin({ [key]: Number(event.target.value) })
+        }))
+      const swatch = ([key, label]) =>
+        SkinRow(label, jsx('input', {
+          type: 'color', value: cfg[key],
+          style: { width: '2.25rem', height: '1.5rem', padding: '0', border: '1px solid var(--zf-edge)', borderRadius: '0.375rem', background: 'transparent' },
+          onChange: event => pushSkin({ [key]: event.target.value })
+        }))
+      const isUpload = typeof cfg.image === 'string' && cfg.image.startsWith('data:')
+      return jsxs('div', { className: 'mt-1 flex flex-col gap-0.5', children: [
+        jsxs('div', { className: 'flex flex-wrap items-center gap-2 pb-2', children: [
+          jsx('label', {
+            className: 'cursor-pointer rounded-md px-2 py-1 text-[0.75rem]',
+            style: { border: '1px solid var(--zf-edge)' },
+            children: [
+              'Choose image…',
+              jsx('input', {
+                type: 'file', accept: 'image/*', style: { display: 'none' },
+                onChange: event => {
+                  const file = event.target.files && event.target.files[0]
+                  void useImageFile(file)
+                  event.target.value = ''
+                }
+              })
+            ]
+          }),
+          jsx('input', {
+            type: 'text',
+            value: isUpload ? '' : String(cfg.image || ''),
+            placeholder: isUpload ? '(uploaded image)' : 'image URL or file path',
+            className: 'rounded-md bg-transparent px-2 py-1 text-[0.75rem]',
+            style: { flex: '1 1 12rem', minWidth: '10rem', border: '1px solid var(--zf-edge)' },
+            onChange: event => {
+              const value = event.target.value.trim()
+              if (value) pushSkin({ image: value })
+            }
+          }),
+          jsx('button', {
+            type: 'button',
+            className: 'rounded-md px-2 py-1 text-[0.75rem]',
+            style: { border: '1px solid var(--zf-edge)' },
+            onClick: () => resetSkin(),
+            children: 'Reset'
+          }),
+          jsx('button', {
+            type: 'button',
+            className: 'rounded-md px-2 py-1 text-[0.75rem]',
+            style: { border: '1px solid var(--zf-edge)' },
+            title: '~/.hermes/zephyr-theme.json: every colour, opacity and filter of the Custom look, as one editable file',
+            onClick: () => { openConfig() },
+            children: 'Theme file'
+          })
+        ]}),
+        ...SKIN_SLIDERS.map(slider),
+        ...SKIN_COLORS.map(swatch)
+      ]})
+    }
+
     ctx.registerSettingsPage?.({
       id: 'zephyr',
       title: 'Zephyr',
@@ -7104,14 +7989,17 @@ export default {
         const isStatusDock = useValue(statusDock)
         const isLibrary = useValue(library)
         const isGl = useValue(glOn)
+        const lookNow = useValue(look)
         const mode = useValue(weatherMode)
         const q = useValue(quality)
         const nowWeather = useValue(weatherNow)
         const nowPhase = useValue(phase)
         const list = useValue(pins)
-        const realistic = isSky && isGl && !glFailed
+        const realistic = isSky && isGl && !glFailed && lookNow === 'sunset'
 
-        const status = [
+        const status = lookNow === 'gruvbox'
+          ? ['Gruvbox', 'The Backwater, Wyllie', '4096 × 2428 at full size', !isSky ? 'background off' : 'painting behind glass'].join('  ·  ')
+          : [
           `${PHASE_TITLE[nowPhase] || nowPhase}, ${PHASE_BLURB[nowPhase]}`,
           realistic ? (mode === 'live' ? (nowWeather ? `live weather: ${nowWeather}` : 'live weather') : WEATHER_LABEL[mode]) : null,
           !isSky ? 'sky off' : realistic ? `sky at ${QUALITY_FPS[q]} fps` : 'painted sky'
@@ -7144,6 +8032,23 @@ export default {
         })
 
         const skySection = section('cloud', 'Sky', [
+          jsx(ListRow, {
+            title: 'Background',
+            description: lookNow === 'sunset'
+              ? 'The sky where you are, painted from the real sun, with the clock driving dawn, day, dusk and night.'
+              : lookNow === 'gruvbox'
+                ? 'The built-in look: The Backwater (Charles W. Wyllie, 1903), 4096×2428, behind green glass with gruvbox cream text. Also in Appearance › Theme as Zephyr Gruvbox.'
+                : 'Your own picture, with your own glass. Every knob below is yours; the built-in look stays one click away.',
+            action: jsx(SegmentedControl, {
+              value: lookNow,
+              options: [
+                { id: 'sunset', label: 'Sky' },
+                { id: 'gruvbox', label: 'Built-in' },
+                { id: 'custom', label: 'Custom' }
+              ],
+              onChange: next => switchLook(next)
+            })
+          }),
           jsx(ToggleRow, {
             checked: isSky,
             description: 'Show the sky behind the app. Off gives a plain dark background.',
@@ -7237,6 +8142,17 @@ export default {
             : null
         ])
 
+        const skinSection = section('paintcan', 'Picture & glass', [
+          jsx(ListRow, {
+            title: 'Wallpaper',
+            description: lookNow === 'custom'
+              ? 'Your picture, at its own resolution. Anything the browser can decode: JPG, PNG, WebP, AVIF, HEIC on macOS. Large files are downscaled once, only if the store cannot hold the original.'
+              : 'Switch Background to Custom to paint your own picture. Built-in uses The Backwater.',
+            action: jsx('span', { className: 'text-[0.75rem] text-(--ui-text-tertiary)', children: lookNow === 'custom' ? 'Custom' : lookNow === 'gruvbox' ? 'Built-in' : 'Sky' })
+          }),
+          jsx(SkinEditor, {})
+        ])
+
         const lightSection = section('symbol-color', 'Light', [
           jsx(ToggleRow, {
             checked: isAuto,
@@ -7245,7 +8161,7 @@ export default {
             onChange: on => {
               auto.set(on)
               persist()
-              if (on) apply(new Date())
+              if (on) apply(nowAt())
               else setAccentOverride(null)
             }
           }),
@@ -7346,13 +8262,14 @@ export default {
             : null
         ])
 
-        return jsxs('div', { children: [header, skySection, lightSection, chatSection, pinSection].filter(Boolean) })
+        return jsxs('div', { children: [header, skySection, skinSection, lightSection, chatSection, pinSection].filter(Boolean) })
       }
     })
 
     // A plugin is a guest: leave the host as we found it when it unloads.
     ctx.onDispose?.(() => {
       themeObs?.disconnect()
+      clearInterval(configTimer)
       clearInterval(timer)
       clearInterval(weatherTimer)
       clearInterval(flareTimer)

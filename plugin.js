@@ -6971,6 +6971,256 @@ export default {
       }
     })
 
+    // ── the minimap: the whole chat in miniature, like VS Code's ──
+    // Every line of every loaded message is drawn at a tenth of its size down
+    // the right edge, so the shape of the conversation is visible: long
+    // replies, short ones, code blocks, your own prompts. A lit slider marks
+    // the part on screen; click or drag on it to scroll, or use the wheel. If
+    // the chat is longer than the panel the miniature scrolls along with it.
+    // Text is measured from the real page (where each line really fell), so it
+    // follows resizes, folds and streaming. Hermes's own tick rail is hidden.
+    if (typeof document !== 'undefined' && typeof MutationObserver === 'function' && typeof ResizeObserver === 'function') {
+      const MM_W = 120
+      const MM_STYLE_ID = 'zephyr-minimap-style'
+      document.getElementById(MM_STYLE_ID)?.remove()
+      const mmStyle = document.createElement('style')
+      mmStyle.id = MM_STYLE_ID
+      mmStyle.textContent = [
+        "[data-slot='thread-timeline'] { opacity: 0 !important; pointer-events: none !important; }",
+        '.zf-mm {',
+        `  position: absolute; top: 0; right: 0; bottom: 4.5rem; width: ${MM_W}px; z-index: 40; overflow: hidden; cursor: pointer; touch-action: none;`,
+        '  background: var(--zf-map-bg, color-mix(in srgb, var(--zf-glass, rgba(24, 24, 22, 0.5)) 70%, transparent));',
+        '  border-left: 1px solid var(--zf-edge, rgba(255, 255, 255, 0.08));',
+        '  -webkit-backdrop-filter: blur(12px) saturate(1.2); backdrop-filter: blur(12px) saturate(1.2);',
+        '  opacity: 0.9; transition: opacity 160ms var(--zf-ease, ease);',
+        '}',
+        '.zf-mm:hover, .zf-mm[data-drag] { opacity: 1; }',
+        '.zf-mm canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }',
+        '.zf-mm-slider {',
+        '  position: absolute; left: 0; right: 0; top: 0; height: 0;',
+        '  background: color-mix(in srgb, var(--zf-ink-0, #fff) 13%, transparent);',
+        '  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--zf-ink-0, #fff) 30%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zf-ink-0, #fff) 30%, transparent);',
+        '  pointer-events: none;',
+        '}',
+        '.zf-mm:hover .zf-mm-slider { background: color-mix(in srgb, var(--zf-ink-0, #fff) 14%, transparent); }',
+        '.zf-mm[data-drag] .zf-mm-slider { background: color-mix(in srgb, var(--zf-accent, var(--theme-primary, #fff)) 22%, transparent); }',
+        `[data-zf-mm-vp] { padding-right: ${MM_W + 10}px !important; }`
+      ].join('\n')
+      document.head.appendChild(mmStyle)
+
+      const states = new Set()
+
+      const wire = thread => {
+        const box = document.createElement('div')
+        box.className = 'zf-mm'
+        const canvas = document.createElement('canvas')
+        const slider = document.createElement('div')
+        slider.className = 'zf-mm-slider'
+        box.append(canvas, slider)
+        thread.appendChild(box)
+        const g = canvas.getContext('2d')
+        const st = { thread, box, canvas, slider, g, vp: null, mo: null, ro: null, roots: [], cache: new WeakMap(), scale: 0.07, pad: 0, layoutTimer: 0, paintFrame: 0, lastLayout: 0, drag: false, dead: false }
+        states.add(st)
+
+        const measureRoot = (root, rr, vpLeft) => {
+          const words = []; const boxes = []
+          const colors = new Map()
+          const colorOf = el => {
+            let c = colors.get(el)
+            if (!c) {
+              const cs = getComputedStyle(el)
+              const w = parseInt(cs.fontWeight, 10) || 400
+              c = { color: cs.color, a: w >= 600 || /^H[1-6]$/.test(el.tagName) ? 1 : 0.8, code: Boolean(el.closest('pre')) }
+              colors.set(el, c)
+            }
+            return c
+          }
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT) })
+          const range = document.createRange()
+          for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            const el = n.parentElement
+            if (!el || el.closest('svg, style, script, [aria-hidden="true"]')) continue
+            range.selectNodeContents(n)
+            const rects = Array.from(range.getClientRects()).filter(r => r.width > 1 && r.height > 1)
+            if (!rects.length) continue
+            const sumW = rects.reduce((a, r) => a + r.width, 0)
+            const text = n.nodeValue
+            const { color, a } = colorOf(el)
+            let pos = 0
+            rects.forEach((r, i) => {
+              const len = i === rects.length - 1 ? text.length - pos : Math.round((r.width / sumW) * text.length)
+              const slice = text.slice(pos, pos + len)
+              pos += len
+              const re = /\S+/g
+              let m
+              while ((m = re.exec(slice))) {
+                const x = r.left - vpLeft + (m.index / Math.max(1, slice.length)) * r.width
+                const w = (m[0].length / Math.max(1, slice.length)) * r.width
+                words.push(x, r.top - rr.top, w, r.height, color, a)
+              }
+            })
+          }
+          root.querySelectorAll('pre').forEach(p => {
+            const r = p.getBoundingClientRect()
+            if (r.width > 4 && r.height > 4) boxes.push(r.left - vpLeft, r.top - rr.top, r.width, r.height, 0.07)
+          })
+          if (root.matches("[data-slot='aui_user-message-root']")) boxes.push(0, 0, rr.width, rr.height, 0.06)
+          return { words, boxes }
+        }
+
+        const layout = () => {
+          st.layoutTimer = 0
+          st.lastLayout = performance.now()
+          const vp = st.vp
+          if (!vp || !vp.isConnected) return
+          const vr = vp.getBoundingClientRect()
+          if (!vr.width) return
+          st.pad = parseFloat(getComputedStyle(vp).paddingRight) || 0
+          const contentW = Math.max(200, vp.clientWidth - st.pad)
+          st.scale = MM_W / contentW
+          const roots = []
+          vp.querySelectorAll("[data-slot='aui_user-message-root'], [data-slot='aui_assistant-message-root']").forEach(root => {
+            const rr = root.getBoundingClientRect()
+            if (rr.height < 2) return
+            const sig = `${root.textContent.length}|${Math.round(rr.height)}|${Math.round(rr.width)}|${Math.round(vr.left)}`
+            let c = st.cache.get(root)
+            if (!c || c.sig !== sig) { c = { sig, ...measureRoot(root, rr, vr.left) }; st.cache.set(root, c) }
+            roots.push({ top: rr.top - vr.top + vp.scrollTop, h: rr.height, c })
+          })
+          st.roots = roots
+          paint()
+        }
+
+        const scheduleLayout = () => {
+          if (st.layoutTimer || st.dead) return
+          // at most about 4 passes a second while text streams in
+          const wait = Math.max(120, 250 - (performance.now() - st.lastLayout))
+          st.layoutTimer = setTimeout(layout, wait)
+        }
+
+        const geometry = () => {
+          const vp = st.vp
+          const H = box.clientHeight
+          const total = vp.scrollHeight * st.scale
+          const maxScroll = vp.scrollHeight - vp.clientHeight
+          const offset = total > H && maxScroll > 0 ? (vp.scrollTop / maxScroll) * (total - H) : 0
+          return { H, offset, total }
+        }
+
+        const paint = () => {
+          st.paintFrame = 0
+          const vp = st.vp
+          if (!vp || !vp.isConnected) return
+          const W = box.clientWidth; const H = box.clientHeight
+          if (!W || !H) return
+          const dpr = window.devicePixelRatio || 1
+          if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr) }
+          g.setTransform(dpr, 0, 0, dpr, 0, 0)
+          g.clearRect(0, 0, W, H)
+          const { offset } = geometry()
+          const s = st.scale
+          const y0 = offset / s; const y1 = (offset + H) / s
+          for (const r of st.roots) {
+            if (r.top + r.h < y0 || r.top > y1) continue
+            const { words, boxes } = r.c
+            g.globalAlpha = 1
+            for (let i = 0; i < boxes.length; i += 5) {
+              g.fillStyle = `rgba(255,255,255,${boxes[i + 4]})`
+              g.fillRect(boxes[i] * s, (r.top + boxes[i + 1]) * s - offset, boxes[i + 2] * s, boxes[i + 3] * s)
+            }
+            let last = null
+            for (let i = 0; i < words.length; i += 6) {
+              const y = r.top + words[i + 1]
+              if (y + words[i + 3] < y0 || y > y1) continue
+              const color = words[i + 4]
+              if (color !== last) { g.fillStyle = color; last = color }
+              g.globalAlpha = words[i + 5]
+              const h = Math.max(1, words[i + 3] * s * 0.62)
+              g.fillRect(words[i] * s, y * s - offset + (words[i + 3] * s - h) / 2, Math.max(1, words[i + 2] * s), h)
+            }
+          }
+          g.globalAlpha = 1
+          slider.style.top = `${vp.scrollTop * s - offset}px`
+          slider.style.height = `${Math.min(H, vp.clientHeight * s)}px`
+        }
+
+        const schedulePaint = () => { if (!st.paintFrame && !st.dead) st.paintFrame = requestAnimationFrame(paint) }
+        st.schedulePaint = schedulePaint
+        st.scheduleLayout = scheduleLayout
+
+        const attach = () => {
+          const vp = thread.querySelector("[data-slot='aui_thread-viewport']")
+          if (vp === st.vp) return
+          if (st.vp) { st.vp.removeEventListener('scroll', schedulePaint); st.vp.removeAttribute('data-zf-mm-vp') }
+          st.mo?.disconnect(); st.ro?.disconnect()
+          st.vp = vp
+          st.cache = new WeakMap(); st.roots = []
+          box.style.display = vp ? '' : 'none'
+          if (!vp) return
+          vp.setAttribute('data-zf-mm-vp', '')
+          vp.addEventListener('scroll', schedulePaint, { passive: true })
+          st.mo = new MutationObserver(scheduleLayout)
+          st.mo.observe(vp, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'style', 'data-zephyr-work-collapsed', 'hidden'] })
+          st.ro = new ResizeObserver(scheduleLayout)
+          st.ro.observe(vp); st.ro.observe(box)
+          scheduleLayout()
+        }
+        st.attach = attach
+        attach()
+
+        // click or drag: the point under the pointer becomes the middle of the screen
+        const scrollTo = e => {
+          const vp = st.vp; if (!vp) return
+          const { offset } = geometry()
+          const y = e.clientY - box.getBoundingClientRect().top
+          vp.scrollTop = (y + offset) / st.scale - vp.clientHeight / 2
+        }
+        box.addEventListener('pointerdown', e => {
+          if (e.button !== 0) return
+          st.drag = true; box.setAttribute('data-drag', '')
+          try { box.setPointerCapture(e.pointerId) } catch {}
+          scrollTo(e); e.preventDefault()
+        })
+        box.addEventListener('pointermove', e => { if (st.drag) scrollTo(e) })
+        const end = () => { st.drag = false; box.removeAttribute('data-drag') }
+        box.addEventListener('pointerup', end)
+        box.addEventListener('pointercancel', end)
+        box.addEventListener('wheel', e => { if (st.vp) { st.vp.scrollTop += e.deltaY; e.preventDefault() } }, { passive: false })
+      }
+
+      let scanFrame = 0
+      const scan = () => {
+        scanFrame = 0
+        for (const st of [...states]) {
+          if (!st.thread.isConnected) {
+            st.dead = true; st.mo?.disconnect(); st.ro?.disconnect()
+            clearTimeout(st.layoutTimer); if (st.paintFrame) cancelAnimationFrame(st.paintFrame)
+            st.box.remove(); states.delete(st)
+          }
+        }
+        document.querySelectorAll("[data-slot='thread']").forEach(thread => {
+          if (![...states].some(s => s.thread === thread)) wire(thread)
+        })
+        states.forEach(st => st.attach())
+      }
+      const mmObs = new MutationObserver(() => { if (!scanFrame) scanFrame = requestAnimationFrame(scan) })
+      mmObs.observe(document.body, { childList: true, subtree: true })
+      scan()
+      ctx.onDispose?.(() => {
+        mmObs.disconnect()
+        if (scanFrame) cancelAnimationFrame(scanFrame)
+        for (const st of states) {
+          st.dead = true; st.mo?.disconnect(); st.ro?.disconnect()
+          clearTimeout(st.layoutTimer); if (st.paintFrame) cancelAnimationFrame(st.paintFrame)
+          st.vp?.removeEventListener('scroll', st.schedulePaint)
+          st.box.remove()
+        }
+        states.clear()
+        mmStyle.remove()
+        document.querySelectorAll('[data-zf-mm-vp]').forEach(n => n.removeAttribute('data-zf-mm-vp'))
+      })
+    }
+
     // ── one quiet status-bar readout, so the mode is never a mystery ──
     ctx.register({
       id: 'phase-chip',

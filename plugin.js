@@ -1029,6 +1029,10 @@ const ARCLIKE_CSS = [
   '    height var(--zf-sd-dur) var(--zf-sd-ease), color var(--zf-t-2, 150ms) var(--zf-ease, ease),',
   '    box-shadow var(--zf-t-2, 150ms) var(--zf-ease, ease);',
   '}',
+  // They paint in the card's own plane. Behind it (the app's z-40 against the
+  // card's z-60) they only showed once the slide had finished, which read as
+  // arriving late, while the card was already there.
+  "html[data-zf-arc='1'] body :is(#zephyr-snips, #zephyr-statusdock-head) { z-index: 61 !important; }",
   "html[data-zf-arc='1']:not([data-zf-arc-open='1']) body :is(#zephyr-snips, #zephyr-statusdock-head) {",
   '  translate: calc(-100% - 28px) 0; opacity: 0; pointer-events: none;',
   '}',
@@ -8038,12 +8042,19 @@ export default {
     const desk = typeof window !== 'undefined' ? window.hermesDesktop : null
     let configPath = null
     let homeDir = ''
+    // Windows hands us `C:\Users\...`; a file URL needs `file:///C:/Users/...`.
+    const fileUrl = p => {
+      let s = String(p || '').replace(/\\/g, '/')
+      if (!s) return s
+      if (!s.startsWith('/')) s = '/' + s
+      return 'file://' + encodeURI(s)
+    }
     let lastConfigText = null
     const pathToUrl = v => {
       const t = String(v || '').trim()
       if (!t || /^(file|https?|data|blob):/i.test(t)) return t
       const abs = t.startsWith('~/') ? homeDir + t.slice(1) : t
-      return abs.startsWith('/') ? 'file://' + encodeURI(abs) : t
+      return /^(?:[A-Za-z]:[\\/]|\/)/.test(abs) ? fileUrl(abs) : t
     }
     const urlToPath = v => {
       const t = String(v || '')
@@ -8092,8 +8103,10 @@ export default {
     const resolvePluginFiles = async () => {
       if (!desk?.desktopPluginsRoot || !desk?.readDir) return
       const root = await desk.desktopPluginsRoot()
-      homeDir = root.replace(/\/\.hermes\/desktop-plugins\/?$/, '')
-      configPath = root.replace(/\/desktop-plugins\/?$/, '') + '/zephyr-theme.json'
+      // the bridge reports the native separator, so match either one
+      const sep = root.includes('\\') ? '\\' : '/'
+      homeDir = root.replace(/[\\/]\.hermes[\\/]desktop-plugins[\\/]?$/, '')
+      configPath = root.replace(/[\\/]desktop-plugins[\\/]?$/, '') + sep + 'zephyr-theme.json'
       const names = async dir => {
         try { return ((await desk.readDir(dir)) || {}).entries || [] } catch { return [] }
       }
@@ -8111,7 +8124,7 @@ export default {
         }
       }
       if (found) {
-        const url = 'file://' + encodeURI(found)
+        const url = fileUrl(found)
         const was = BACKWATER_URL
         BACKWATER_URL = url
         SKIN_DEFAULTS.image = url
@@ -8650,9 +8663,9 @@ export default {
       // slide settles the app gets one resize to re-measure against the new
       // one: ordered, not fighting.
       let relayoutT = 0
-      const relayout = () => {
+      const relayout = (after = 340) => {
         clearTimeout(relayoutT)
-        relayoutT = setTimeout(() => { relayoutT = 0; if (alive()) window.dispatchEvent(new Event('resize')) }, 340)
+        relayoutT = setTimeout(() => { relayoutT = 0; if (alive()) window.dispatchEvent(new Event('resize')) }, after)
       }
 
       const column = () => {
@@ -8694,7 +8707,9 @@ export default {
         open = value
         if (value) root.dataset.zfArcOpen = '1'
         else delete root.dataset.zfArcOpen
-        relayout()
+        // opening: measured now, so nothing shifts after the pieces have landed.
+        // closing: measured once the card is away, where a re-measure cannot show.
+        relayout(value ? 0 : 400)
         if (instant) {
           const col = column()
           const els = [col].filter(Boolean)

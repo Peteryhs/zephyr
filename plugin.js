@@ -8352,6 +8352,7 @@ export default {
           delete root.dataset.zfLanding
         }
       }
+      let pageQueued = false
       // The sheet matched 13 things with :has(). Scrolling mounts rows, and each
       // mount made Blink re-evaluate those over a large subtree (40ms per row
       // insert). The plugin marks the handful of elements once; the CSS matches

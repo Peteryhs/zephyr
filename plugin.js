@@ -7389,12 +7389,13 @@ export default {
         raf = 0
         const panel = findPanel()
         currentPanel = panel
-        if (!panel) { button.style.display = 'none'; button.dataset.target = ''; return }
+        if (!panel) { if (button.style.display !== 'none') button.style.display = 'none'; if (button.dataset.target) button.dataset.target = ''; return }
         const rect = panel.getBoundingClientRect()
         button.style.display = 'flex'
         button.style.top = `${Math.round(rect.top + 10)}px`
         button.style.left = `${Math.round(rect.right - 46)}px`
-        button.dataset.target = panel.dataset.slot || panel.tagName.toLowerCase()
+        const target = panel.dataset.slot || panel.tagName.toLowerCase()
+        if (button.dataset.target !== target) button.dataset.target = target
       }
       const schedule = () => { if (!raf) raf = requestAnimationFrame(place) }
 

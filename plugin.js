@@ -38,6 +38,7 @@ const THEMES_AREA = 'themes'
 const DIRECTIVE_AREA = 'transcript.directives'
 
 const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', phasePin: 'phasePin' }
+const REPO_URL = 'https://github.com/Peteryhs/zephyr'
 
 // ── Theme palettes ─────────────────────────────────────────────────────────
 // Hermes keeps its amber; the ground shifts with the hour. Four phases, four
@@ -7212,8 +7213,8 @@ export default {
     // 100% = SKY_BLUR_MAX screen px. A cheap DOM check once a second; the sky
     // only re-bakes when the state actually flips.
     const SKY_BLUR_MAX = 20
-    const BLUR_NEW_CHAT = 0.3
-    const BLUR_IN_CHAT = 0.5
+    const BLUR_NEW_CHAT = 0.15   // 3px
+    const BLUR_IN_CHAT = 0.25    // 5px
     const isNewChat = () =>
       Boolean(document.querySelector("[data-slot='aui_intro'], [data-intro-holding]")) ||
       Boolean(document.querySelector("[data-slot='composer-bounds']") && !document.querySelector("[data-slot='aui_message-group']"))
@@ -7451,6 +7452,18 @@ export default {
           !isSky ? 'sky off' : realistic ? `sky at ${QUALITY_FPS[q]} fps` : 'painted sky'
         ].filter(Boolean).join('  ·  ')
 
+        const repoLink = jsxs('a', {
+          className: 'mt-1 inline-flex items-center gap-1 text-[0.75rem] text-(--ui-text-tertiary) underline-offset-2 hover:text-(--ui-text-secondary) hover:underline',
+          href: REPO_URL,
+          target: '_blank',
+          rel: 'noreferrer noopener',
+          children: [
+            jsx(Codicon, { name: 'link-external', size: '0.8rem' }),
+            jsx('span', { children: 'github.com/Peteryhs/zephyr' })
+          ]
+        })
+
+
         const header = jsxs('div', {
           className: 'mb-6 flex items-start gap-4 rounded-[0.9rem] p-4',
           style: { background: 'var(--zf-glass-sunk, var(--ui-bg-tertiary))', boxShadow: 'var(--zf-lift, none)' },
@@ -7471,7 +7484,8 @@ export default {
                     + 'dusk and night, paints a live sky behind the app that follows your weather, and tints every '
                     + 'panel with it. Agents can also show copyable ::snippet cards, which you can pin.'
                 }),
-                jsx('p', { className: 'mt-2 text-[0.75rem] text-(--ui-text-tertiary)', children: `Now: ${status}` })
+                jsx('p', { className: 'mt-2 text-[0.75rem] text-(--ui-text-tertiary)', children: `Now: ${status}` }),
+                repoLink
               ]
             })
           ]

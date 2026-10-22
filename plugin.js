@@ -39,6 +39,11 @@ const DIRECTIVE_AREA = 'transcript.directives'
 
 const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen' }
 
+// write an attribute only when its value changes: an identical write still queues a
+// mutation record, and every observer wakes up for it
+const put = (el, name, value) => { if (el && el.getAttribute(name) !== value) el.setAttribute(name, value) }
+const putData = (el, key, value) => { if (el && el.dataset[key] !== value) el.dataset[key] = value }
+const putText = (el, value) => { if (el && el.textContent !== value) el.textContent = value }
 // ── Theme palettes ─────────────────────────────────────────────────────────
 // Hermes keeps its amber; the ground shifts with the hour. Four phases, four
 // grounds, one accent family — the same app in different light.
@@ -5448,7 +5453,7 @@ export default {
       const intro = document.querySelector("[data-slot='aui_intro']")
       const box = intro?.firstElementChild
       const br = box?.getBoundingClientRect()
-      const hideAll = () => SHELF_SLOTS.forEach(sl => { shelfEls[sl].hidden = true })
+      const hideAll = () => SHELF_SLOTS.forEach(sl => { if (!shelfEls[sl].hidden) shelfEls[sl].hidden = true })
       if (!intro || !br || br.width < 120 || !intro.getClientRects().length) { hideAll(); return }
       if (typeof ResizeObserver === 'function' && shelf$.watched !== intro) {
         shelf$.ro?.disconnect()
@@ -5480,11 +5485,11 @@ export default {
         const top = sl === 'above' ? Math.round(mr.top - gap - H) : Math.round(pr.bottom + gap)
         const fits = sl === 'above' ? top >= ceil : top + H <= floor
         if (!(items.length || dragging) || !fits) {
-          el.hidden = true
+          if (!el.hidden) el.hidden = true
           if (!items.length && el.firstChild) { el.replaceChildren(); shelfSig[sl] = '' }
           continue
         }
-        el.hidden = false
+        if (el.hidden) el.hidden = false
         el.style.setProperty('--zf-sh-x', `${x}px`)
         el.style.setProperty('--zf-sh-y', `${top}px`)
         el.style.setProperty('--zf-sh-w', `${w}px`)
@@ -5577,12 +5582,12 @@ export default {
       if (!parts) { if (dock.side) unside(); return false }
       const { side, room, r } = parts
       const head = ensureSideHead()
-      head.hidden = false
+      if (head.hidden) head.hidden = false
       if (dock.room && dock.room !== room) unside()
       dock.side = side
       dock.room = room
-      bar.setAttribute(DOCK_SIDE_ATTR, '')
-      room.setAttribute(DOCK_ROOM_ATTR, '')
+      put(bar, DOCK_SIDE_ATTR, '')
+      put(room, DOCK_ROOM_ATTR, '')
       watchSide([side, bar])
 
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
@@ -5749,7 +5754,7 @@ export default {
       }
       ensureDockChrome()
       if (!bar) {
-        dock.tab.hidden = true
+        if (!dock.tab.hidden) dock.tab.hidden = true
         if (dock.side) unside()
         // once it was up, its going away is the user hiding it (⌘⇧S or the
         // bar's own menu): respect that until the mode changes again
@@ -5768,13 +5773,14 @@ export default {
       watchDockPops()
       if (!bar.hasAttribute(DOCK_ATTR)) bar.setAttribute(DOCK_ATTR, '')
       if (layoutSideDock()) {
-        dock.tab.hidden = true
+        if (!dock.tab.hidden) dock.tab.hidden = true
         return
       }
-      dock.tab.hidden = false
+      if (dock.tab.hidden) dock.tab.hidden = false
       bar.toggleAttribute(DOCK_OPEN_ATTR, dock.open)
-      dock.tab.setAttribute('aria-expanded', String(dock.open))
-      dock.tab.title = dock.open ? 'Hide status panel' : 'Show status panel'
+      put(dock.tab, 'aria-expanded', String(dock.open))
+      const dockTitle = dock.open ? 'Hide status panel' : 'Show status panel'
+      if (dock.tab.title !== dockTitle) dock.tab.title = dockTitle
     }
     const onDockKey = event => {
       if (event.key === 'Escape' && dock.open && !dock.side && document.querySelector(`[${DOCK_OPEN_ATTR}]`) &&
@@ -5976,10 +5982,10 @@ export default {
 
     const setToggleExpanded = (toggle, contentEls, expanded) => {
       for (const contentEl of contentEls) {
-        if (contentEl) contentEl.setAttribute('data-zephyr-work-collapsed', expanded ? 'false' : 'true')
+        if (contentEl) put(contentEl, 'data-zephyr-work-collapsed', expanded ? 'false' : 'true')
       }
-      toggle.setAttribute('data-expanded', expanded ? 'true' : 'false')
-      toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false')
+      put(toggle, 'data-expanded', expanded ? 'true' : 'false')
+      put(toggle, 'aria-expanded', expanded ? 'true' : 'false')
     }
 
     /* Hermes renders every assistant prose segment — the ones said between
@@ -6002,7 +6008,7 @@ export default {
           // without containing it (a wrapper holding the work is not before it)
           const interim = Boolean(lastWork) &&
             (md.compareDocumentPosition(lastWork) & (DOC_FOLLOWING | DOC_CONTAINED)) === DOC_FOLLOWING
-          if (interim) md.setAttribute('data-zephyr-work-interim', 'true')
+          if (interim) put(md, 'data-zephyr-work-interim', 'true')
           else if (md.hasAttribute?.('data-zephyr-work-interim')) md.removeAttribute('data-zephyr-work-interim')
         }
       }
@@ -6157,7 +6163,7 @@ export default {
         toggle = document.createElement('button')
         toggle.type = 'button'
         toggle.className = 'zephyr-work-summary'
-        toggle.setAttribute('data-zephyr-work-toggle', 'true')
+        put(toggle, 'data-zephyr-work-toggle', 'true')
         toggle.addEventListener('click', e => {
           e.preventDefault()
           e.stopPropagation()
@@ -6205,13 +6211,13 @@ export default {
       for (const stray of container.querySelectorAll?.('.zephyr-work-summary') || []) if (stray !== toggle) stray.remove?.()
       for (const part of info) {
         const foldable = part.scaffolds.length || Boolean(part.content.querySelector?.(WORK_MARKERS))
-        if (foldable) part.content.setAttribute('data-zephyr-work-collapsed', expanded ? 'false' : 'true')
+        if (foldable) put(part.content, 'data-zephyr-work-collapsed', expanded ? 'false' : 'true')
         else if (part.content.hasAttribute?.('data-zephyr-work-collapsed')) part.content.removeAttribute('data-zephyr-work-collapsed')
       }
 
       const livePart = info.find(part => part.live) || null
       if (livePart) {
-        toggle.setAttribute('data-live', 'true')
+        put(toggle, 'data-live', 'true')
         const { verbs, icons, detail } = classifyWork(scaffolds)
         const secs = (Date.now() - startOf(livePart.root)) / 1000
         paintToggle(toggle, icons, `${joinVerbs(verbs)} for ${formatDuration(secs)}`, detail)
@@ -6229,7 +6235,7 @@ export default {
       const badge = readBadgeSecs(container)
       const scaffoldKey = `${scaffolds.length}|${badge}`
       if (toggle.dataset.scaffolds === scaffoldKey && toggle.dataset.signature && counted === null) return
-      toggle.dataset.scaffolds = scaffoldKey
+      putData(toggle, 'scaffolds', scaffoldKey)
 
       const { verbs, icons, detail } = classifyWork(scaffolds)
       const key = turnKey(owner.content)
@@ -6257,7 +6263,7 @@ export default {
       if (toggle.dataset.signature === signature) return
       const iconsKey = icons.join(',')
       if (toggle.dataset.icons !== iconsKey || !toggle.querySelector('.zephyr-work-summary-label')) {
-        toggle.dataset.icons = iconsKey
+        putData(toggle, 'icons', iconsKey)
         const iconStackHtml = icons.length > 0 ? [
           '<span class="zephyr-work-icon-stack" aria-hidden="true">',
           ...icons.map(k => `<span class="zephyr-work-icon-item">${WORK_ICONS[k] || ''}</span>`),
@@ -6270,9 +6276,10 @@ export default {
         ].join('')
       }
       // only the text node changes while the timer ticks: no icon re-parse
-      toggle.querySelector('.zephyr-work-summary-label').textContent = labelText
-      toggle.title = detail ? `${detail}. Click to ${toggle.getAttribute('data-expanded') === 'true' ? 'hide' : 'show'} the steps.` : ''
-      toggle.dataset.signature = signature
+      putText(toggle.querySelector('.zephyr-work-summary-label'), labelText)
+      const wantTitle = detail ? `${detail}. Click to ${toggle.getAttribute('data-expanded') === 'true' ? 'hide' : 'show'} the steps.` : ''
+      if (toggle.title !== wantTitle) toggle.title = wantTitle
+      putData(toggle, 'signature', signature)
     }
 
     const scanWorkProgress = () => {

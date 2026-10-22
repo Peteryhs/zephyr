@@ -132,6 +132,7 @@ The Custom look lives in one file, `<HERMES_HOME>/zephyr-theme.json`. **Settings
 - **Ctrl/Cmd+Option+Left/Right** walks the session tabs. It is a contributed keybind, so it can be rebound in Settings > Keybinds.
 - A new tab shows the Hermes wordmark instead of an empty page.
 - Clicking a session in the sidebar opens it in the tab you are in, instead of adding one.
+
 ## Snippet cards
 
 <p align="center">

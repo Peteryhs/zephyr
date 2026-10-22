@@ -4777,24 +4777,49 @@ export default {
       // Session tabs, not the pane tabs: the rows in the tree that each hold one
       // session (workspace + session-tile:<id>), which is what "the session
       // tabs" means. Pane tabs are [data-slot='pane-tab'] and are excluded.
-      const tabFrom = (dir) => {
-        const tabs = Array.from(document.querySelectorAll("[role='tab'][data-tree-tab]"))
-          .filter(tab => tab.dataset.slot !== 'pane-tab')
-          .filter(tab => tab.getClientRects().length > 0)
-        if (tabs.length < 2) return null
-        const current = tabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true')
-        const from = current < 0 ? 0 : current
-        return tabs[(from + dir + tabs.length) % tabs.length]
+      // Session tabs, not the pane tabs: the rows in the tree that each hold one
+      // session (workspace + session-tile:<id>). Pane tabs are [data-slot='pane-tab']
+      // and the sidebar's copies sit inside [data-zf-arc-col]; both are excluded.
+      const sessionTabs = () => Array.from(document.querySelectorAll("[role='tab'][data-tree-tab]"))
+        .filter(tab => tab.dataset.slot !== 'pane-tab' && !tab.closest('[data-zf-arc-col]') && tab.getClientRects().length > 0)
+      // With a split there is one strip per pane: use the strip above the thing you are working in.
+      const stripOf = tabs => {
+        const strips = new Map()
+        for (const tab of tabs) {
+          const strip = tab.closest("[role='tablist']") || tab.parentElement
+          strips.set(strip, [...(strips.get(strip) || []), tab])
+        }
+        const lists = [...strips.values()]
+        if (lists.length < 2) return lists[0] || []
+        const focus = document.activeElement
+        const box = focus && focus !== document.body ? focus.getBoundingClientRect() : null
+        const cx = box && box.width ? box.left + box.width / 2 : null
+        if (cx !== null) {
+          for (const list of lists) {
+            const rect = (list[0].closest("[role='tablist']") || list[0]).getBoundingClientRect()
+            if (cx >= rect.left && cx <= rect.right) return list
+          }
+        }
+        return lists.find(list => list.some(tab => tab.getAttribute('aria-selected') === 'true')) || lists[0]
       }
-      // The host's tab is a button with an onClick, so a click is the whole
-      // interaction; the pointer/mouse sequence is not needed and would start
-      // the tab's drag-selection instead of selecting it.
+      // A tab selects on pointer down and up. A bare click() does nothing on the app build
+      // this was written against, and a full mouse sequence would start the tab's drag.
+      const pressTab = tab => {
+        const r = tab.getBoundingClientRect()
+        const at = { bubbles: true, cancelable: true, view: window, button: 0, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }
+        const pointer = { ...at, pointerId: 1, isPrimary: true, pointerType: 'mouse' }
+        tab.dispatchEvent(new PointerEvent('pointerdown', pointer))
+        tab.dispatchEvent(new PointerEvent('pointerup', pointer))
+      }
       let lastKeybind = 0
       const stepTab = dir => {
-        const next = tabFrom(dir)
-        if (!next) return
-        lastKeybind = Date.now()
-        next.click()
+        const tabs = stripOf(sessionTabs())
+        if (tabs.length < 2) return false
+        const at = tabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true')
+        const next = tabs[((at < 0 ? 0 : at) + dir + tabs.length) % tabs.length]
+        pressTab(next)
+        next.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+        return true
       }
       for (const [id, dir, label, combo] of [
         ['zephyr.tabPrev', -1, 'Previous session tab', 'mod+alt+left'],
@@ -4803,23 +4828,19 @@ export default {
         ctx.register({
           id,
           area: 'keybinds',
-          data: { id, category: 'navigation', defaults: [combo], label, run: () => stepTab(dir) }
+          data: { id, category: 'navigation', defaults: [combo], label, run: () => { lastKeybind = Date.now(); return stepTab(dir) } }
         })
       }
+      // The fallback for an app build without contributed keybinds. It also works with the
+      // cursor in the composer: ⌘⌥← has no text-editing meaning, and the composer is where
+      // the cursor usually is.
       const onTabChord = event => {
         if (Date.now() - lastKeybind < 250) return
-        if (!event.metaKey || !event.altKey || event.ctrlKey || event.shiftKey) return
+        if (!event.metaKey || !event.altKey || event.ctrlKey || event.shiftKey || event.isComposing) return
         const dir = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
-        if (!dir) return
-        const target = event.target
-        if (target instanceof Element) {
-          if (target.isContentEditable || target.closest("input, textarea, [contenteditable='true'], [contenteditable='']")) return
-        }
-        const next = tabFrom(dir)
-        if (!next) return
+        if (!dir || !stepTab(dir)) return
         event.preventDefault()
-        event.stopPropagation()
-        next.click()
+        event.stopImmediatePropagation()
       }
       window.addEventListener('keydown', onTabChord, true)
       ctx.onDispose?.(() => window.removeEventListener('keydown', onTabChord, true))
@@ -4892,7 +4913,12 @@ export default {
         }
       }
       scanTabs()
-      const tabObserver = new MutationObserver(() => scanTabs())
+      let scanQueued = false
+      const tabObserver = new MutationObserver(() => {
+        if (scanQueued) return
+        scanQueued = true
+        requestAnimationFrame(() => { scanQueued = false; scanTabs() })
+      })
       tabObserver.observe(document.documentElement, { childList: true, subtree: true })
       ctx.onDispose?.(() => {
         tabObserver.disconnect()

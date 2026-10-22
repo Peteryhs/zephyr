@@ -588,7 +588,7 @@ const polishCss = () => [
   "html body :is([class*='text-(--ui-accent)'], [class*='text-(--accent)'], [class*='text-primary']:not([class*='text-primary-foreground']), [class*='text-amber'], [class*='text-yellow'], [class*='text-orange'], [class*='text-(--theme-primary)'], .glyph-spinner, .glyph-spinner *) { color: var(--zf-ink-2, #cdc4b4) !important; }",
   "html body time { color: var(--zf-ink-3, #a8a092) !important; }",
   // the sidebar toggle hides while the arclike is out; the card is the control then
-  "html[data-zf-arc-ready='1'] div.fixed:has(> button[aria-label*='sidebar' i]) { opacity: 0 !important; pointer-events: none !important; }",
+  "html[data-zf-arc-ready='1'] div.fixed[data-zf-sbbtn] { opacity: 0 !important; pointer-events: none !important; }",
   // Pinned: the same card, docked. Inset from the window edge, rounded, one
   // piece of glass; the chat sits beside it instead of butting into a strip.
   "html:not([data-zf-arc='1']) [data-zf-arc-col] {",
@@ -599,7 +599,7 @@ const polishCss = () => [
   '}',
   "html:not([data-zf-arc='1']) [data-zf-arc-col] > div, html:not([data-zf-arc='1']) [data-zf-arc-col] [data-slot='sidebar'] { background: transparent !important; border: 0 !important; }",
   // unread badge and tab dots: no orange
-  "html body div.fixed:has(> button[aria-label*='sidebar' i]) [class*='bg-primary'] { background: var(--zf-ink-1, #e2dacb) !important; color: var(--zf-m-on) !important; }",
+  "html body div.fixed[data-zf-sbbtn] [class*='bg-primary'] { background: var(--zf-ink-1, #e2dacb) !important; color: var(--zf-m-on) !important; }",
   "[role='tab'][data-tree-tab] [class*='rounded-full'][class*='bg-'] { background: var(--zf-ink-2, #cdc4b4) !important; }",
   // Landing for an empty tab: the app only draws its intro for the very first
   // draft, so a fresh tab was a blank smear. Same wordmark, same mood.
@@ -611,15 +611,15 @@ const polishCss = () => [
   "html[data-zf-landing='1'] :is(#zf-landing, .zf-landing-x) > * { animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }",
   "html[data-zf-landing='1'] :is(#zf-landing, .zf-landing-x) .zf-land-line { animation-delay: 80ms; }",
   // the sidebar's docked rows step back while Settings is open
-  "html:has([class*='grid-cols-[13rem_minmax(0,1fr)]']) :is(#zf-cc-head, #zephyr-snips, footer[data-zf-arc-foot]) { visibility: hidden !important; }",
+  "html[data-zf-settings] :is(#zf-cc-head, #zephyr-snips, footer[data-zf-arc-foot]) { visibility: hidden !important; }",
   // Settings is a floating sheet, solid enough that nothing reads through it
-  "div.rounded-xl:has(> * [class*='grid-cols-[13rem_minmax(0,1fr)]']), div.rounded-xl:has(> [class*='grid-cols-[13rem_minmax(0,1fr)]']) { background: var(--zf-m-sheet) !important; box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 30px 80px rgba(0, 0, 0, 0.55) !important; isolation: isolate; }",
+  "div.rounded-xl[data-zf-setbox] { background: var(--zf-m-sheet) !important; box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 30px 80px rgba(0, 0, 0, 0.55) !important; isolation: isolate; }",
   "[class*='grid-cols-[13rem_minmax(0,1fr)]'] > aside { background: rgba(0, 0, 0, 0.16) !important; }",
   // sidebar mode switch, sitting in the command-center row
   "#zf-mode-btn { position: absolute; left: 8px; top: 4px; z-index: 5; display: none; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--zf-ink-2, #ebdbb2); cursor: pointer; -webkit-app-region: no-drag; transition: background-color 120ms ease, color 120ms ease, transform 120ms ease; }",
   "[data-zf-arc-col] > #zf-mode-btn { display: inline-grid; position: absolute !important; left: 10px !important; top: 3px !important; width: 24px !important; height: 24px !important; margin: 0 !important; transform: none; }",
   "html:not([data-zf-arc='1']) [data-zf-arc-col] { position: relative !important; }",
-  "html:has([class*='grid-cols-[13rem_minmax(0,1fr)]']) #zf-mode-btn { display: none; }",
+  "html[data-zf-settings] #zf-mode-btn { display: none; }",
   "#zf-mode-btn svg { width: 16px; height: 16px; }",
   // arclike: the button belongs to the card, top-left inside it, and rides
   // the same slide; pinned keeps it in the window corner
@@ -645,7 +645,7 @@ const polishCss = () => [
   "html:not([data-zf-arc='1']) body [data-zf-arc-col] { background: linear-gradient(var(--zf-m-pin-a), var(--zf-m-pin-b)) !important; backdrop-filter: blur(20px) saturate(1.2) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 18px 48px rgba(0, 0, 0, 0.30) !important; }",
   "html[data-zf-arc='1'] body [data-zf-arc-col] { background: var(--zf-m-solid) !important; }",
   "html[data-zf-arc='1'] body [data-zf-arc-col] :is(footer[data-zf-arc-foot], #zephyr-snips) { background: transparent !important; }",
-  "div.rounded-xl:has(> * [class*='grid-cols-[13rem_minmax(0,1fr)]']), div.rounded-xl:has(> [class*='grid-cols-[13rem_minmax(0,1fr)]']) { background: var(--zf-m-sheet) !important; backdrop-filter: blur(28px) saturate(1.1) !important; }",
+  "div.rounded-xl[data-zf-setbox] { background: var(--zf-m-sheet) !important; backdrop-filter: blur(28px) saturate(1.1) !important; }",
   // left-edge hot zone, invisible
   '#zf-rail-hot { position: fixed; left: 0; top: 40px; bottom: 0; width: 8px; z-index: 59; display: none; background: transparent; }',
   "html[data-zf-arc='1']:not([data-zf-arc-open='1']) #zf-rail-hot { display: block; }",
@@ -1116,14 +1116,14 @@ const STACK_FLARE_CSS = [
 
 // The sidebar's own strip: a header on the sidebar surface that owns a tablist.
 // The workspace tab bar and the terminal rail do not match it.
-const STRIP_HOOK = "[class~='bg-(--ui-sidebar-surface-background)']:has(> [role='tablist'])"
+const STRIP_HOOK = '[data-zf-strip]'
 
 // Only a two-way strip becomes a switch — SESSIONS | BOTS. A three-way strip
 // falls back to the app's own tabs rather than getting a pill that cannot land.
 const PIN_MASK_URL = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 17v5'/%3E%3Cpath d='M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z'/%3E%3C/svg%3E")`
 const MENU_SURFACES = ":is([data-slot='dropdown-menu-content'], [data-slot='dropdown-menu-sub-content'], [data-slot='context-menu-content'], [data-slot='context-menu-sub-content'], [data-slot='popover-content'], [data-slot='select-content'], [data-slot='menubar-content'], [data-slot='dialog-content'] [data-slot='command'])"
 const MENU_ROWS = ":is([role='menuitem'], [role='option'], [role='menuitemcheckbox'], [role='menuitemradio'], [cmdk-item], [data-slot='command-item'])"
-const SWITCH_HOOK = `${STRIP_HOOK}:has(> [role='tablist'] > [data-slot='pane-tab']:nth-child(2):last-child)`
+const SWITCH_HOOK = '[data-zf-strip][data-zf-switch]'
 
 // Natural & semi-random horizon optics:
 // Rather than one static mathematical ramp, real atmospheric light varies across
@@ -1700,7 +1700,7 @@ const skyStyleFor = (date, gl = false) => {
     // Setting the tokens beats fighting each state's own rule.
     '[data-panel-header],',
     "[class~='group/pane-header'],",
-    "[class~='bg-(--ui-sidebar-surface-background)']:has(> [role='tablist']) {",
+    '[data-zf-strip] {',
     '  background: transparent;',
     '  border: none;',
     // The active tab paints nothing of its own: the pill on the track IS the
@@ -1862,7 +1862,7 @@ const skyStyleFor = (date, gl = false) => {
     // keeping composer-bounds and thread full-width so the quick-jump timeline is never compressed,
     // and make the input bar short and centered to match the spacious layout.
     // When messages exist, constrain thread content to a comfortable reading column.
-    "html[data-zephyr-margins='spacious'] [data-slot='aui_thread-content']:not(:has([data-slot='aui_intro'], .wordmark, [class*='wordmark'])) {",
+    "html[data-zephyr-margins='spacious'] [data-slot='aui_thread-content']:not([data-zf-intro]) {",
     '  --composer-width: min(46rem, calc(100% - 7rem));',
     '  max-width: min(46rem, calc(100% - 7rem)) !important;',
     '  margin-left: auto !important;',
@@ -1875,7 +1875,7 @@ const skyStyleFor = (date, gl = false) => {
     '  box-sizing: border-box !important;',
     '}',
     // When thread has messages, also constrain message groups
-    "html[data-zephyr-margins='spacious'] [data-slot='aui_thread-content']:has([data-slot*='message'], [data-slot='aui_turn-pair'], [data-slot='aui_message-group']) {",
+    "html[data-zephyr-margins='spacious'] [data-slot='aui_thread-content'][data-zf-msgs] {",
     '  --composer-width: min(46rem, calc(100% - 7rem));',
     '  max-width: min(46rem, calc(100% - 7rem)) !important;',
     '  margin-left: auto !important;',
@@ -1890,8 +1890,8 @@ const skyStyleFor = (date, gl = false) => {
     // In spacious margins mode, when chat is empty (intro / wordmark shown),
     // thread content and intro remain full-width (100%), so the HERMES AGENT
     // display lettering spans the full canvas, exactly as in non-spacious mode.
-    "html[data-zephyr-margins='spacious'] [data-slot='aui_thread-content']:has([data-slot='aui_intro'], .wordmark, [class*='wordmark']),",
-    "[data-slot='aui_thread-content']:has([data-slot='aui_intro'], .wordmark, [class*='wordmark']) {",
+    "html[data-zephyr-margins='spacious'] [data-slot='aui_thread-content'][data-zf-intro],",
+    "[data-slot='aui_thread-content'][data-zf-intro] {",
     '  --composer-width: 100% !important;',
     '  max-width: 100% !important;',
     '  width: 100% !important;',
@@ -1899,8 +1899,8 @@ const skyStyleFor = (date, gl = false) => {
     '  padding-right: 1.5rem !important;',
     '  box-sizing: border-box !important;',
     '}',
-    "html[data-zephyr-margins='spacious'] [data-slot='aui_thread-content']:has([data-slot='aui_intro'], .wordmark, [class*='wordmark']) > *,",
-    "[data-slot='aui_thread-content']:has([data-slot='aui_intro'], .wordmark, [class*='wordmark']) > * {",
+    "html[data-zephyr-margins='spacious'] [data-slot='aui_thread-content'][data-zf-intro] > *,",
+    "[data-slot='aui_thread-content'][data-zf-intro] > * {",
     '  width: 100% !important;',
     '  max-width: 100% !important;',
     '}',
@@ -2120,16 +2120,16 @@ const skyStyleFor = (date, gl = false) => {
     // active page with a class, not data-active, so they kept the app's grey
     // fill. They take the same time-of-day accent as the session rows, and
     // their icons pick it up on hover and when active.
-    "[data-slot='sidebar-menu-button']:has([data-tour^='sidebar-nav-'])[class*='bg-(--ui-control-active-background)'] {",
+    "[data-slot='sidebar-menu-button'][data-zf-nav][class*='bg-(--ui-control-active-background)'] {",
     '  background-color: color-mix(in srgb, var(--zf-accent) 14%, transparent) !important;',
     '  border-color: color-mix(in srgb, var(--zf-accent) 22%, transparent) !important;',
     '  color: var(--zf-ink-0) !important;',
     '}',
-    "[data-slot='sidebar-menu-button']:has([data-tour^='sidebar-nav-']) > svg,",
-    "[data-slot='sidebar-menu-button']:has([data-tour^='sidebar-nav-']) > i {",
+    "[data-slot='sidebar-menu-button'][data-zf-nav] > svg,",
+    "[data-slot='sidebar-menu-button'][data-zf-nav] > i {",
     '  transition: color 120ms ease;',
     '}',
-    "[data-slot='sidebar-menu-button']:has([data-tour^='sidebar-nav-']):is(:hover, [class*='bg-(--ui-control-active-background)']) > :is(svg, i, [class*='codicon']) {",
+    "[data-slot='sidebar-menu-button'][data-zf-nav]:is(:hover, [class*='bg-(--ui-control-active-background)']) > :is(svg, i, [class*='codicon']) {",
     '  color: var(--zf-ink-0) !important;',
     '}',
     ":is([data-slot='composer-surface'], [class~='group/composer-surface'], .composer-fallback-surface) {",
@@ -8463,18 +8463,65 @@ export default {
         }
       }
       let pageQueued = false
+      // mark the sidebar's own tab strip (and a two-way one) so the CSS needs no :has()
+      const markStrips = () => {
+        const want = new Map()
+        document.querySelectorAll("[role='tablist']").forEach(tl => {
+          const p = tl.parentElement
+          if (!p || !p.classList.contains('bg-(--ui-sidebar-surface-background)')) return
+          const two = tl.children.length === 2 && tl.children[1].getAttribute('data-slot') === 'pane-tab'
+          want.set(p, (want.get(p) || false) || two)
+        })
+        document.querySelectorAll('[data-zf-strip]').forEach(el => {
+          if (!want.has(el)) { el.removeAttribute('data-zf-strip'); el.removeAttribute('data-zf-switch') }
+        })
+        want.forEach((two, el) => {
+          if (!el.hasAttribute('data-zf-strip')) el.setAttribute('data-zf-strip', '')
+          if (two && !el.hasAttribute('data-zf-switch')) el.setAttribute('data-zf-switch', '')
+          else if (!two && el.hasAttribute('data-zf-switch')) el.removeAttribute('data-zf-switch')
+        })
+      }
+
+      // one-time marks, so the CSS needs no :has() over big subtrees
+      const flag = (el, name, on) => { if (!el) return; if (on) { if (!el.hasAttribute(name)) el.setAttribute(name, '') } else if (el.hasAttribute(name)) el.removeAttribute(name) }
+      const sweep = (name, found) => {
+        document.querySelectorAll('[' + name + ']').forEach(el => { if (!found.has(el)) el.removeAttribute(name) })
+        found.forEach(el => flag(el, name, true))
+      }
+      const markHas = () => {
+        const tc = document.querySelector("[data-slot='aui_thread-content']")
+        if (tc) {
+          flag(tc, 'data-zf-intro', !!tc.querySelector("[data-slot='aui_intro'], .wordmark, [class*='wordmark']"))
+          flag(tc, 'data-zf-msgs', !!tc.querySelector("[data-slot*='message'], [data-slot='aui_turn-pair'], [data-slot='aui_message-group']"))
+        }
+        const grid = document.querySelector("[class*='grid-cols-[13rem_minmax(0,1fr)]']")
+        flag(document.documentElement, 'data-zf-settings', !!grid)
+        const boxes = new Set()
+        if (grid) for (let p = grid.parentElement, d = 0; p && d < 2; p = p.parentElement, d++) if (p.matches('div.rounded-xl')) boxes.add(p)
+        sweep('data-zf-setbox', boxes)
+        const fx = new Set()
+        document.querySelectorAll("div.fixed > button[aria-label*='sidebar' i]").forEach(b => fx.add(b.parentElement))
+        sweep('data-zf-sbbtn', fx)
+        const nav = new Set()
+        document.querySelectorAll("[data-tour^='sidebar-nav-']").forEach(n => { const b = n.closest("[data-slot='sidebar-menu-button']"); if (b) nav.add(b) })
+        sweep('data-zf-nav', nav)
+      }
       const schedulePage = () => {
         if (pageQueued) return
         pageQueued = true
-        requestAnimationFrame(() => { pageQueued = false; syncPage() })
+        requestAnimationFrame(() => { pageQueued = false; markStrips(); markHas(); syncPage() })
       }
       window.addEventListener('zf-morph-end', schedulePage)
       const pageObs = new MutationObserver(schedulePage)
       pageObs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected', 'data-state', 'hidden'] })
       window.addEventListener('resize', schedulePage)
+      markStrips()
+      markHas()
       syncPage()
       ctx.onDispose?.(() => {
         pageDead = true
+        document.querySelectorAll('[data-zf-strip]').forEach(el => { el.removeAttribute('data-zf-strip'); el.removeAttribute('data-zf-switch') })
+        for (const a of ['data-zf-intro', 'data-zf-msgs', 'data-zf-settings', 'data-zf-setbox', 'data-zf-sbbtn', 'data-zf-nav']) document.querySelectorAll('[' + a + ']').forEach(el => el.removeAttribute(a))
         clearTimeout(rootTimer)
         pageObs.disconnect()
         delete root.dataset.zfClip

@@ -3534,6 +3534,8 @@ const clearSky = () => {
 const phaseThemeName = phase => `zephyr-${phase}`
 // The live theme: one pick that follows the sun (see registerLive).
 const SKY_THEME = 'zephyr-sky'
+// every theme name Zephyr owns; anything else is the user's own pick
+const isOurTheme = name => name === SKY_THEME || PHASES.some(p => name === phaseThemeName(p)) || (typeof GRUVBOX_THEME !== 'undefined' && name === GRUVBOX_THEME)
 
 const themeFor = phase => ({
   name: phaseThemeName(phase),
@@ -4042,6 +4044,15 @@ export default {
 
     const pins = atom(stored(STORE_KEYS.pins) || [])
     const auto = atom(stored(STORE_KEYS.auto) !== false)
+    // Picking another theme in Appearance (Nous, Solarized, ...) must really switch to it:
+    // while one is selected, Zephyr draws no sky or painting and asks for no theme. Picking
+    // a Zephyr theme, the status chip or a look wakes it again. Remembered across restarts.
+    let away = false
+    if (typeof document !== 'undefined') {
+      const now = document.documentElement.dataset.hermesTheme || ''
+      away = stored('away') === true && Boolean(now) && !isOurTheme(now)
+    }
+    const wake = () => { if (!away) return; away = false; ctx.storage.set('away', false) }
     const tint = atom(stored(STORE_KEYS.tint) === true)
     const sky = atom(stored(STORE_KEYS.sky) !== false)
     const margins = atom(stored(STORE_KEYS.margins) === true)
@@ -6903,6 +6914,7 @@ export default {
     }
 
     const renderSky = now => {
+      if (away) { dropGl(); clearSky(); return }
       if (!sky.get()) {
         dropGl()
         clearSky()
@@ -6929,6 +6941,7 @@ export default {
       writeSun(now)
 
       renderSky(now)
+      if (away) return
 
       if (!auto.get()) return
 
@@ -7012,6 +7025,12 @@ export default {
     let themeObs = null
     if (typeof MutationObserver === 'function' && typeof document !== 'undefined') {
       const onTheme = () => {
+        const picked = document.documentElement.dataset.hermesTheme || ''
+        if (picked && !isOurTheme(picked)) {
+          if (!away) { away = true; ctx.storage.set('away', true); dropGl(); clearSky() }
+          return
+        }
+        if (picked && away) { away = false; ctx.storage.set('away', false) }
         const name = document.documentElement.dataset.hermesTheme || ''
         const phase = PHASES.find(p => name === phaseThemeName(p))
         if (!phase && name !== SKY_THEME) return

@@ -24,7 +24,7 @@ It's one JavaScript file. There's no build step, and it doesn't modify Hermes it
   <img src="assets/sky-weather.png" alt="The same sky under clear, cloudy, stormy and foggy weather" width="100%">
 </p>
 
-**Time-of-day themes.** Pick Zephyr Sky in Appearance and Hermes's colours follow the sun through dawn, day, dusk and night. Zephyr Dawn, Day, Dusk and Night each hold one sky. The accent colour (links, buttons, selection) can shift too.
+**Time-of-day themes.** Pick Zephyr Sky in Appearance and Hermes's colours follow the sun through dawn, day, dusk and night. Picking any other theme in Appearance (Nous, Solarized and the rest) switches Zephyr off completely, with no sky, no painting and no theme requests, until you pick a Zephyr theme again. Zephyr Dawn, Day, Dusk and Night each hold one sky. The accent colour (links, buttons, selection) can shift too.
 
 **Glass panels.** The panels pick up a soft tint from the sky behind them, and they go darker at night so text stays easy to read.
 

@@ -189,7 +189,32 @@ const SKIN_COLORS = [
   ['ink2', 'Quiet text']
 ]
 let SKIN = { ...SKIN_DEFAULTS }
-const setSkin = next => { SKIN = { ...SKIN_DEFAULTS, ...next } }
+// The skin comes from a hand-edited file and goes into the stylesheet as text, so
+// one stray `;` or `}` would break every rule after it. Colours must be hex and
+// numbers are clamped to what the sliders allow; anything else keeps its default.
+const SKIN_HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
+const setSkin = next => {
+  const out = { ...SKIN_DEFAULTS }
+  for (const key of Object.keys(next || {})) {
+    if (!(key in SKIN_DEFAULTS)) continue
+    const v = next[key]
+    const slider = SKIN_SLIDERS.find(s => s[0] === key)
+    if (slider) {
+      const n = Number(v)
+      if (Number.isFinite(n)) out[key] = Math.min(slider[3], Math.max(slider[2], n))
+    } else if (SKIN_COLORS.some(c => c[0] === key)) {
+      if (typeof v === 'string' && SKIN_HEX.test(v.trim())) out[key] = v.trim()
+    } else if (key === 'fit') {
+      if (v === 'contain' || v === 'cover') out[key] = v
+    } else if (key === 'posX' || key === 'posY') {
+      const n = Number(v)
+      if (Number.isFinite(n)) out[key] = Math.min(100, Math.max(0, n))
+    } else if (key === 'image') {
+      if (typeof v === 'string' && v) out[key] = v
+    }
+  }
+  SKIN = out
+}
 const skinNumber = (value, fallback) => (Number.isFinite(Number(value)) ? Number(value) : fallback)
 // '#221a16' -> '34, 26, 22' (the app's neutral tokens are bare RGB triples)
 const hexTriple = hex => {

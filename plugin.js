@@ -477,6 +477,16 @@ const MATERIAL_VARS = [
 // on the left edge slides it in; pinned, the same card is docked, inset from
 // the window edge, and the chat sits beside it. Everything that rides on the
 // card (the status data, the snippet row, the mode button) moves with it.
+// The mode morph: the sidebar column and the main pane are captured and glide
+// to their new boxes on Cmd+S. Emitted only when the platform has view
+// transitions, because the rules do nothing otherwise.
+const MORPH_CSS = [
+  "::view-transition-group(zf-side), ::view-transition-group(zf-main) { animation-duration: 300ms; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }",
+  "::view-transition-old(zf-main), ::view-transition-new(zf-main) { width: 100%; height: 100%; object-fit: none; object-position: center top; animation-duration: 300ms; }",
+  "::view-transition-old(zf-side), ::view-transition-new(zf-side) { animation-duration: 220ms; }",
+  "::view-transition-old(root), ::view-transition-new(root) { animation: none; }"
+]
+
 const ARCLIKE_CSS = [
   // ── Arclike ──────────────────────────────────────────────────────────────
   // The sidebar column never unmounts. "Collapsed" takes it out of the flow
@@ -1699,6 +1709,7 @@ const skyStyleFor = (date, gl = false) => {
     // Scrollbars everywhere: thin and tinted, never the platform grey slab.
     '* { scrollbar-color: rgba(255, 255, 255, 0.14) transparent; scrollbar-width: thin; }',
     ...ARCLIKE_CSS,
+    ...MORPH_CSS,
   ].join('\n')
 }
 
@@ -4229,14 +4240,17 @@ export default {
     }
 
     // ── Tabs: ⌘⌥←/→, and the labels of a collapsed pane ───────────────────
-    // ⌘⌥←/→ walks the session tabs. Skipped inside text fields,
-    // where the same chord is macOS "jump by paragraph", and it stops the event
-    // in the capture phase so the app's own chord handling can't fight it.
+    // ⌘⌥←/→ walks the session tabs. It is a contributed keybind, not a window
+    // listener: it shows in Settings > Keybinds, it can be rebound, and it
+    // collides with nothing the app already binds. A capture-phase listener
+    // stays as the fallback for an app build that predates contributed
+    // keybinds, and it stands down for a moment whenever the keybind fired so
+    // the two can never both step the strip.
     if (typeof window !== 'undefined') {
       // Session tabs, not the pane tabs: the rows in the tree that each hold one
       // session (workspace + session-tile:<id>), which is what "the session
       // tabs" means. Pane tabs are [data-slot='pane-tab'] and are excluded.
-      const tabFrom = (node, dir) => {
+      const tabFrom = (dir) => {
         const tabs = Array.from(document.querySelectorAll("[role='tab'][data-tree-tab]"))
           .filter(tab => tab.dataset.slot !== 'pane-tab')
           .filter(tab => tab.getClientRects().length > 0)
@@ -4245,23 +4259,28 @@ export default {
         const from = current < 0 ? 0 : current
         return tabs[(from + dir + tabs.length) % tabs.length]
       }
-      // A tab may listen on pointer/mouse rather than click; fire the whole
-      // sequence so the switch happens either way.
-      const pressTab = tab => {
-        if (!tab) return
-        const r = tab.getBoundingClientRect()
-        const at = {
-          bubbles: true, cancelable: true, view: window, button: 0,
-          clientX: r.left + r.width / 2, clientY: r.top + r.height / 2
-        }
-        const pointer = { ...at, pointerId: 1, isPrimary: true, pointerType: 'mouse' }
-        tab.dispatchEvent(new PointerEvent('pointerdown', pointer))
-        tab.dispatchEvent(new MouseEvent('mousedown', at))
-        tab.dispatchEvent(new PointerEvent('pointerup', pointer))
-        tab.dispatchEvent(new MouseEvent('mouseup', at))
-        tab.click()
+      // The host's tab is a button with an onClick, so a click is the whole
+      // interaction; the pointer/mouse sequence is not needed and would start
+      // the tab's drag-selection instead of selecting it.
+      let lastKeybind = 0
+      const stepTab = dir => {
+        const next = tabFrom(dir)
+        if (!next) return
+        lastKeybind = Date.now()
+        next.click()
+      }
+      for (const [id, dir, label, combo] of [
+        ['zephyr.tabPrev', -1, 'Previous session tab', 'mod+alt+left'],
+        ['zephyr.tabNext', 1, 'Next session tab', 'mod+alt+right']
+      ]) {
+        ctx.register({
+          id,
+          area: 'keybinds',
+          data: { id, category: 'navigation', defaults: [combo], label, run: () => stepTab(dir) }
+        })
       }
       const onTabChord = event => {
+        if (Date.now() - lastKeybind < 250) return
         if (!event.metaKey || !event.altKey || event.ctrlKey || event.shiftKey) return
         const dir = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
         if (!dir) return
@@ -4269,11 +4288,11 @@ export default {
         if (target instanceof Element) {
           if (target.isContentEditable || target.closest("input, textarea, [contenteditable='true'], [contenteditable='']")) return
         }
-        const next = tabFrom(target, dir)
+        const next = tabFrom(dir)
         if (!next) return
         event.preventDefault()
         event.stopPropagation()
-        pressTab(next)
+        next.click()
       }
       window.addEventListener('keydown', onTabChord, true)
       ctx.onDispose?.(() => window.removeEventListener('keydown', onTabChord, true))
@@ -7725,9 +7744,8 @@ export default {
       }
       modeBtn.addEventListener('click', e => {
         e.stopPropagation(); e.preventDefault()
-        if (arc) { setArc(false); return }
-        setArc(true)
-        setOpen(true, true)
+        if (arc) { morph(() => setArc(false)); return }
+        morph(() => { setArc(true); setOpen(true, true) })
       })
       modeBtn.addEventListener('keydown', e => e.stopPropagation())
       ccHead.addEventListener('click', flipCC)
@@ -7750,6 +7768,25 @@ export default {
         let node = side
         while (node && node.parentElement && !node.parentElement.hasAttribute('data-tree-split')) node = node.parentElement
         return node && node.parentElement ? node : null
+      }
+
+      // Cmd+S / the mode button morph between pinned and floating: the column
+      // and the main pane are captured and glide to their new boxes.
+      const morph = fn => {
+        if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) { fn(); return }
+        const col = column()
+        const split = col && col.parentElement
+        const main = split && Array.from(split.children).filter(c => c !== col && c.getClientRects().length).sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0]
+        if (col) col.style.viewTransitionName = 'zf-side'
+        if (main) main.style.viewTransitionName = 'zf-main'
+        root.dataset.zfMorph = '1'
+        const t = document.startViewTransition(fn)
+        t.finished.finally(() => {
+          if (col) col.style.viewTransitionName = ''
+          if (main) main.style.viewTransitionName = ''
+          delete root.dataset.zfMorph
+          window.dispatchEvent(new Event('zf-morph-end'))
+        })
       }
 
       const setArc = value => {
@@ -7883,7 +7920,7 @@ export default {
             setArc(false)
             return
           }
-          setArc(!arc)
+          morph(() => setArc(!arc))
         }
       }, true)
 
@@ -7923,7 +7960,7 @@ export default {
         window.removeEventListener('resize', schedule)
         hot.remove(); ccHead.remove(); modeBtn.remove()
         if (footRO) footRO.disconnect()
-        for (const k of ['zfArc', 'zfArcOpen', 'zfArcReady', 'zfArcSeen']) delete root.dataset[k]
+        for (const k of ['zfArc', 'zfArcOpen', 'zfArcReady', 'zfArcSeen', 'zfMorph']) delete root.dataset[k]
         document.querySelectorAll('[data-zf-arc-col]').forEach(el => { delete el.dataset.zfArcCol })
       })
     } catch (err) {

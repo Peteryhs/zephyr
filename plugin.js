@@ -43,7 +43,7 @@ const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', margi
 // Hermes keeps its amber; the ground shifts with the hour. Four phases, four
 // grounds, one accent family — the same app in different light.
 
-const PHASES = ['dawn', 'day', 'dusk', 'night']
+const PHASES = ['dawn', 'sunrise', 'day', 'dusk', 'night']   // sunrise is only ever held, never picked by the clock
 
 // Surfaces carry ALPHA on purpose: the sky below is the ground now, and an
 // opaque fill would hide it. Text, borders, accent and rings stay opaque, so
@@ -58,6 +58,14 @@ const GROUNDS = {
     accent: '#e8a07a', accentForeground: '#0f172a', border: '#3b3450', input: 'rgba(52, 44, 70, 0.55)', ring: '#e8a07a',
     destructive: '#d9534f', destructiveForeground: '#fff5f5',
     sidebarBackground: 'rgba(26, 22, 38, 0.60)', sidebarBorder: '#332c47', userBubble: 'rgba(46, 39, 62, 0.62)', userBubbleBorder: '#3a3350'
+  },
+  sunrise: {
+    background: 'rgba(36, 27, 28, 0.72)', foreground: '#f6ece4', card: 'rgba(44, 33, 33, 0.68)', cardForeground: '#f6ece4',
+    muted: 'rgba(62, 47, 46, 0.55)', mutedForeground: '#cdb9ad', popover: 'rgba(40, 30, 30, 0.88)', popoverForeground: '#f6ece4',
+    primary: '#f2b36b', primaryForeground: '#1a1008', secondary: 'rgba(70, 53, 50, 0.55)', secondaryForeground: '#eadbd0',
+    accent: '#f2b36b', accentForeground: '#1a1008', border: '#4a3a38', input: 'rgba(62, 47, 46, 0.55)', ring: '#f2b36b',
+    destructive: '#d9534f', destructiveForeground: '#fff5f5',
+    sidebarBackground: 'rgba(30, 22, 23, 0.60)', sidebarBorder: '#3e302f', userBubble: 'rgba(52, 39, 38, 0.62)', userBubbleBorder: '#4b3b39'
   },
   day: {
     background: 'rgba(19, 28, 42, 0.72)', foreground: '#e6eefa', card: 'rgba(26, 37, 54, 0.68)', cardForeground: '#e6eefa',
@@ -3546,6 +3554,7 @@ const themeFor = phase => ({
 
 const PHASE_BLURB = {
   dawn: 'before sunrise',
+  sunrise: 'just after sunrise',
   day: 'daylight',
   dusk: 'after sunset',
   night: 'after dark'
@@ -3932,26 +3941,30 @@ const CHIP_ROW_STYLE = { display: 'inline-flex', alignItems: 'center', gap: '6px
 
 const DOT_STYLE = { display: 'block', width: '6px', height: '6px', borderRadius: '999px' }
 
-function PhaseChip({ phase, auto, pins, onToggleAuto }) {
+function PhaseChip({ phase, auto, pins, held, clock, onCycle }) {
   const pinCount = useValue(pins).length
   const isAuto = useValue(auto)
   const current = useValue(phase)
-  const label = `${current}${pinCount ? ` · ${pinCount} pinned` : ''}`
+  const hold = useValue(held)
+  const now = useValue(clock)
+  const shown = hold || current
+  const label = `${isAuto ? (hold ? `${hold} - held` : `dynamic - ${now}`) : `${current} - paused`}${pinCount ? ` · ${pinCount} pinned` : ''}`
 
   return jsx(Tip, {
-    label: isAuto
-      ? `Zephyr: theme follows the clock (${PHASE_BLURB[current]}). Click to hold one theme.`
-      : 'Zephyr: holding one theme. Click to follow the clock again.',
+    label: !isAuto
+      ? 'Zephyr: the sky is off the clock. Click to follow the sun again.'
+      : hold
+        ? `Zephyr: holding the ${hold} sky. Click for the next one (Dawn, Sunrise, Day, Dusk, Night, then the live sky).`
+        : `Zephyr: the sky follows the sun (${PHASE_BLURB[current]}). Click to try Dawn, Sunrise, Day, Dusk and Night.`,
     children: jsx('button', {
-      onClick: onToggleAuto,
+      onClick: onCycle,
       style: CHIP_STYLE,
       type: 'button',
       children: jsxs('span', {
         style: CHIP_ROW_STYLE,
         children: [
-          // The dot IS the phase, not a lamp: its colour changes with the hour,
-          // so it marks a real state (antislop-ui: a decorative dot is a tell).
-          jsx('span', { 'aria-hidden': true, style: Object.assign({}, DOT_STYLE, { background: PHASE_ACCENT[current] }) }),
+          // The dot IS the sky on show, not a lamp: its colour is the phase's accent.
+          jsx('span', { 'aria-hidden': true, style: Object.assign({}, DOT_STYLE, { background: GROUNDS[shown].accent }) }),
           jsx('span', { children: label })
         ]
       })
@@ -6816,6 +6829,7 @@ export default {
     const momentFor = (phase, base = new Date()) => {
       const { rise, set } = getSolar(base)
       const h = phase === 'dawn' ? rise - 0.35
+        : phase === 'sunrise' ? rise + 0.2
         : phase === 'day' ? (rise + set) / 2
           : phase === 'dusk' ? set + SUNSET_HOLD_OFFSET
             : Math.max(set + 3, 22.5)
@@ -6827,6 +6841,10 @@ export default {
     let liveFor = null   // the phase whose colours Zephyr Sky currently carries
     const heldMoment = () => (pin.get() ? momentFor(pin.get()) : null)
     const nowAt = () => heldMoment() || new Date()
+    // the status chip's "dynamic - 2:45 PM": the real time, refreshed within seconds
+    const clockText = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    const clock = atom(clockText())
+    const clockTimer = setInterval(() => { const s = clockText(); if (s !== clock.get()) clock.set(s) }, 10_000)
 
     // ── GL sky lifecycle ──────────────────────────────────────────────────
     let glSky = null
@@ -6953,7 +6971,7 @@ export default {
         requestTheme(SKY_THEME)
       }
 
-      if (tint.get()) setAccentOverride(PHASE_ACCENT[next])
+      if (tint.get()) setAccentOverride(GROUNDS[pin.get() || next].accent)
     }
 
     const tick = () => {
@@ -7077,12 +7095,18 @@ export default {
           auto,
           phase,
           pins,
-          onToggleAuto: () => {
-            const next = !auto.get()
-            auto.set(next)
-            persist()
-            if (next) apply(nowAt())
-            else setAccentOverride(null)
+          held: pin,
+          clock,
+          onCycle: () => {
+            // follow the sun -> Dawn -> Day -> Dusk -> Night -> follow the sun
+            const order = [null, ...PHASES]
+            const want = auto.get() ? order[(order.indexOf(pin.get()) + 1) % order.length] : null
+            wake()
+            if (!auto.get()) { auto.set(true); persist() }
+            pin.set(want)
+            ctx.storage.set(STORE_KEYS.phasePin, want)
+            if (look.get() !== 'sunset') { switchLook('sunset'); return }
+            apply(nowAt())
           }
         })
     })
@@ -7092,7 +7116,7 @@ export default {
     // sky, the light, the chat. Rows that only matter under another switch
     // (weather, smoothness, preview under the realistic sky) appear only when
     // that switch is on, and the pin roster appears only once there is a pin.
-    const PHASE_TITLE = { dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night' }
+    const PHASE_TITLE = { dawn: 'Dawn', sunrise: 'Sunrise', day: 'Day', dusk: 'Dusk', night: 'Night' }
     const QUALITY_FPS = { low: 4, balanced: 8, high: 16 }
     const section = (icon, title, rows) =>
       jsxs('section', {
@@ -7374,6 +7398,7 @@ export default {
       themeObs?.disconnect()
       clearInterval(timer)
       clearInterval(weatherTimer)
+      clearInterval(clockTimer)
       clearInterval(flareTimer)
       clearInterval(dockTimer)
       iconStyle?.remove()

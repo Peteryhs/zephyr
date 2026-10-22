@@ -4817,7 +4817,6 @@ export default {
         if (tabs.length < 2) return false
         const at = tabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true')
         const next = tabs[((at < 0 ? 0 : at) + dir + tabs.length) % tabs.length]
-        lastKeybind = Date.now()
         pressTab(next)
         next.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
         return true
@@ -4829,7 +4828,7 @@ export default {
         ctx.register({
           id,
           area: 'keybinds',
-          data: { id, category: 'navigation', defaults: [combo], label, run: () => stepTab(dir) }
+          data: { id, category: 'navigation', defaults: [combo], label, run: () => { lastKeybind = Date.now(); return stepTab(dir) } }
         })
       }
       // The fallback for an app build without contributed keybinds. It also works with the

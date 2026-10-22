@@ -41,15 +41,16 @@ const setup = tabs => {
     window: { addEventListener: () => {} },
     PointerEvent: class { constructor(type) { this.type = type } }
   }
-  const make = new Function('document', 'window', 'PointerEvent', `${body}; return onTabChord`)
-  const handler = make(g.document, g.window, g.PointerEvent)
+  const make = new Function('document', 'window', 'PointerEvent', 'ctx', `${body}; return onTabChord`)
+  const registered = []
+  const handler = make(g.document, g.window, g.PointerEvent, { register: r => registered.push(r) })
   const press = (key, mods = { metaKey: true, altKey: true }) => {
     const e = { key, metaKey: false, altKey: false, ctrlKey: false, shiftKey: false, isComposing: false, ...mods,
       prevented: false, stopped: false, preventDefault() { this.prevented = true }, stopImmediatePropagation() { this.stopped = true } }
     handler(e)
     return e
   }
-  return { press, selected: () => tabs.filter(t => t.sel).map(t => t.dataset.treeTab) }
+  return { press, registered, selected: () => tabs.filter(t => t.sel).map(t => t.dataset.treeTab) }
 }
 
 test('right and left step to the neighbour and wrap at the ends', () => {
@@ -92,10 +93,27 @@ test('with a split it steps the strip under the focused element', () => {
     makeTab('b1', { selected: true, strip: 'b', left: 400 }), makeTab('b2', { strip: 'b', left: 500 })]
   tabs.forEach(t => { t.all = tabs })
   const doc = { querySelectorAll: () => tabs, body: {}, activeElement: { getBoundingClientRect: () => rect(450, 40) } }
-  const make = new Function('document', 'window', 'PointerEvent', `${body}; return onTabChord`)
-  const handler = make(doc, {}, class { constructor(type) { this.type = type } })
+  const make = new Function('document', 'window', 'PointerEvent', 'ctx', `${body}; return onTabChord`)
+  const handler = make(doc, {}, class { constructor(type) { this.type = type } }, { register() {} })
   // each pane keeps its own selected tab, so only compare within the strip
   tabs.forEach(t => { t.dispatchEvent = e => { if (e.type === 'pointerup') for (const o of tabs.filter(x => x.closest("[role='tablist']").id === t.closest("[role='tablist']").id)) o.sel = o === t } })
   handler({ key: 'ArrowRight', metaKey: true, altKey: true, ctrlKey: false, shiftKey: false, preventDefault() {}, stopImmediatePropagation() {} })
   assert.deepEqual(tabs.filter(t => t.sel).map(t => t.dataset.treeTab).sort(), ['a1', 'b2'])
+})
+
+test('the same step is registered as two rebindable keybinds', () => {
+  const tabs = [makeTab('workspace', { selected: true }), makeTab('s1'), makeTab('s2')]
+  const { registered, selected } = setup(tabs)
+  const byId = Object.fromEntries(registered.map(r => [r.id, r.data]))
+  assert.deepEqual(byId['zephyr.tabNext'].defaults, ['mod+alt+right'])
+  assert.deepEqual(byId['zephyr.tabPrev'].defaults, ['mod+alt+left'])
+  byId['zephyr.tabNext'].run(); assert.deepEqual(selected(), ['s1'])
+  byId['zephyr.tabPrev'].run(); byId['zephyr.tabPrev'].run(); assert.deepEqual(selected(), ['s2'])
+})
+test('the fallback stands down right after the keybind fired', () => {
+  const tabs = [makeTab('workspace', { selected: true }), makeTab('s1'), makeTab('s2')]
+  const { registered, press, selected } = setup(tabs)
+  registered.find(r => r.id === 'zephyr.tabNext').data.run()
+  press('ArrowRight')
+  assert.deepEqual(selected(), ['s1'])
 })

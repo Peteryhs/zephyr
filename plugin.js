@@ -387,6 +387,9 @@ const polishCss = () => [
   `  --ui-text-secondary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.86)' : SKIN.ink2} !important;`,
   `  --ui-text-tertiary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.72)' : '#bdae93'} !important;`,
   `  --ui-text-quaternary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.58)' : '#a89984'} !important;`,
+  // inline code: Hermes's Light value is near-black, which vanishes on the dark glass
+  `  --ui-inline-code-foreground: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.92)' : '#d3869b'} !important;`,
+  `  --ui-inline-code-background: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.10)' : 'rgba(0, 0, 0, 0.25)'} !important;`,
   '}',
   // `--zf-` is the app's namespace too: it ships its own --zf-ink-2, which is
   // rgb(33 3 25) — near-black. Every rule of ours that said
@@ -641,7 +644,12 @@ const polishCss = () => [
   // let the frosted painting through; the floating card stays solid because
   // it sits over text.
   "html body div[data-slot='composer-surface'][data-slot][class] { background: linear-gradient(var(--zf-m-comp-a), var(--zf-m-comp-b)) !important; backdrop-filter: blur(18px) saturate(1.25) brightness(1.08) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 10px 30px rgba(0, 0, 0, 0.22) !important; }",
+  // Light mode: the painting is not dimmed there, so denser glass keeps the ink readable
+  "html:not(.dark) body div[data-slot='composer-surface'][data-slot][class] { background: linear-gradient(rgb(from var(--zf-m-comp-a) r g b / 0.9), rgb(from var(--zf-m-comp-b) r g b / 0.94)) !important; }",
+  // Hermes's own Light-mode fill layer inside the surface is ~88% white; Dark mode's is dark, which is why this only broke in Light
+  "html:not(.dark) body div[data-slot='composer-surface'] > [class*='pointer-events-none'][class*='inset-0'] { background: transparent !important; }",
   "html body :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) { background: linear-gradient(var(--zf-m-bub-a), var(--zf-m-bub-b)) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 6px 20px rgba(0, 0, 0, 0.16) !important; border-color: transparent !important; }",
+  "html body [data-slot='aui_user-message-root'].sticky :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) { backdrop-filter: blur(18px) saturate(1.15) !important; }",
   "html:not([data-zf-arc='1']) body [data-zf-arc-col] { background: linear-gradient(var(--zf-m-pin-a), var(--zf-m-pin-b)) !important; backdrop-filter: blur(20px) saturate(1.2) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 18px 48px rgba(0, 0, 0, 0.30) !important; }",
   "html[data-zf-arc='1'] body [data-zf-arc-col] { background: var(--zf-m-solid) !important; }",
   "html[data-zf-arc='1'] body [data-zf-arc-col] :is(footer[data-zf-arc-foot], #zephyr-snips) { background: transparent !important; }",

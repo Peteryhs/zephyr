@@ -531,13 +531,13 @@ const polishCss = (gruv = false) => [
   "[role='tab'][data-tree-tab] [class*='rounded-full'][class*='bg-'] { background: var(--zf-ink-2, #cdc4b4) !important; }",
   // Landing for an empty tab: the app only draws its intro for the very first
   // draft, so a fresh tab was a blank smear. Same wordmark, same mood.
-  '#zf-landing { position: fixed; z-index: 1; pointer-events: none; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; opacity: 0; transition: opacity 260ms ease; }',
-  "html[data-zf-landing='1'] #zf-landing { display: flex; opacity: 1; }",
-  "#zf-landing .zf-land-mark { font-family: Collapse, ui-serif, serif; font-size: clamp(44px, 7.4vw, 112px); font-weight: 700; letter-spacing: 0.02em; line-height: 1; color: rgba(var(--zf-hi), 0.92); mix-blend-mode: plus-lighter; white-space: nowrap; }",
-  "#zf-landing .zf-land-line { font-size: 15px; color: var(--zf-ink-2, #ebdbb2); max-width: 34rem; }",
+  ':is(#zf-landing, .zf-landing-x) { position: fixed; z-index: 1; pointer-events: none; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; opacity: 0; transition: opacity 260ms ease; container-type: inline-size; overflow: hidden; }',
+  "html[data-zf-landing='1'] :is(#zf-landing, .zf-landing-x) { display: flex; opacity: 1; }",
+  ':is(#zf-landing, .zf-landing-x) .zf-land-mark { font-family: Collapse, ui-serif, serif; font-size: clamp(26px, 11cqw, 112px); font-weight: 700; letter-spacing: 0.02em; line-height: 1; color: rgba(var(--zf-hi), 0.92); mix-blend-mode: plus-lighter; white-space: nowrap; }',
+  ':is(#zf-landing, .zf-landing-x) .zf-land-line { font-size: 15px; color: var(--zf-ink-2, #ebdbb2); max-width: 34rem; }',
   '@keyframes zf-land-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }',
-  "html[data-zf-landing='1'] #zf-landing > * { animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }",
-  "html[data-zf-landing='1'] #zf-landing .zf-land-line { animation-delay: 80ms; }",
+  "html[data-zf-landing='1'] :is(#zf-landing, .zf-landing-x) > * { animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }",
+  "html[data-zf-landing='1'] :is(#zf-landing, .zf-landing-x) .zf-land-line { animation-delay: 80ms; }",
   // Settings is a floating sheet, solid enough that nothing reads through it
   "div.rounded-xl[data-zf-setbox] { background: var(--zf-m-sheet) !important; box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 30px 80px rgba(0, 0, 0, 0.55) !important; isolation: isolate; }",
   "[class*='grid-cols-[13rem_minmax(0,1fr)]'] > aside { background: rgba(0, 0, 0, 0.16) !important; }",
@@ -612,6 +612,7 @@ const gruvboxTextCss = () => [
   `  background: radial-gradient(120% 90% at 50% 40%, rgba(${hexTriple(SKIN.deeper)}, ${(skinNumber(SKIN.scrim, 0.44) * 0.45).toFixed(3)}), rgba(${hexTriple(SKIN.deeper)}, ${(skinNumber(SKIN.scrim, 0.44) * 0.95).toFixed(3)}));`,
   `  backdrop-filter: blur(${skinNumber(SKIN.blur, 16)}px) saturate(${skinNumber(SKIN.saturate, 1.35)}) brightness(${skinNumber(SKIN.brightness, 0.84)});`,
   '}',
+  "html[data-zf-chat='1'][data-zf-clip='1']::after { clip-path: var(--zf-chat-clip); }",
   `::selection { background: ${SKIN.edge} !important; color: ${SKIN.ink} !important; }`,
 
   // Title
@@ -8282,34 +8283,67 @@ export default {
         copy.querySelectorAll('[data-slot]').forEach(el => el.removeAttribute('data-slot'))
         landing.replaceChildren(copy)
         landing.dataset.cloned = '1'
+        for (const x of extraLandings) x.replaceChildren(copy.cloneNode(true))
       }
-      let landKey = ''
+      const extraLandings = []
+      let rootTimer = 0
+      let rootTries = 0
       const syncPage = () => {
         if (pageDead) return
         // several tabs keep their thread mounted in the same spot; only the one
         // the pointer would actually hit counts (a page like Capabilities sits
         // on top of a still-mounted thread)
         const vps = Array.from(document.querySelectorAll("[data-slot='aui_thread-viewport']")).filter(el => el.getClientRects().length && el.getBoundingClientRect().width > 200)
-        let vp = null
+        const shown = []
+        let rootOnly = false
         for (const v of vps) {
           const r = v.getBoundingClientRect()
-          const hits = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height * 0.3).filter(h => h !== landing && !landing.contains(h))
-          if (hits.length && v.contains(hits[0])) { vp = v; break }
+          // looking through <html>: during a view transition it is the transition's own snapshot layer
+          const hits = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height * 0.3).filter(h => h !== document.documentElement && h !== landing && !landing.contains(h))
+          if (hits.length && v.contains(hits[0])) {
+            const intro = v.querySelector("[data-slot='aui_intro']")
+            const introShown = Boolean(intro && intro.getClientRects().length)
+            const hasMsg = Boolean(v.querySelector("[data-slot*='message']"))
+            shown.push({ r, intro, introShown, empty: introShown || !hasMsg })
+          } else if (!hits.length && !v.closest('[data-pane-hidden]')) rootOnly = true
         }
-        const hasMsg = vp ? Boolean(vp.querySelector("[data-slot*='message']")) : false
-        const intro = vp ? vp.querySelector("[data-slot='aui_intro']") : null
-        const introShown = Boolean(intro && intro.getClientRects().length)
-        const chat = !introShown && !(vp && !hasMsg)
-        if (chat) root.dataset.zfChat = '1'
-        else delete root.dataset.zfChat
-        borrowIntro(intro || document.querySelector("[data-slot='aui_intro']"))
-        if (vp && !hasMsg && !introShown) {
-          const r = vp.getBoundingClientRect()
-          const key = [r.left, r.top, r.width, r.height].map(Math.round).join('/')
-          if (key !== landKey) {
-            landKey = key
-            Object.assign(landing.style, { left: Math.round(r.left) + 'px', top: Math.round(r.top) + 'px', width: Math.round(r.width) + 'px', height: Math.round(r.height * 0.82) + 'px' })
+        // nothing but the transition layer: say nothing yet, keep the old state, look again shortly
+        if (!shown.length && rootOnly && rootTries++ < 24) { clearTimeout(rootTimer); rootTimer = setTimeout(schedulePage, 90); return }
+        rootTries = 0
+        const chats = shown.filter(p => !p.empty)
+        const empties = shown.filter(p => p.empty)
+        // no pane found at all (a page like Capabilities on top) frosts as it always did
+        const chat = chats.length > 0 || !shown.length
+        if (chat) { if (root.dataset.zfChat !== '1') root.dataset.zfChat = '1' }
+        else if (root.dataset.zfChat) delete root.dataset.zfChat
+        // a split with a conversation and an empty pane: cut the empty pane out of the frost
+        if (chat && chats.length && empties.length) {
+          const W = Math.round(window.innerWidth), H = Math.round(window.innerHeight)
+          const hole = p => `M${Math.round(p.r.left)} ${Math.round(p.r.top)}h${Math.round(p.r.width)}v${Math.round(p.r.height)}h${-Math.round(p.r.width)}z`
+          const clip = `path(evenodd, 'M0 0h${W}v${H}h${-W}z${empties.map(hole).join('')}')`
+          if (root.style.getPropertyValue('--zf-chat-clip') !== clip) root.style.setProperty('--zf-chat-clip', clip)
+          if (root.dataset.zfClip !== '1') root.dataset.zfClip = '1'
+        } else if (root.dataset.zfClip) {
+          delete root.dataset.zfClip
+          root.style.removeProperty('--zf-chat-clip')
+        }
+        borrowIntro((shown.find(p => p.intro) || {}).intro || document.querySelector("[data-slot='aui_intro']"))
+        const landPanes = empties.filter(p => !p.introShown)
+        // the first pane uses the landing element itself; each further empty pane gets a clone
+        while (extraLandings.length < landPanes.length - 1) {
+          const copy = landing.cloneNode(true)
+          copy.removeAttribute('id')
+          copy.className = 'zf-landing-x'
+          document.body.appendChild(copy)
+          extraLandings.push(copy)
+        }
+        while (extraLandings.length > Math.max(0, landPanes.length - 1)) extraLandings.pop().remove()
+        if (landPanes.length) {
+          const place = (el, r) => {
+            const next = { left: Math.round(r.left) + 'px', top: Math.round(r.top) + 'px', width: Math.round(r.width) + 'px', height: Math.round(r.height * 0.82) + 'px' }
+            for (const k in next) if (el.style[k] !== next[k]) el.style[k] = next[k]
           }
+          landPanes.forEach((p, i) => place(i === 0 ? landing : extraLandings[i - 1], p.r))
           if (root.dataset.zfLanding !== '1') {
             if (!landing.dataset.cloned) landing.lastElementChild.textContent = LINES[Math.floor(Math.random() * LINES.length)]
             root.dataset.zfLanding = '1'
@@ -8377,6 +8411,9 @@ export default {
       syncPage()
       ctx.onDispose?.(() => {
         pageDead = true
+        clearTimeout(rootTimer)
+        delete root.dataset.zfClip
+        root.style.removeProperty('--zf-chat-clip')
         document.querySelectorAll('[data-zf-strip]').forEach(el => { el.removeAttribute('data-zf-strip'); el.removeAttribute('data-zf-switch') })
         for (const a of ['data-zf-intro', 'data-zf-msgs', 'data-zf-settings', 'data-zf-setbox', 'data-zf-sbbtn', 'data-zf-nav']) document.querySelectorAll('[' + a + ']').forEach(el => el.removeAttribute(a))
         pageObs.disconnect()
@@ -8384,6 +8421,8 @@ export default {
         delete root.dataset.zfChat
         delete root.dataset.zfLanding
         landing.remove()
+        for (const x of extraLandings) x.remove()
+        extraLandings.length = 0
       })
     } catch (err) {
       console.error('[zephyr] page state failed: ' + (err && err.stack || err))
@@ -8954,7 +8993,7 @@ export default {
           }
           return
         }
-        root.dataset.zfArcSeen = '1'
+        if (root.dataset.zfArcSeen !== '1') root.dataset.zfArcSeen = '1'
         const col = column()
         document.querySelectorAll('[data-zf-arc-col]').forEach(el => { if (el !== col) delete el.dataset.zfArcCol })
         if (col && !col.dataset.zfArcCol) col.dataset.zfArcCol = '1'

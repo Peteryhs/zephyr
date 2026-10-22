@@ -498,6 +498,37 @@ const ARCLIKE_CSS = [
   '  transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease;',
   '}',
   // room at the bottom of the column for snippets + status
+  // The snippet card and the status-dock head are the app's own fixed layers:
+  // it places them from the column's own box, on its own schedule. Left alone
+  // they stay put while the card slides, then jump when the app re-measures.
+  // They ride the same slide on the same curve instead, and their re-measure
+  // glides rather than snapping.
+  "html[data-zf-arc-ready='1'] body #zephyr-snips {",
+  '  transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease,',
+  '    left 300ms cubic-bezier(0.22, 1, 0.36, 1), top 300ms cubic-bezier(0.22, 1, 0.36, 1);',
+  '}',
+  "html[data-zf-arc-ready='1'] body #zephyr-statusdock-head {",
+  '  transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease,',
+  '    left 300ms cubic-bezier(0.22, 1, 0.36, 1), top 300ms cubic-bezier(0.22, 1, 0.36, 1),',
+  '    height var(--zf-sd-dur) var(--zf-sd-ease), color var(--zf-t-2, 150ms) var(--zf-ease, ease),',
+  '    box-shadow var(--zf-t-2, 150ms) var(--zf-ease, ease);',
+  '}',
+  "html[data-zf-arc='1']:not([data-zf-arc-open='1']) body :is(#zephyr-snips, #zephyr-statusdock-head) {",
+  '  translate: calc(-100% - 28px) 0; opacity: 0; pointer-events: none;',
+  '}',
+  "html[data-zf-arc='1'][data-zf-arc-open='1'] body :is(#zephyr-snips, #zephyr-statusdock-head) {",
+  '  translate: 0 0; opacity: 1; pointer-events: auto;',
+  '}',
+  // the tucked state has to leave too, at the closing speed
+  "html[data-zf-arc='1']:not([data-zf-arc-open='1']) body #zephyr-snips {",
+  '  transition: translate 150ms cubic-bezier(0.4, 0, 1, 1), opacity 110ms ease,',
+  '    left 150ms cubic-bezier(0.4, 0, 1, 1), top 150ms cubic-bezier(0.4, 0, 1, 1);',
+  '}',
+  "html[data-zf-arc='1']:not([data-zf-arc-open='1']) body #zephyr-statusdock-head {",
+  '  transition: translate 150ms cubic-bezier(0.4, 0, 1, 1), opacity 110ms ease,',
+  '    left 150ms cubic-bezier(0.4, 0, 1, 1), top 150ms cubic-bezier(0.4, 0, 1, 1),',
+  '    height var(--zf-sd-dur) var(--zf-sd-ease);',
+  '}',
   // the chat keeps the toggle's corner clear once the sidebar is out of the flow
   "html[data-zf-arc='1'] [data-tree-split] > div:not([data-zf-arc-col]) [data-window-top] {",
   // the mode button lives inside the card here, so the tabs can take the corner
@@ -7640,6 +7671,16 @@ export default {
         autoUntil = Date.now() + 400
         el.click()
       }
+      // The snippet card and the status-dock head are placed by the app's own
+      // layout from the column's box. A CSS slide moves that box, so once the
+      // slide settles the app gets one resize to re-measure against the new
+      // one: ordered, not fighting.
+      let relayoutT = 0
+      const relayout = () => {
+        clearTimeout(relayoutT)
+        relayoutT = setTimeout(() => { relayoutT = 0; if (alive()) window.dispatchEvent(new Event('resize')) }, 340)
+      }
+
       const column = () => {
         const side = document.querySelector("[data-slot='sidebar']")
         let node = side
@@ -7671,6 +7712,7 @@ export default {
         try { localStorage.setItem(ARC_KEY, value ? '1' : '0') } catch {}
         setOpen(false, true)
         sync()
+        relayout()
       }
       const setOpen = (value, instant) => {
         clearTimeout(closeTimer)
@@ -7678,6 +7720,7 @@ export default {
         open = value
         if (value) root.dataset.zfArcOpen = '1'
         else delete root.dataset.zfArcOpen
+        relayout()
         if (instant) {
           const col = column()
           const els = [col].filter(Boolean)
@@ -7775,6 +7818,7 @@ export default {
         railDead = true
         railObs.disconnect()
         window.removeEventListener('resize', schedule)
+        clearTimeout(relayoutT)
         hot.remove(); modeBtn.remove()
         for (const k of ['zfArc', 'zfArcOpen', 'zfArcReady', 'zfArcSeen', 'zfMorph']) delete root.dataset[k]
         document.querySelectorAll('[data-zf-arc-col]').forEach(el => { delete el.dataset.zfArcCol })

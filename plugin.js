@@ -614,6 +614,13 @@ const gruvboxTextCss = () => [
   '}',
   "html[data-zf-chat='1'][data-zf-clip='1']::after { clip-path: var(--zf-chat-clip); }",
   `::selection { background: ${SKIN.edge} !important; color: ${SKIN.ink} !important; }`,
+  // The tab bar floats on the picture with nothing marking where it ends. The very top of the
+  // window is a touch darker, fading out under the tabs, with a faint line at the bar's foot.
+  'html.dark body::after {',
+  "  content: ''; position: fixed; left: 0; right: 0; top: 0; height: 54px; z-index: 40; pointer-events: none;",
+  `  background: linear-gradient(rgba(${hexTriple(SKIN.ink)}, 0.07), rgba(${hexTriple(SKIN.ink)}, 0.07)) 0 37px / 100% 1px no-repeat,`,
+  `    linear-gradient(rgba(${hexTriple(SKIN.deeper)}, 0.38) 0, rgba(${hexTriple(SKIN.deeper)}, 0.27) 37px, rgba(${hexTriple(SKIN.deeper)}, 0) 54px);`,
+  '}',
 
   // Title
   ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) :is(h1, h2, h3, h4, h5, h6) {",

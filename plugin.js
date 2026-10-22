@@ -4355,16 +4355,18 @@ const syncSolar = async ctx => {
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Toronto'
     const cached = ctx.storage.get('solar', null)
-    if (cached && cached.date === new Date().toDateString() && cached.tz === tz) {
+    if (cached && cached.date === new Date().toDateString() && cached.tz === tz &&
+        Number.isFinite(cached.rise) && Number.isFinite(cached.set) && cached.rise < cached.set) {
       liveSolar = cached
       return
     }
     const city = tz.split('/').pop()?.replace(/_/g, ' ') || 'Toronto'
-    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`, { signal: netSignal() })
+    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=10`, { signal: netSignal() })
     if (!geoRes.ok) return
     const geoData = await geoRes.json()
-    const loc = geoData.results?.[0]
-    if (!loc) return
+    // several places share a name; the one in the user's own timezone is the right one
+    const loc = (geoData.results || []).find(r => r && r.timezone === tz)
+    if (!loc || !Number.isFinite(loc.latitude) || !Number.isFinite(loc.longitude)) return
     const weatherRes = await fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=sunrise,sunset&timezone=auto`,
       { signal: netSignal() }
@@ -8201,8 +8203,11 @@ export default {
 
       // Cmd+S / the mode button morph between pinned and floating: the column
       // and the main pane are captured and glide to their new boxes
+      let morphing = false
       const morph = fn => {
-        if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) { fn(); return }
+        // a second morph while one runs would clear the first one's names mid-flight
+        if (morphing || !document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) { fn(); return }
+        morphing = true
         const col = column()
         const split = col && col.parentElement
         const main = split && Array.from(split.children).filter(c => c !== col && c.getClientRects().length).sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0]
@@ -8210,7 +8215,8 @@ export default {
         if (main) main.style.viewTransitionName = 'zf-main'
         root.dataset.zfMorph = '1'
         const t = document.startViewTransition(fn)
-        t.finished.finally(() => {
+        t.finished.catch(() => {}).finally(() => {
+          morphing = false
           if (col) col.style.viewTransitionName = ''
           if (main) main.style.viewTransitionName = ''
           delete root.dataset.zfMorph

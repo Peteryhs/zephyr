@@ -574,7 +574,9 @@ const ARCLIKE_CSS = [
   // ── Command center data: the live status bar, docked at the bottom of the
   // column and moving with it. No tab, no popover, no second window.
   '#zephyr-statusdock-tab, #zephyr-statusdock-head, #zephyr-statusdock-ghost, [data-zephyr-dock-pop] { display: none !important; }',
-  "html body [data-slot*='command-center'], html body [data-slot*='commandCenter'], html body #command-center { display: none !important; }",
+  // Hidden only once the card has actually taken the data over: if the rail
+  // never starts, the app's own command center must stay.
+  "html[data-zf-arc-ready='1'] body [data-slot*='command-center'], html[data-zf-arc-ready='1'] body [data-slot*='commandCenter'], html[data-zf-arc-ready='1'] body #command-center { display: none !important; }",
   "html body [data-zephyr-dock-room][data-zephyr-dock-room], html body [data-zephyr-lib-room][data-zephyr-lib-room] { margin-top: 0 !important; }",
   "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] {",
   '  position: fixed !important; z-index: 61 !important;',

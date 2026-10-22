@@ -454,22 +454,12 @@ const horizonTiltAt = (date = new Date()) => {
 
 // ══ §5 APP CSS (skyStyleFor: layout, glass material, every surface) ════════
 
-// ── The material, as CSS variables ─────────────────────────────────────────
-// One place the sidebar card, composer, cards and sheets read their fill and
-// their hairline from, so the floating sidebar can be dressed from here
-// instead of hard-coding a colour per rule. Values are the app's own dark
-// neutrals at Zephyr's alpha; the ink ramp stays untouched.
+// ── The card's shared hairline ─────────────────────────────────────────────
+// One value the rail's own controls read (the mode button's hover fill), so the
+// card's edges and its button agree without repeating a literal.
 const MATERIAL_VARS = [
   'html:root {',
   '  --zf-hi: 255, 255, 255;',
-  '  --zf-m-solid: rgb(17, 18, 24);',
-  '  --zf-m-tab: rgba(255, 255, 255, 0.10);',
-  '  --zf-m-pin-a: rgba(16, 17, 24, 0.46); --zf-m-pin-b: rgba(10, 11, 16, 0.56);',
-  '  --zf-m-comp-a: rgba(24, 25, 34, 0.46); --zf-m-comp-b: rgba(14, 15, 22, 0.54);',
-  '  --zf-m-bub-a: rgba(255, 255, 255, 0.10); --zf-m-bub-b: rgba(255, 255, 255, 0.07);',
-  '  --zf-m-sheet: rgba(14, 15, 22, 0.74);',
-  '  --zf-m-on: #11121a;',
-  '  --ui-row-active-background: rgba(255, 255, 255, 0.10) !important;',
   '}'
 ]
 
@@ -499,8 +489,6 @@ const ARCLIKE_CSS = [
   '  width: 272px !important; height: auto !important; min-width: 0 !important; max-width: none !important;',
   '  flex: none !important; z-index: 60 !important;',
   '  border-radius: 16px !important; overflow: hidden !important;',
-  '  background: var(--zf-m-solid) !important; background-image: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;',
-  '  box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 24px 60px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35) !important;',
   '  translate: calc(-100% - 28px) 0; opacity: 0; pointer-events: none;',
   '  transition: translate 150ms cubic-bezier(0.4, 0, 1, 1), opacity 110ms ease;',
   '  will-change: translate, opacity; contain: layout paint;',
@@ -508,10 +496,6 @@ const ARCLIKE_CSS = [
   "html[data-zf-arc='1'][data-zf-arc-open='1'] [data-zf-arc-col] {",
   '  translate: 0 0; opacity: 1; pointer-events: auto;',
   '  transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease;',
-  '}',
-  // the card's own surfaces are see-through so the card is one piece of glass
-  "html[data-zf-arc='1'] [data-zf-arc-col] > div, html[data-zf-arc='1'] [data-zf-arc-col] [data-slot='sidebar'] {",
-  '  background: transparent !important; border: 0 !important;',
   '}',
   // room at the bottom of the column for snippets + status
   "[data-zf-arc-col] > div { padding-bottom: var(--zf-arc-foot, 0px) !important; }",
@@ -523,10 +507,6 @@ const ARCLIKE_CSS = [
   // menus, tooltips and dialogs opened from inside the card must sit above it
   "[data-radix-popper-content-wrapper], [role='menu'], [role='listbox'], [role='tooltip'], [data-slot$='-content'][data-state='open'][style*='--radix'] { z-index: 70 !important; }",
   "[data-slot='dialog-overlay'], [data-slot='dialog-content'], [data-slot='sheet-overlay'], [data-slot='sheet-content'], [data-slot='alert-dialog-overlay'], [data-slot='alert-dialog-content'] { z-index: 72 !important; }",
-  // one surface: the session panels inside the column lose their own fill so
-  // sessions, snippets and the command center all sit on the same colour
-  "html body [data-zf-arc-col] [data-slot='sidebar-content'] > :is([data-slot='sidebar-group'], [data-sessions-mode], div:last-child) { background: transparent !important; box-shadow: none !important; }",
-  "html body [data-zf-arc-col] [data-slot='sidebar-content'] > div:has(input) { background: rgba(var(--zf-hi), 0.05) !important; box-shadow: none !important; }",
   // the sidebar toggle hides while the arclike is out; the card is the control then
   "html[data-zf-arc-ready='1'] div.fixed:has(> button[aria-label*='sidebar' i]) { opacity: 0 !important; pointer-events: none !important; }",
   // Pinned: the same card, docked. Inset from the window edge, rounded, one
@@ -534,10 +514,7 @@ const ARCLIKE_CSS = [
   "html:not([data-zf-arc='1']) [data-zf-arc-col] {",
   '  margin: 10px 0 10px 10px !important; height: calc(100vh - 20px) !important; align-self: flex-start;',
   '  border-radius: 16px !important; overflow: hidden !important;',
-  '  background: var(--zf-m-pin-b) !important;',
-  '  box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 18px 48px rgba(0, 0, 0, 0.35) !important;',
   '}',
-  "html:not([data-zf-arc='1']) [data-zf-arc-col] > div, html:not([data-zf-arc='1']) [data-zf-arc-col] [data-slot='sidebar'] { background: transparent !important; border: 0 !important; }",
   // the sidebar's docked rows step back while Settings is open
   "html:has([class*='grid-cols-[13rem_minmax(0,1fr)]']) :is(#zf-cc-head, #zephyr-snips, footer[data-zf-arc-foot]) { visibility: hidden !important; }",
   // sidebar mode switch, sitting in the command-center row
@@ -552,24 +529,11 @@ const ARCLIKE_CSS = [
   "html[data-zf-arc='1'][data-zf-arc-open='1'] #zf-mode-btn { translate: 0 0; opacity: 1; pointer-events: auto; transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease, background-color 120ms ease, color 120ms ease; }",
   "#zf-mode-btn:hover, #zf-mode-btn:focus-visible { background: rgba(var(--zf-hi), 0.10); color: var(--zf-ink-0, #fbf1c7); outline: none !important; }",
   "#zf-mode-btn:active { transform: scale(0.92); }",
-  // Glass. Pinned surfaces (sidebar, composer, your messages, cards, sheets)
-  // let the frosted painting through; the floating card stays solid because
-  // it sits over text.
-  "html:not([data-zf-arc='1']) body [data-zf-arc-col] { background: linear-gradient(var(--zf-m-pin-a), var(--zf-m-pin-b)) !important; backdrop-filter: blur(20px) saturate(1.2) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 18px 48px rgba(0, 0, 0, 0.30) !important; }",
-  "html[data-zf-arc='1'] body [data-zf-arc-col] { background: var(--zf-m-solid) !important; }",
   "html[data-zf-arc='1'] body [data-zf-arc-col] :is(footer[data-zf-arc-foot], #zephyr-snips) { background: transparent !important; }",
   // left-edge hot zone, invisible
   '#zf-rail-hot { position: fixed; left: 0; top: 40px; bottom: 0; width: 8px; z-index: 59; display: none; background: transparent; }',
   "html[data-zf-arc='1']:not([data-zf-arc-open='1']) #zf-rail-hot { display: block; }",
-  "[data-slot='sidebar-wrapper'], [data-slot='sidebar'] { border-left: 0 !important; border-right: 0 !important; }",
 
-  // Sessions / Bots: equal halves, dark selected rectangle
-  "[data-zf-arc-col] [role='tablist']:has([data-slot='pane-tab']) { border-radius: 10px !important; padding: 3px !important; gap: 3px !important; background: rgba(0, 0, 0, 0.24) !important; overflow: hidden !important; height: 32px !important; box-sizing: border-box !important; }",
-  "[data-zf-arc-col] [data-slot='pane-tab'] { flex: 1 1 0 !important; height: 26px !important; justify-content: center !important; border-radius: 7px !important; border: 0 !important; background: transparent !important; box-shadow: none !important; }",
-  "[data-zf-arc-col] [data-slot='pane-tab'] .uppercase { text-transform: none !important; letter-spacing: 0 !important; font-size: 12px !important; }",
-  "[data-zf-arc-col] [data-slot='pane-tab']:hover { background: rgba(var(--zf-hi), 0.05) !important; }",
-  "[data-zf-arc-col] [data-slot='pane-tab'][aria-selected='true'] { background: rgba(var(--zf-hi), 0.10) !important; color: var(--zf-ink-0, #fbf1c7) !important; }",
-  "[data-zf-arc-col] [data-slot='pane-tab'] :is(span, div) { background: transparent !important; }",
 
   // ── Command center data: the live status bar, docked at the bottom of the
   // column and moving with it. No tab, no popover, no second window.
@@ -7753,9 +7717,11 @@ export default {
       document.body.appendChild(modeBtn)
       const ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>'
       const ICON_FLOAT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><rect x="6" y="7" width="5" height="10" rx="1.5"/></svg>'
+      // the chord is the platform's own: Cmd on macOS, Ctrl everywhere else
+      const CHORD = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '') ? '\u2318S' : 'Ctrl+S'
       const paintMode = () => {
         modeBtn.innerHTML = arc ? ICON_PIN : ICON_FLOAT
-        modeBtn.title = arc ? 'Pin sidebar (⌘S)' : 'Float sidebar (⌘S)'
+        modeBtn.title = arc ? `Pin sidebar (${CHORD})` : `Float sidebar (${CHORD})`
         modeBtn.setAttribute('aria-label', modeBtn.title)
       }
       modeBtn.addEventListener('click', e => {
@@ -7927,7 +7893,7 @@ export default {
       // Cmd+S: hide / show the sidebar (pinned <-> arclike)
       window.addEventListener('keydown', event => {
         if (!alive()) return
-        if (event.metaKey && !event.shiftKey && !event.altKey && !event.ctrlKey && (event.key === 's' || event.key === 'S')) {
+        if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && (event.key === 's' || event.key === 'S')) {
           event.preventDefault()
           event.stopImmediatePropagation()
           if (!document.querySelector("[data-slot='sidebar']")) {

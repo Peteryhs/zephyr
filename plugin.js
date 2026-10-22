@@ -498,7 +498,6 @@ const ARCLIKE_CSS = [
   '  transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease;',
   '}',
   // room at the bottom of the column for snippets + status
-  "[data-zf-arc-col] > div { padding-bottom: var(--zf-arc-foot, 0px) !important; }",
   // the chat keeps the toggle's corner clear once the sidebar is out of the flow
   "html[data-zf-arc='1'] [data-tree-split] > div:not([data-zf-arc-col]) [data-window-top] {",
   // the mode button lives inside the card here, so the tabs can take the corner
@@ -515,8 +514,6 @@ const ARCLIKE_CSS = [
   '  margin: 10px 0 10px 10px !important; height: calc(100vh - 20px) !important; align-self: flex-start;',
   '  border-radius: 16px !important; overflow: hidden !important;',
   '}',
-  // the sidebar's docked rows step back while Settings is open
-  "html:has([class*='grid-cols-[13rem_minmax(0,1fr)]']) :is(#zf-cc-head, #zephyr-snips, footer[data-zf-arc-foot]) { visibility: hidden !important; }",
   // sidebar mode switch, sitting in the command-center row
   "#zf-mode-btn { position: absolute; left: 8px; top: 4px; z-index: 5; display: none; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--zf-ink-2, #ebdbb2); cursor: pointer; -webkit-app-region: no-drag; transition: background-color 120ms ease, color 120ms ease, transform 120ms ease; }",
   "[data-zf-arc-col] > #zf-mode-btn { display: inline-grid; position: absolute !important; left: 10px !important; top: 3px !important; width: 24px !important; height: 24px !important; margin: 0 !important; transform: none; }",
@@ -529,90 +526,15 @@ const ARCLIKE_CSS = [
   "html[data-zf-arc='1'][data-zf-arc-open='1'] #zf-mode-btn { translate: 0 0; opacity: 1; pointer-events: auto; transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease, background-color 120ms ease, color 120ms ease; }",
   "#zf-mode-btn:hover, #zf-mode-btn:focus-visible { background: rgba(var(--zf-hi), 0.10); color: var(--zf-ink-0, #fbf1c7); outline: none !important; }",
   "#zf-mode-btn:active { transform: scale(0.92); }",
-  "html[data-zf-arc='1'] body [data-zf-arc-col] :is(footer[data-zf-arc-foot], #zephyr-snips) { background: transparent !important; }",
   // left-edge hot zone, invisible
   '#zf-rail-hot { position: fixed; left: 0; top: 40px; bottom: 0; width: 8px; z-index: 59; display: none; background: transparent; }',
   "html[data-zf-arc='1']:not([data-zf-arc-open='1']) #zf-rail-hot { display: block; }",
 
 
-  // ── Command center data: the live status bar, docked at the bottom of the
-  // column and moving with it. No tab, no popover, no second window.
-  '#zephyr-statusdock-tab, #zephyr-statusdock-head, #zephyr-statusdock-ghost, [data-zephyr-dock-pop] { display: none !important; }',
-  // Hidden only once the card has actually taken the data over: if the rail
-  // never starts, the app's own command center must stay.
-  "html[data-zf-arc-ready='1'] body [data-slot*='command-center'], html[data-zf-arc-ready='1'] body [data-slot*='commandCenter'], html[data-zf-arc-ready='1'] body #command-center { display: none !important; }",
-  "html body [data-zephyr-dock-room][data-zephyr-dock-room], html body [data-zephyr-lib-room][data-zephyr-lib-room] { margin-top: 0 !important; }",
-  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] {",
-  '  position: fixed !important; z-index: 61 !important;',
-  '  left: var(--zf-foot-x, 10px) !important; width: var(--zf-foot-w, 272px) !important;',
-  '  top: auto !important; bottom: var(--zf-foot-b, 10px) !important; right: auto !important;',
-  '  height: auto !important; max-height: 30vh !important; overflow: hidden auto !important; overscroll-behavior: contain;',
-  '  display: flex !important; flex-direction: column !important; justify-content: flex-start !important; align-items: stretch !important; gap: 2px !important;',
-  '  padding: 6px !important; box-sizing: border-box !important;',
-  '  border-radius: 0 0 var(--zf-foot-r, 16px) var(--zf-foot-r, 16px) !important;',
-  '  border-top: 1px solid rgba(235, 219, 178, 0.08) !important;',
-  '  background: transparent !important; box-shadow: none !important;',
-  '  transform: none !important; clip-path: none !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important;',
-  '  scrollbar-width: thin;',
-  '}',
-  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] > div { flex-direction: column !important; align-items: stretch !important; gap: 0 !important; overflow: visible !important; }",
-  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] > div:empty { display: none !important; }",
-  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] > div + div:not(:empty) { border-top: 1px solid rgba(235, 219, 178, 0.07) !important; margin-top: 3px !important; padding-top: 3px !important; }",
-  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] > div > * {",
-  '  height: 22px !important; min-height: 22px !important; width: 100% !important; justify-content: flex-start !important;',
-  '  padding: 0 8px !important; gap: 8px !important; border-radius: 6px !important; font-size: 12px !important;',
-  '  color: var(--zf-ink-1, #ebdbb2) !important; background: transparent !important; transform: none !important; opacity: 1 !important;',
-  '}',
-  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] > div > *:hover { background: rgba(235, 219, 178, 0.07) !important; }",
-  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] svg { width: 13px !important; height: 13px !important; flex: none; color: var(--zf-ink-3, #a89984) !important; }",
-
-  // the command center folds to one header row; shut by default
-  "html:not([data-zf-cc-open='1']) body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] { display: none !important; }",
-  '#zf-cc-head {',
-  '  position: fixed; z-index: 61; display: none; box-sizing: border-box;',
-  '  left: var(--zf-foot-x, 10px); width: var(--zf-foot-w, 272px);',
-  '  bottom: calc(var(--zf-foot-b, 10px) + var(--zf-foot-h, 0px));',
-  '  height: 28px; padding: 0 0.7rem 0 0.75rem; gap: 0.5rem; align-items: center; cursor: pointer; outline: none;',
-  '  border: 0 !important; border-top: 1px solid rgba(235, 219, 178, 0.08) !important; border-radius: 0 !important; background: transparent !important;',
-  '  font-size: 10.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;',
-  '  color: var(--zf-sd-lab-color, var(--zf-ink-2, #d5c4a1)); transition: color 150ms ease;',
-  '}',
-  "html[data-zf-arc-ready='1'] #zf-cc-head { display: flex; }",
-  '#zf-cc-head:hover, #zf-cc-head:focus-visible { color: var(--zf-ink-0, #fbf1c7); }',
-  '#zf-cc-head svg { width: 0.75rem; height: 0.75rem; flex: none; }',
-  '#zf-cc-head > span:not(.zf-cc-sum) { flex: none; white-space: nowrap; }',
-  '#zf-cc-head .zf-cc-sum { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: auto;',
-  '  text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 11px; color: var(--zf-ink-3, #a89984); }',
-  '#zf-cc-head .zf-cc-chev { transform: rotate(-90deg); transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }',
-  "html[data-zf-cc-open='1'] #zf-cc-head .zf-cc-chev { transform: none; }",
-  "html[data-zf-cc-open='1'] #zf-cc-head .zf-cc-sum { display: none; }",
-  // footer no longer carries the top rule; the head does
-  "html body footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot] { border-top: 0 !important; padding-top: 2px !important; }",
-  // ── Snippets: one slim row above the status data; opens upward
-  '#zephyr-snips[data-zf-stale] { display: none !important; }',
-  'html body #zephyr-snips[data-zf-arc-snips][data-zf-arc-snips] {',
-  '  position: fixed !important; z-index: 61 !important;',
-  '  left: var(--zf-foot-x, 10px) !important; width: var(--zf-foot-w, 272px) !important;',
-  '  top: auto !important; bottom: calc(var(--zf-foot-b, 10px) + var(--zf-foot-h, 0px) + var(--zf-cc-h, 0px)) !important;',
-  '  height: auto !important; max-height: 30vh !important; box-sizing: border-box !important;',
-  '  border-radius: 0 !important; border: 0 !important; border-top: 1px solid rgba(235, 219, 178, 0.08) !important;',
-  '  background: transparent !important; box-shadow: none !important; margin: 0 !important;',
-  '}',
-  'html body #zephyr-snips[data-zf-arc-snips][data-zf-arc-snips] .zf-lib-head { height: 28px !important; font-size: 10.5px !important; }',
-  'html body #zephyr-snips[data-zf-arc-snips][data-zf-arc-snips]:not([data-open]) .zf-lib-rows { display: none !important; }',
-
-  // everything that rides on the card slides with it
-  "html[data-zf-arc='1'] body :is(footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot], #zephyr-snips[data-zf-arc-snips][data-zf-arc-snips], #zf-cc-head) {",
-  '  translate: calc(-100% - 28px) 0; opacity: 0 !important; pointer-events: none !important;',
-  '  transition: translate 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease;',
-  '  will-change: translate, opacity;',
-  '}',
-  "html[data-zf-arc='1'][data-zf-arc-open='1'] body :is(footer[data-slot='statusbar'][data-zf-arc-foot][data-zf-arc-foot][data-zf-arc-foot], #zephyr-snips[data-zf-arc-snips][data-zf-arc-snips], #zf-cc-head) {",
-  '  translate: 0 0; opacity: 1 !important; pointer-events: auto !important;',
-  '  transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease;',
-  '}',
+  // The card slides on its own: the app keeps its status bar, its snippet card
+  // and the command center exactly where they were.
   '@media (prefers-reduced-motion: reduce) {',
-  "  [data-zf-arc-col], footer[data-zf-arc-foot], #zephyr-snips[data-zf-arc-snips], #zf-cc-head { transition: none !important; }",
+  "  [data-zf-arc-col] { transition: none !important; }",
   '}',
 ]
 
@@ -7684,30 +7606,6 @@ export default {
 
       document.querySelectorAll('#zf-rail-hot').forEach(el => el.remove())
 
-      // command center header: folds the status data, shut by default
-      const CC_KEY = 'zephyr.arc.cc.v1'
-      document.querySelectorAll('#zf-cc-head').forEach(el => el.remove())
-      const ccHead = document.createElement('div')
-      ccHead.id = 'zf-cc-head'
-      ccHead.setAttribute('role', 'button')
-      ccHead.tabIndex = 0
-      ccHead.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>'
-        + '<span>Command center</span><span class="zf-cc-sum"></span>'
-        + '<svg class="zf-cc-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>'
-      document.body.appendChild(ccHead)
-      const ccOpen = () => { try { return localStorage.getItem(CC_KEY) === '1' } catch { return false } }
-      const applyCC = () => {
-        const on = ccOpen()
-        if (on) root.dataset.zfCcOpen = '1'
-        else delete root.dataset.zfCcOpen
-        ccHead.setAttribute('aria-expanded', String(on))
-        ccHead.title = on ? 'Collapse command center' : 'Expand command center'
-      }
-      const flipCC = () => {
-        try { localStorage.setItem(CC_KEY, ccOpen() ? '0' : '1') } catch {}
-        applyCC()
-        requestAnimationFrame(() => measureFoot())
-      }
       document.querySelectorAll('#zf-mode-btn').forEach(el => el.remove())
       const modeBtn = document.createElement('button')
       modeBtn.type = 'button'
@@ -7730,9 +7628,6 @@ export default {
         morph(() => { setArc(true); setOpen(true, true) })
       })
       modeBtn.addEventListener('keydown', e => e.stopPropagation())
-      ccHead.addEventListener('click', flipCC)
-      ccHead.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flipCC() } })
-      applyCC()
 
       const hot = document.createElement('div')
       hot.id = 'zf-rail-hot'
@@ -7785,26 +7680,12 @@ export default {
         else delete root.dataset.zfArcOpen
         if (instant) {
           const col = column()
-          const els = [col, document.querySelector('footer[data-zf-arc-foot]'), document.querySelector('#zephyr-snips[data-zf-arc-snips]')].filter(Boolean)
+          const els = [col].filter(Boolean)
           els.forEach(el => { el.style.transition = 'none' })
           requestAnimationFrame(() => els.forEach(el => { el.style.transition = '' }))
         }
       }
 
-      // footer + snippets geometry follows the column (card or pinned)
-      let footRO = null
-      const measureFoot = () => {
-        const foot = document.querySelector('footer[data-zf-arc-foot]')
-        const snips = document.querySelector('#zephyr-snips[data-zf-arc-snips]')
-        const fh = foot && root.dataset.zfCcOpen === '1' ? foot.offsetHeight : 0
-        const hh = ccHead.offsetHeight
-        const sh = snips && !snips.hidden ? snips.offsetHeight : 0
-        root.style.setProperty('--zf-foot-h', fh + 'px')
-        root.style.setProperty('--zf-cc-h', hh + 'px')
-        root.style.setProperty('--zf-arc-foot', (fh + hh + sh) + 'px')
-      }
-      let lastFoot = null
-      let lastSnips = null
       const sync = () => {
         if (!alive()) return
         const side = document.querySelector("[data-slot='sidebar']")
@@ -7831,53 +7712,7 @@ export default {
         else if (root.dataset.zfArc) delete root.dataset.zfArc
         if (modeBtn.dataset.arc !== String(arc)) { modeBtn.dataset.arc = String(arc); paintMode() }
 
-        const foot = document.querySelector("footer[data-slot='statusbar']")
-        if (foot && !foot.hasAttribute('data-zf-arc-foot')) foot.setAttribute('data-zf-arc-foot', '')
         if (!root.dataset.zfArcReady) root.dataset.zfArcReady = '1'
-        // one-line summary on the folded header: the backend state
-        const sumEl = ccHead.querySelector('.zf-cc-sum')
-        let sum = ''
-        if (foot) {
-          const row = Array.from(foot.querySelectorAll(':scope > div > *')).find(el => /ready|connect|offline|error|starting|stopped/i.test(el.textContent || ''))
-          sum = row ? Array.from(row.querySelectorAll('*')).filter(el => !el.children.length).map(el => el.textContent.trim()).filter(Boolean).join(' ') : ''
-        }
-        if (sumEl.textContent !== sum) sumEl.textContent = sum
-        // chat tabs clear the sidebar toggle wherever the window chrome puts it
-        const tb = toggleBtn()
-        if (tb) {
-          const right = Math.round(tb.getBoundingClientRect().right + 10)
-          if (root.style.getPropertyValue('--zf-tb-left') !== right + 'px') root.style.setProperty('--zf-tb-left', right + 'px')
-        }
-        const all = Array.from(document.querySelectorAll('#zephyr-snips'))
-        const snips = all[all.length - 1] || null
-        all.forEach(el => { if (el !== snips) el.setAttribute('data-zf-stale', ''); else el.removeAttribute('data-zf-stale') })
-        if (snips && !snips.hasAttribute('data-zf-arc-snips')) snips.setAttribute('data-zf-arc-snips', '')
-
-        if (arc) {
-          root.style.setProperty('--zf-foot-x', '10px')
-          root.style.setProperty('--zf-foot-w', '272px')
-          root.style.setProperty('--zf-foot-b', '10px')
-          root.style.setProperty('--zf-foot-r', '16px')
-        } else if (col) {
-          const r = col.getBoundingClientRect()
-          root.style.setProperty('--zf-foot-x', Math.round(r.left) + 'px')
-          root.style.setProperty('--zf-foot-w', Math.round(r.width) + 'px')
-          root.style.setProperty('--zf-foot-b', Math.max(0, Math.round(innerHeight - r.bottom)) + 'px')
-          root.style.setProperty('--zf-foot-r', '0px')
-        }
-        if (foot !== lastFoot || snips !== lastSnips) {
-          lastFoot = foot
-          lastSnips = snips
-          if (footRO) footRO.disconnect()
-          if (typeof ResizeObserver === 'function') {
-            footRO = new ResizeObserver(measureFoot)
-            if (foot) footRO.observe(foot)
-            footRO.observe(ccHead)
-            if (snips) footRO.observe(snips)
-            if (col) footRO.observe(col)
-          }
-          measureFoot()
-        }
       }
       let queued = false
       const schedule = () => {
@@ -7940,8 +7775,7 @@ export default {
         railDead = true
         railObs.disconnect()
         window.removeEventListener('resize', schedule)
-        hot.remove(); ccHead.remove(); modeBtn.remove()
-        if (footRO) footRO.disconnect()
+        hot.remove(); modeBtn.remove()
         for (const k of ['zfArc', 'zfArcOpen', 'zfArcReady', 'zfArcSeen', 'zfMorph']) delete root.dataset[k]
         document.querySelectorAll('[data-zf-arc-col]').forEach(el => { delete el.dataset.zfArcCol })
       })

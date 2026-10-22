@@ -1033,6 +1033,13 @@ const ARCLIKE_CSS = [
   // card's z-60) they only showed once the slide had finished, which read as
   // arriving late, while the card was already there.
   "html[data-zf-arc='1'] body :is(#zephyr-snips, #zephyr-statusdock-head) { z-index: 61 !important; }",
+  // Their x is the card's own, not the app's next measurement: with the column
+  // parked, the app's own re-measure lands late (its heartbeat is a second) and
+  // the two arrive after the card. Fixed to the card, they ride it exactly.
+  "html[data-zf-arc='1'] body :is(#zephyr-snips, #zephyr-statusdock-head) {",
+  '  left: var(--zf-rail-x, 20px) !important;',
+  '  width: var(--zf-rail-w, 252px) !important;',
+  '}',
   "html[data-zf-arc='1']:not([data-zf-arc-open='1']) body :is(#zephyr-snips, #zephyr-statusdock-head) {",
   '  translate: calc(-100% - 28px) 0; opacity: 0; pointer-events: none;',
   '}',
@@ -8662,12 +8669,6 @@ export default {
       // layout from the column's box. A CSS slide moves that box, so once the
       // slide settles the app gets one resize to re-measure against the new
       // one: ordered, not fighting.
-      let relayoutT = 0
-      const relayout = (after = 340) => {
-        clearTimeout(relayoutT)
-        relayoutT = setTimeout(() => { relayoutT = 0; if (alive()) window.dispatchEvent(new Event('resize')) }, after)
-      }
-
       const column = () => {
         const side = document.querySelector("[data-slot='sidebar']")
         let node = side
@@ -8699,7 +8700,6 @@ export default {
         try { localStorage.setItem(ARC_KEY, value ? '1' : '0') } catch {}
         setOpen(false, true)
         sync()
-        relayout()
       }
       const setOpen = (value, instant) => {
         clearTimeout(closeTimer)
@@ -8707,9 +8707,6 @@ export default {
         open = value
         if (value) root.dataset.zfArcOpen = '1'
         else delete root.dataset.zfArcOpen
-        // opening: measured now, so nothing shifts after the pieces have landed.
-        // closing: measured once the card is away, where a re-measure cannot show.
-        relayout(value ? 0 : 400)
         if (instant) {
           const col = column()
           const els = [col].filter(Boolean)
@@ -8745,6 +8742,15 @@ export default {
         if (modeBtn.dataset.arc !== String(arc)) { modeBtn.dataset.arc = String(arc); paintMode() }
 
         if (!root.dataset.zfArcReady) root.dataset.zfArcReady = '1'
+        // the floating card's inner x, so the fixed layers above can sit on it
+        const content = side.querySelector("[data-slot='sidebar-content']")
+        if (content) {
+          const padX = parseFloat(getComputedStyle(content).paddingLeft) || 10
+          const x = Math.round(10 + padX)
+          const w = Math.round(272 - 2 * padX)
+          if (root.style.getPropertyValue('--zf-rail-x') !== x + 'px') root.style.setProperty('--zf-rail-x', x + 'px')
+          if (root.style.getPropertyValue('--zf-rail-w') !== w + 'px') root.style.setProperty('--zf-rail-w', w + 'px')
+        }
       }
       let queued = false
       const schedule = () => {
@@ -8807,7 +8813,6 @@ export default {
         railDead = true
         railObs.disconnect()
         window.removeEventListener('resize', schedule)
-        clearTimeout(relayoutT)
         hot.remove(); modeBtn.remove()
         for (const k of ['zfArc', 'zfArcOpen', 'zfArcReady', 'zfArcSeen', 'zfMorph']) delete root.dataset[k]
         document.querySelectorAll('[data-zf-arc-col]').forEach(el => { delete el.dataset.zfArcCol })

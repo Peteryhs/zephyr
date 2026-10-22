@@ -328,7 +328,7 @@ const ensurePictureStyle = url => {
 // colours that were not ours, and every message group 16px wider than the column
 // it sits in. This layer puts the app on one scale: four radii, one border
 // colour, one hover, one focus ring, and prose that cannot overflow.
-const polishCss = () => [
+const polishCss = (gruv = false) => [
   // The app's ink tiers were landing on values that read as invisible against
   // this ground: secondary computed to rgb(33 3 25) (1.09:1) and quaternary to
   // 36% ink (1.01:1). Pane-tab labels, timestamps and session subtitles were
@@ -506,10 +506,14 @@ const polishCss = () => [
   "html body :focus-visible { outline: 1.5px solid rgba(var(--zf-hi), 0.38) !important; outline-offset: 2px; border-color: rgba(var(--zf-hi), 0.28) !important; }",
   "html body :is([data-slot='composer-rich-input'], [data-slot^='composer'] textarea, [data-slot^='composer'] [contenteditable='true'], [data-slot^='composer'] input):is(:focus, :focus-visible) { outline: none !important; box-shadow: none !important; border-color: transparent !important; }",
   "html body [data-slot='composer-surface']:focus-within { box-shadow: inset 0 0 0 1px rgba(var(--zf-hi), 0.16), var(--zf-lift, 0 8px 24px rgba(0,0,0,.3)) !important; }",
-  // Glass: the composer, your messages, cards and sheets let the frosted
-  // picture through.
-  "html body div[data-slot='composer-surface'][data-slot][class] { background: linear-gradient(var(--zf-m-comp-a), var(--zf-m-comp-b)) !important; backdrop-filter: blur(18px) saturate(1.25) brightness(1.08) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 10px 30px rgba(0, 0, 0, 0.22) !important; }",
-  "html body :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) { background: linear-gradient(var(--zf-m-bub-a), var(--zf-m-bub-b)) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 6px 20px rgba(0, 0, 0, 0.16) !important; border-color: transparent !important; }",
+  // The composer and your own messages wear the gruvbox glass. Under the sky
+  // they keep the material every other surface wears (--zf-glass): a plain
+  // white wash over a blue sky reads as a different, lighter thing than the
+  // cards beside it.
+  ...(gruv ? [
+    "html body div[data-slot='composer-surface'][data-slot][class] { background: linear-gradient(var(--zf-m-comp-a), var(--zf-m-comp-b)) !important; backdrop-filter: blur(18px) saturate(1.25) brightness(1.08) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 10px 30px rgba(0, 0, 0, 0.22) !important; }",
+    "html body :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) { background: linear-gradient(var(--zf-m-bub-a), var(--zf-m-bub-b)) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 6px 20px rgba(0, 0, 0, 0.16) !important; border-color: transparent !important; }",
+  ] : []),
   "div.rounded-xl:has(> * [class*='grid-cols-[13rem_minmax(0,1fr)]']), div.rounded-xl:has(> [class*='grid-cols-[13rem_minmax(0,1fr)]']) { background: var(--zf-m-sheet) !important; backdrop-filter: blur(28px) saturate(1.1) !important; }",
 
   // Two text roles still resolved to a colour the theme never chose — the pane
@@ -1991,7 +1995,7 @@ const skyStyleFor = (date, gl = false) => {
     // swallow everything after it.
     ...materialVars(gruv),
     ...(gruv ? gruvboxTextCss() : []),
-    ...polishCss(),
+    ...polishCss(gruv),
     // Sidebar cards, the composer and the switch pill share the material.
     "[data-slot='sidebar-content'] > [data-slot='sidebar-group'],",
     "[data-slot='sidebar-content'] > [data-sessions-mode],",

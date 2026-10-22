@@ -4251,13 +4251,14 @@ const syncSolar = async ctx => {
       return
     }
     const city = tz.split('/').pop()?.replace(/_/g, ' ') || 'Toronto'
-    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`)
+    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`, { signal: netSignal() })
     if (!geoRes.ok) return
     const geoData = await geoRes.json()
     const loc = geoData.results?.[0]
     if (!loc) return
     const weatherRes = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=sunrise,sunset&timezone=auto`
+      `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=sunrise,sunset&timezone=auto`,
+      { signal: netSignal() }
     )
     if (!weatherRes.ok) return
     const weatherData = await weatherRes.json()
@@ -4280,6 +4281,9 @@ const syncSolar = async ctx => {
 // wind and visibility, refreshed every 30 minutes and cached between runs.
 const WEATHER_TTL_MS = 30 * 60 * 1000
 
+// a hung request must not leave the sky waiting forever
+const netSignal = () => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined)
+
 const syncWeather = async ctx => {
   const cached = ctx.storage.get('liveWeather', null)
   if (cached && Date.now() - cached.at < WEATHER_TTL_MS) return cached.current
@@ -4287,7 +4291,7 @@ const syncWeather = async ctx => {
   try {
     const [lat, lng] = liveSolar?.lat != null ? [liveSolar.lat, liveSolar.lng] : getApproxCoords()
     const fields = 'weather_code,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,wind_direction_10m,visibility'
-    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=${fields}&timezone=auto`)
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=${fields}&timezone=auto`, { signal: netSignal() })
     if (!res.ok) return cached?.current || null
     const data = await res.json()
     if (!data.current) return cached?.current || null
@@ -4871,7 +4875,7 @@ export default {
       })
     }
 
-    const pins = atom(stored(STORE_KEYS.pins) || [])
+    const pins = atom((() => { const v = stored(STORE_KEYS.pins); return Array.isArray(v) ? v.filter(p => p && typeof p.id === 'string') : [] })())
     const auto = atom(stored(STORE_KEYS.auto) !== false)
     // Picking another theme in Appearance (Nous, Solarized, ...) must really switch to it:
     // while one is selected, Zephyr draws no sky or painting and asks for no theme. Picking
@@ -8957,7 +8961,7 @@ export default {
       sync()
 
       // Cmd+S: hide / show the sidebar (pinned <-> arclike)
-      window.addEventListener('keydown', event => {
+      const onCmdS = event => {
         if (!alive()) return
         if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && (event.key === 's' || event.key === 'S')) {
           event.preventDefault()
@@ -8970,10 +8974,11 @@ export default {
           }
           morph(() => setArc(!arc))
         }
-      }, true)
+      }
+      window.addEventListener('keydown', onCmdS, true)
 
       // the app's toggle flips arclike <-> pinned instead of unmounting the tree
-      window.addEventListener('click', event => {
+      const onToggleClick = event => {
         if (!alive() || !event.isTrusted) return
         const btn = event.target instanceof Element ? event.target.closest('button') : null
         if (!btn || !/^(show|hide) sidebar/i.test(btn.getAttribute('aria-label') || '')) return
@@ -8981,31 +8986,41 @@ export default {
         event.preventDefault()
         event.stopImmediatePropagation()
         setArc(!arc)
-      }, true)
+      }
+      window.addEventListener('click', onToggleClick, true)
 
       // reveal / tuck away
       hot.addEventListener('mouseenter', () => { if (alive() && arc) setOpen(true) })
       const busy = () => Boolean(document.querySelector('[data-radix-popper-content-wrapper], [role=menu], [role=dialog][data-state=open]'))
-      document.addEventListener('mousemove', event => {
+      const onArcMove = event => {
         if (!alive() || !arc || !open) return
         const limit = 10 + 272 + 6
         if (event.clientX <= limit) { clearTimeout(closeTimer); closeTimer = 0; return }
         if (closeTimer || busy()) return
         closeTimer = setTimeout(() => { closeTimer = 0; if (!busy()) setOpen(false) }, 40)
-      }, { passive: true })
-      document.documentElement.addEventListener('mouseleave', () => {
+      }
+      document.addEventListener('mousemove', onArcMove, { passive: true })
+      const onArcLeave = () => {
         if (!alive() || !arc || !open || busy()) return
         clearTimeout(closeTimer)
         closeTimer = setTimeout(() => { closeTimer = 0; setOpen(false) }, 60)
-      })
-      window.addEventListener('keydown', event => {
+      }
+      document.documentElement.addEventListener('mouseleave', onArcLeave)
+      const onArcEsc = event => {
         if (alive() && arc && open && event.key === 'Escape' && !busy()) setOpen(false)
-      })
+      }
+      window.addEventListener('keydown', onArcEsc)
 
       ctx.onDispose?.(() => {
         railDead = true
         railObs.disconnect()
         window.removeEventListener('resize', schedule)
+        window.removeEventListener('keydown', onCmdS, true)
+        window.removeEventListener('click', onToggleClick, true)
+        document.removeEventListener('mousemove', onArcMove)
+        document.documentElement.removeEventListener('mouseleave', onArcLeave)
+        window.removeEventListener('keydown', onArcEsc)
+        clearTimeout(closeTimer)
         hot.remove(); modeBtn.remove()
         for (const k of ['zfArc', 'zfArcOpen', 'zfArcReady', 'zfArcSeen', 'zfMorph']) delete root.dataset[k]
         document.querySelectorAll('[data-zf-arc-col]').forEach(el => { delete el.dataset.zfArcCol })

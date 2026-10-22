@@ -31,6 +31,7 @@ It's one JavaScript file. There's no build step, and it doesn't modify Hermes it
 **Snippet cards.** Your agent can show short facts as clean cards in the chat, for example a build size, a command or a time. You can copy a card, pin it to your library, or drag it onto the Shelf on the new-chat screen.
 
 **Calmer chat.**
+- Tab keys: Cmd+Option+Left / Right steps through the session tabs of the pane you are in, wrapping at the ends. It works while you type in the composer.
 - Spacious margins: a narrower reading column that lines up with the message box.
 - Fold finished work: when a reply is done, its thinking and tool steps fold into one line that shows how long it took.
 - Status panel: in Simple mode, the status bar (model, context, agents, radio) becomes a card in the sessions sidebar. Drag a status row onto the panel title to pin it.

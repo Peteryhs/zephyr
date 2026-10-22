@@ -4030,6 +4030,61 @@ export default {
     }
 
     const pins = atom(stored(STORE_KEYS.pins) || [])
+    // ── Tabs: ⌘⌥←/→ ─────────────────────────────────────────────────────────
+    if (typeof window !== 'undefined') {
+      // ⌘⌥←/→ steps through the session tabs of the pane you are in, wrapping at the
+      // ends. It also works while the cursor is in the composer: Chromium gives this
+      // chord no text-editing meaning, and the composer is where the cursor lives.
+      const sessionTabs = () => Array.from(document.querySelectorAll("[role='tab'][data-tree-tab]"))
+        .filter(tab => tab.dataset.slot !== 'pane-tab' && !tab.closest('[data-zf-arc-col]') && tab.getClientRects().length > 0)
+      // With a split there is one strip per pane: use the strip above the thing you are working in.
+      const stripOf = tabs => {
+        const strips = new Map()
+        for (const tab of tabs) {
+          const strip = tab.closest("[role='tablist']") || tab.parentElement
+          strips.set(strip, [...(strips.get(strip) || []), tab])
+        }
+        const lists = [...strips.values()]
+        if (lists.length < 2) return lists[0] || []
+        const focus = document.activeElement
+        const box = focus && focus !== document.body ? focus.getBoundingClientRect() : null
+        const cx = box && box.width ? box.left + box.width / 2 : null
+        if (cx !== null) {
+          for (const list of lists) {
+            const rects = list.map(tab => tab.closest("[role='tablist']")?.getBoundingClientRect() || tab.getBoundingClientRect())
+            if (cx >= rects[0].left && cx <= rects[0].right) return list
+          }
+        }
+        return lists.find(list => list.some(tab => tab.getAttribute('aria-selected') === 'true')) || lists[0]
+      }
+      // The tabs select on pointer down and up, not on a click event, so send those.
+      const pressTab = tab => {
+        const r = tab.getBoundingClientRect()
+        const at = { bubbles: true, cancelable: true, view: window, button: 0, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }
+        const pointer = { ...at, pointerId: 1, isPrimary: true, pointerType: 'mouse' }
+        tab.dispatchEvent(new PointerEvent('pointerdown', pointer))
+        tab.dispatchEvent(new PointerEvent('pointerup', pointer))
+      }
+      const stepTab = dir => {
+        const tabs = stripOf(sessionTabs())
+        if (tabs.length < 2) return false
+        const at = tabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true')
+        const next = tabs[((at < 0 ? 0 : at) + dir + tabs.length) % tabs.length]
+        pressTab(next)
+        next.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+        return true
+      }
+      const onTabChord = event => {
+        if (!event.metaKey || !event.altKey || event.ctrlKey || event.shiftKey || event.isComposing) return
+        const dir = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+        if (!dir || !stepTab(dir)) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+      }
+      window.addEventListener('keydown', onTabChord, true)
+      ctx.onDispose?.(() => window.removeEventListener('keydown', onTabChord, true))
+    }
+
     const auto = atom(stored(STORE_KEYS.auto) !== false)
     const tint = atom(stored(STORE_KEYS.tint) === true)
     const sky = atom(stored(STORE_KEYS.sky) !== false)

@@ -8701,7 +8701,11 @@ export default {
           if (sessions.length && Date.now() - fetchedAt < REFRESH_MS) return Promise.resolve()
           fetching = (async () => {
             try {
-              const r = await host.listPersistedSessions(null, { profile: host.state.profile.get(), limit: 200 })
+              // The host always sorts by started_at, newest first, and caps the page
+              // (`order: 'created'` is hard-coded in the SDK). Ask for the endpoint's
+              // whole page: at 200, a long-lived session you started months ago but
+              // still open daily falls outside the window and is never suggested.
+              const r = await host.listPersistedSessions(null, { profile: host.state.profile.get(), limit: 500 })
               if (dead) return
               sessions = Array.isArray(r && r.sessions) ? r.sessions.filter(s => s && typeof s.id === 'string') : []
               fetchedAt = Date.now()
@@ -9744,18 +9748,21 @@ export default {
       }
 
       const closePanel = panel => {
-        // 1. the panel's own labelled control, if it ships one
+        // 1. the panel's own labelled control, if it ships one. This is the only
+        //    safe path in Hermes: every right-hand pane here (preview, file,
+        //    artifact, the right sidebar) closes from a control of its own.
         const own = Array.from(panel.querySelectorAll('button, [role="button"], a'))
           .find(el => /close|dismiss|hide|collapse/i.test(el.getAttribute('aria-label') || el.title || el.textContent || ''))
-        if (own) press(own)
-        // 2. always also send Escape, which is what the app binds to dismiss a
-        //    preview pane. Harmless when the pane already closed itself above.
-        const target = document.activeElement || panel
+        if (own) { press(own); return true }
+        // 2. Escape, only when the pane ships no control, and only into the pane.
+        //    Escape is NOT a dismiss here: a window listener turns it into "cancel
+        //    the running turn" (use-composer-esc-cancel), and inside a preview
+        //    webview it means "go back a page". So it must never reach the
+        //    document, and never be sent next to a press that already worked.
         for (const type of ['keydown', 'keyup']) {
-          target.dispatchEvent(new KeyboardEvent(type, { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }))
-          document.dispatchEvent(new KeyboardEvent(type, { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }))
+          panel.dispatchEvent(new KeyboardEvent(type, { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }))
         }
-        return Boolean(own)
+        return false
       }
 
       const button = document.createElement('button')

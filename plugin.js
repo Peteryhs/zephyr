@@ -594,23 +594,6 @@ const polishCss = (gruv = false) => [
   '@keyframes zf-land-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }',
   "html[data-zf-landing='1'] :is(#zf-landing, .zf-landing-x) > * { animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }",
   "html[data-zf-landing='1'] :is(#zf-landing, .zf-landing-x) .zf-land-line { animation-delay: 80ms; }",
-  // The new-tab shelf: what to open next.
-  '#zf-home { position: fixed; z-index: 2; display: none; flex-direction: column; gap: 18px; pointer-events: none; overflow: hidden; }',
-  "#zf-home[data-on='1'] { display: flex; animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both; }",
-  '#zf-home h3 { margin: 0 0 14px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--zf-ink-0, #fbf1c7); opacity: 0.92; text-shadow: 0 1px 2px rgba(0,0,0,0.7), 0 0 14px rgba(0,0,0,0.55); }',
-  '#zf-home .zf-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }',
-  '@media (max-width: 640px) { #zf-home .zf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
-  '#zf-home .zf-card { position: relative; pointer-events: auto; min-width: 0; }',
-  '#zf-home .zf-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 5px; width: 100%; min-width: 0; padding: 17px 38px 17px 19px; border-radius: 18px; cursor: pointer; background: linear-gradient(180deg, rgba(var(--zf-hi), 0.13), rgba(var(--zf-hi), 0.05)), rgba(14, 24, 19, 0.58); box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.14), 0 0 0 1px rgba(var(--zf-hi), 0.12), 0 8px 24px rgba(0,0,0,0.28); backdrop-filter: blur(20px) saturate(1.25); -webkit-backdrop-filter: blur(20px) saturate(1.25); transition: box-shadow 140ms ease, background 140ms ease, transform 140ms ease; }',
-  '#zf-home .zf-card-open:hover { background: linear-gradient(180deg, rgba(var(--zf-hi), 0.2), rgba(var(--zf-hi), 0.08)), rgba(14, 24, 19, 0.6); box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.22), 0 0 0 1px rgba(var(--zf-hi), 0.28), 0 12px 28px rgba(0,0,0,0.34); transform: translateY(-2px); }',
-  '#zf-home .zf-card-open:focus-visible { box-shadow: 0 0 0 2px rgba(var(--zf-hi), 0.7); }',
-  '#zf-home .zf-card-title { font-size: 15.5px; font-weight: 600; letter-spacing: 0.005em; color: var(--zf-ink-0, #fbf1c7); text-shadow: 0 1px 2px rgba(0,0,0,0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
-  '#zf-home .zf-card-why { font-size: 12.5px; color: var(--zf-ink-2, #ebdbb2); opacity: 0.72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
-  '#zf-home .zf-card-x { all: unset; position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-size: 15px; line-height: 1; cursor: pointer; color: var(--zf-ink-2, #ebdbb2); opacity: 0; transition: opacity 120ms ease, background 120ms ease; }',
-  '#zf-home .zf-card:hover .zf-card-x, #zf-home .zf-card:focus-within .zf-card-x { opacity: 0.7; }',
-  '#zf-home .zf-card-x:hover { opacity: 1; background: rgba(var(--zf-hi), 0.14); }',
-  '#zf-landing p:not(.wordmark) { font-size: 17px !important; line-height: 1.5 !important; font-weight: 500 !important; letter-spacing: 0.01em !important; text-wrap: balance; color: var(--zf-ink-0, #fbf1c7) !important; opacity: 0.95 !important; text-shadow: 0 1px 2px rgba(0,0,0,0.8), 0 0 22px rgba(0,0,0,0.65), 0 0 48px rgba(0,0,0,0.4); }',
-  '@media (prefers-reduced-motion: reduce) { #zf-home[data-on="1"] { animation: none; } #zf-home .zf-card-open { transition: none; } }',
   // Settings is a floating sheet, solid enough that nothing reads through it
   "div.rounded-xl[data-zf-setbox] { background: var(--zf-m-sheet) !important; box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 30px 80px rgba(0, 0, 0, 0.55) !important; isolation: isolate; }",
   "[class*='grid-cols-[13rem_minmax(0,1fr)]'] > aside { background: rgba(0, 0, 0, 0.16) !important; }",
@@ -4637,6 +4620,48 @@ const SNIPPET_CSS = [
   '#zephyr-statusdock-ghost[data-docked] { opacity: 0; scale: 0.85; }',
   '@media (prefers-reduced-motion: reduce) { #zephyr-statusdock-ghost { transition: none; } }'
 ].join('\n')
+
+// The new-tab shelf is plugin UI, not scenery. It keeps its own always-on
+// sheet so it survives Zephyr being away (another theme, or Sky off): the fill
+// is the plugin's two-stop card glass when a Zephyr look is active, and the
+// host's own card when it is not. The drop shadow, text shadow and shape are
+// the plugin's own; only the material and ink are theme values. No live
+// backdrop-filter: like every other large Zephyr surface, the card sits on a
+// material, not on a blurred copy of the sky.
+const HOME_CSS = [
+  '#zf-home {',
+  '  --zf-home-fill-a: var(--zf-m-pin-a, var(--ui-widget-surface-background, rgba(20, 22, 28, 0.55)));',
+  '  --zf-home-fill-b: var(--zf-m-pin-b, var(--ui-sidebar-surface-background, rgba(12, 14, 20, 0.6)));',
+  '  --zf-home-ink-0: var(--zf-ink-0, var(--ui-text-primary, inherit));',
+  '  --zf-home-ink-2: var(--zf-ink-2, var(--ui-text-secondary, inherit));',
+  '  --zf-home-ink-3: var(--zf-ink-3, var(--ui-text-tertiary, inherit));',
+  '  --zf-home-hi: var(--zf-hi, 255, 255, 255);',
+  '  position: fixed; z-index: 2; display: none; flex-direction: column; gap: 18px; pointer-events: none; overflow: hidden;',
+  '}',
+  "#zf-home[data-on='1'] { display: flex; animation: zf-home-in 420ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both; }",
+  '@keyframes zf-home-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }',
+  '#zf-home h3 { margin: 0 0 14px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--zf-home-ink-0); opacity: 0.92; text-shadow: 0 1px 2px rgba(0,0,0,0.7), 0 0 14px rgba(0,0,0,0.55); }',
+  '#zf-home .zf-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }',
+  '@media (max-width: 640px) { #zf-home .zf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
+  '#zf-home .zf-card { position: relative; pointer-events: auto; min-width: 0; }',
+  '#zf-home .zf-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 5px; width: 100%; min-width: 0; padding: 17px 38px 17px 19px; border-radius: var(--zf-r-card, 12px); cursor: pointer; background: linear-gradient(180deg, rgba(var(--zf-home-hi), 0.13), rgba(var(--zf-home-hi), 0.05)), linear-gradient(180deg, var(--zf-home-fill-a), var(--zf-home-fill-b)); box-shadow: inset 0 1px 0 rgba(var(--zf-home-hi), 0.14), 0 0 0 1px rgba(var(--zf-home-hi), 0.12), 0 8px 24px rgba(0,0,0,0.28); transition: box-shadow 140ms ease, background 140ms ease, transform 140ms ease; }',
+  '#zf-home .zf-card-open:hover { background: linear-gradient(180deg, rgba(var(--zf-home-hi), 0.2), rgba(var(--zf-home-hi), 0.08)), linear-gradient(180deg, var(--zf-home-fill-a), var(--zf-home-fill-b)); box-shadow: inset 0 1px 0 rgba(var(--zf-home-hi), 0.22), 0 0 0 1px rgba(var(--zf-home-hi), 0.28), 0 12px 28px rgba(0,0,0,0.34); transform: translateY(-2px); }',
+  '#zf-home .zf-card-open:focus-visible { box-shadow: 0 0 0 2px rgba(var(--zf-home-hi), 0.7); }',
+  '#zf-home .zf-card-title { font-size: 15.5px; font-weight: 600; letter-spacing: 0.005em; color: var(--zf-home-ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+  '#zf-home .zf-card-why { font-size: 12.5px; color: var(--zf-home-ink-2); opacity: 0.72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+  '#zf-home .zf-card-x { all: unset; position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-size: 15px; line-height: 1; cursor: pointer; color: var(--zf-home-ink-3); opacity: 0; transition: opacity 120ms ease, background 120ms ease; }',
+  '#zf-home .zf-card:hover .zf-card-x, #zf-home .zf-card:focus-within .zf-card-x { opacity: 0.7; }',
+  '#zf-home .zf-card-x:hover { opacity: 1; background: rgba(var(--zf-home-hi), 0.14); }',
+  '@media (prefers-reduced-motion: reduce) { #zf-home[data-on="1"] { animation: none; } #zf-home .zf-card-open { transition: none; } }'
+].join('\n')
+
+const ensureHomeStyle = () => {
+  if (typeof document === 'undefined' || document.getElementById('zephyr-home-style')) return
+  const el = document.createElement('style')
+  el.id = 'zephyr-home-style'
+  el.textContent = HOME_CSS
+  document.head.appendChild(el)
+}
 const ensureSnippetStyle = () => {
   if (typeof document === 'undefined' || document.getElementById('zephyr-snippet-style')) return
   const el = document.createElement('style')
@@ -8334,6 +8359,7 @@ export default {
 
     // ── snippet cards: the medium for "small boxes I can copy and pin" ──
     ensureSnippetStyle()
+    ensureHomeStyle()
     ensureMotionStyle()
     ctx.register({
       id: 'snippet',

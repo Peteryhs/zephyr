@@ -1157,7 +1157,9 @@ const ARCLIKE_CSS = [
   '  translate: 0 0; opacity: 1; pointer-events: auto;',
   '  transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease;',
   '}',
-  // the card's own surfaces are see-through so the card is one piece of glass
+  // In floating mode the card's own surfaces are see-through, so the column is
+  // one piece of glass. Pinned does not flatten them: with no outer card, the
+  // inner surfaces have to paint themselves or the list would be a hole.
   "html[data-zf-arc='1'] [data-zf-arc-col] > div, html[data-zf-arc='1'] [data-zf-arc-col] [data-slot='sidebar'] {",
   '  background: transparent !important; border: 0 !important;',
   '}',
@@ -1214,15 +1216,12 @@ const ARCLIKE_CSS = [
   "[data-slot='dialog-overlay'], [data-slot='dialog-content'], [data-slot='sheet-overlay'], [data-slot='sheet-content'], [data-slot='alert-dialog-overlay'], [data-slot='alert-dialog-content'] { z-index: 72 !important; }",
   // the sidebar toggle hides while the arclike is out; the card is the control then
   "html[data-zf-arc-ready='1'] div.fixed[data-zf-sbbtn] { opacity: 0 !important; pointer-events: none !important; }",
-  // Pinned: the same card, docked. Inset from the window edge, rounded, one
-  // piece of glass; the chat sits beside it instead of butting into a strip.
+  // Pinned: no card. The column keeps the app's own gravity and inset, but
+  // paints nothing: the surfaces inside it are the sidebar, not a Zephyr panel.
+  // Floating mode below is the one piece of glass.
   "html:not([data-zf-arc='1']) [data-zf-arc-col] {",
   '  margin: 10px 0 10px 10px !important; height: calc(100vh - 20px) !important; align-self: flex-start;',
-  '  border-radius: 16px !important; overflow: hidden !important;',
-  '  background: var(--zf-m-pin-b) !important;',
-  '  box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 18px 48px rgba(0, 0, 0, 0.35) !important;',
   '}',
-  "html:not([data-zf-arc='1']) [data-zf-arc-col] > div, html:not([data-zf-arc='1']) [data-zf-arc-col] [data-slot='sidebar'] { background: transparent !important; border: 0 !important; }",
   // sidebar mode switch, sitting in the command-center row
   "#zf-mode-btn { position: absolute; left: 8px; top: 4px; z-index: 5; display: none; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--zf-ink-2, #ebdbb2); cursor: pointer; -webkit-app-region: no-drag; transition: background-color 120ms ease, color 120ms ease, transform 120ms ease; }",
   "[data-zf-arc-col] > #zf-mode-btn { display: inline-grid; position: absolute !important; left: 10px !important; top: 3px !important; width: 24px !important; height: 24px !important; margin: 0 !important; transform: none; }",

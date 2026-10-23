@@ -6,8 +6,9 @@
   "description": "Zephyr: a better UI for Hermes Agent, lit by the real sky",
   "scripts": {
     "build:sky": "node scripts/build-sky.mjs",
+    "build:recents": "node scripts/build-recents.mjs",
     "check": "node scripts/check.mjs",
-    "test": "node --test tests/engine.test.mjs tests/motion.test.mjs",
+    "test": "node --test tests/",
     "rig": "node tests/sky-rig.mjs"
   },
   "license": "MIT"

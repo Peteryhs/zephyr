@@ -129,8 +129,21 @@ The Custom look lives in one file, `<HERMES_HOME>/zephyr-theme.json`. **Settings
 ## Tabs
 
 - **Ctrl/Cmd+Option+Left/Right** walks the session tabs. It is a contributed keybind, so it can be rebound in Settings > Keybinds.
-- A new tab shows the Hermes wordmark instead of an empty page.
+- A new tab shows the Hermes wordmark instead of an empty page, with a shelf of sessions under it (see below).
 - Clicking a session in the sidebar opens it in the tab you are in, instead of adding one.
+## New tab shelf
+
+An empty tab suggests where to go next, in two rows:
+
+- **Pick up where you left off** is what you have been working on lately. A session you opened a few times in the last days ranks above one you touched once last week, and a visit where you wrote something counts for more than a glance.
+- **Your regulars** are the few sessions you keep coming back to, even if only once a fortnight. They appear after you have opened a session on three different days, and the ones that are due come first ("Usually every ~14 days, last 12 days ago").
+
+Every card says why it is there. The x on a card removes it (it comes back once you open that session again, or never, for a regular). Rows do not shuffle while you look at them, and pinned sessions and quick chats are left out.
+
+A quick chat is a small errand: six messages or fewer, you spoke three times at most, and you never came back on another day. What the agent did does not matter, so a short chat that ran forty commands is still a quick chat, and a long talk with no tools at all is not.
+
+It learns only from when you open sessions and send messages, and keeps a small record per session on your computer. Turn it off, or clear it, in **Settings > Zephyr > Chat**. The rules are in `recents/engine.js` and are tested against how a real history behaves.
+
 ## Snippet cards
 
 <p align="center">
@@ -165,13 +178,14 @@ If your machine still runs warm, set **Smoothness** to Low or turn off **Realist
 
 ## Privacy
 
-Zephyr doesn't ask for your location. It works out a nearby city from your system time zone, then gets sunrise, sunset and current weather from [Open-Meteo](https://open-meteo.com), a free weather service that needs no account or key. Nothing else leaves your computer.
+Zephyr doesn't ask for your location. It works out a nearby city from your system time zone, then gets sunrise, sunset and current weather from [Open-Meteo](https://open-meteo.com), a free weather service that needs no account or key. Nothing else leaves your computer. The new tab shelf keeps what it learns on your computer too.
 
 ## For developers
 
 - Everything lives in `plugin.js`, a plain ES module. The Hermes loader reads only that file and allows imports from `@hermes/plugin-sdk` and `react` only.
 - The file is split into numbered sections (`§1` to `§9`). The contents list at the top says what each one covers. Search for `══ §6` to jump to a section.
 - The sky section (§6) is generated from `sky/`. Edit those files, run `npm run build:sky`, and commit both.
+- The session suggestions are generated from `recents/engine.js` the same way. Edit it, run `npm run build:recents`, and commit both. It is plain functions with no page or Hermes in them, so `tests/recents.test.mjs` runs it directly.
 - Before you open a pull request, run `npm test`, `npm run check` and `npm run rig`, then try the change in the app.
 
 ## Where the sky comes from

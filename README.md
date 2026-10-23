@@ -140,8 +140,6 @@ An empty tab suggests where to go next, in two rows:
 - **Pick up where you left off** is the three sessions you have been working on lately. A session you opened a few times in the last days ranks above one you touched once last week, and a visit where you wrote something counts for more than a glance.
 - **Your regulars** are the few sessions you keep coming back to, even if only once a fortnight. They appear after you have opened a session on three different days, and the ones that are due come first ("Usually every ~14 days, last 12 days ago").
 
-The same three also sit in the sidebar under **Recommended**, between Pinned and Sessions. Click the heading to fold it away; the x on a row works the same as on a card.
-
 Every card says why it is there. The x on a card removes it (it comes back once you open that session again, or never, for a regular). Rows do not shuffle while you look at them, and pinned sessions and quick chats are left out.
 
 A quick chat is a small errand: six messages or fewer, you spoke three times at most, and you never came back on another day. What the agent did does not matter, so a short chat that ran forty commands is still a quick chat, and a long talk with no tools at all is not.

@@ -37,7 +37,7 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 const THEMES_AREA = 'themes'
 const DIRECTIVE_AREA = 'transcript.directives'
 
-const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin', home: 'home', recents: 'recents', recRail: 'recRail' }
+const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin', home: 'home', recents: 'recents' }
 const REPO_URL = 'https://github.com/Peteryhs/zephyr'
 
 // write an attribute only when its value changes: an identical write still queues a
@@ -609,21 +609,6 @@ const polishCss = (gruv = false) => [
   '#zf-home .zf-card-x { all: unset; position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-size: 15px; line-height: 1; cursor: pointer; color: var(--zf-ink-2, #ebdbb2); opacity: 0; transition: opacity 120ms ease, background 120ms ease; }',
   '#zf-home .zf-card:hover .zf-card-x, #zf-home .zf-card:focus-within .zf-card-x { opacity: 0.7; }',
   '#zf-home .zf-card-x:hover { opacity: 1; background: rgba(var(--zf-hi), 0.14); }',
-  '#zf-rec { flex: none; width: 100%; min-width: 0; margin: 2px 0 4px; }',
-  '#zf-rec[hidden] { display: none; }',
-  '#zf-rec .zf-rec-h { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 8px 6px; cursor: pointer; font-size: 10.24px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--zf-ink-2, #ebdbb2); }',
-  '#zf-rec .zf-rec-h .codicon { font-size: 12px; opacity: 0.7; transition: transform 140ms ease; transform: rotate(90deg); }',
-  "#zf-rec .zf-rec-h[aria-expanded='false'] .codicon { transform: none; }",
-  '#zf-rec .zf-rec-h:focus-visible, #zf-rec .zf-rec-open:focus-visible { outline: 2px solid rgba(var(--zf-hi), 0.7); outline-offset: -2px; border-radius: 8px; }',
-  '#zf-rec .zf-rec-row { position: relative; }',
-  '#zf-rec .zf-rec-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 1px; width: 100%; min-width: 0; padding: 6px 28px 6px 10px; border-radius: 8px; cursor: pointer; transition: background 120ms ease; }',
-  '#zf-rec .zf-rec-open:hover { background: rgba(var(--zf-hi), 0.09); }',
-  '#zf-rec .zf-rec-title { font-size: 13px; font-weight: 500; color: var(--zf-ink-0, #fbf1c7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
-  '#zf-rec .zf-rec-why { font-size: 11px; color: var(--zf-ink-2, #ebdbb2); opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
-  '#zf-rec .zf-rec-x { all: unset; position: absolute; top: 50%; right: 6px; width: 20px; height: 20px; margin-top: -10px; border-radius: 6px; display: grid; place-items: center; font-size: 14px; line-height: 1; cursor: pointer; color: var(--zf-ink-2, #ebdbb2); opacity: 0; transition: opacity 120ms ease, background 120ms ease; }',
-  '#zf-rec .zf-rec-row:hover .zf-rec-x, #zf-rec .zf-rec-row:focus-within .zf-rec-x { opacity: 0.7; }',
-  '#zf-rec .zf-rec-x:hover { opacity: 1; background: rgba(var(--zf-hi), 0.14); }',
-  '@media (prefers-reduced-motion: reduce) { #zf-rec .zf-rec-h .codicon, #zf-rec .zf-rec-open { transition: none; } }',
   '#zf-landing p:not(.wordmark) { font-size: 17px !important; line-height: 1.5 !important; font-weight: 500 !important; letter-spacing: 0.01em !important; text-wrap: balance; color: var(--zf-ink-0, #fbf1c7) !important; opacity: 0.95 !important; text-shadow: 0 1px 2px rgba(0,0,0,0.8), 0 0 22px rgba(0,0,0,0.65), 0 0 48px rgba(0,0,0,0.4); }',
   '@media (prefers-reduced-motion: reduce) { #zf-home[data-on="1"] { animation: none; } #zf-home .zf-card-open { transition: none; } }',
   // Settings is a floating sheet, solid enough that nothing reads through it
@@ -4928,7 +4913,7 @@ const candidates = (sessions, records, now, exclude) =>
 /* "Pick up where you left off": fast recency. Pinned sessions are already one
    click away, quick chats are noise, and a dismissed one stays gone until you
    open it again. */
-const PICK_UP_COUNT = 3   // one row of three on the new tab; the same three in the sidebar
+const PICK_UP_COUNT = 3   // one row of three on the new tab
 
 function pickUp(sessions, records, now, { exclude = new Set(), limit = PICK_UP_COUNT } = {}) {
   const out = []
@@ -8647,7 +8632,7 @@ export default {
       // draws what the rules return. Nothing is sent anywhere: the history is a
       // small record per session in this plugin's own storage.
       const home = (() => {
-        const none = { sync() {}, syncRail() {}, reset() {}, dispose() {} }
+        const none = { sync() {}, reset() {}, dispose() {} }
         if (typeof host === 'undefined' || !host.state || typeof host.listPersistedSessions !== 'function') return none
         const SEED_WINDOW = 30 * 86400
         const REFRESH_MS = 20000
@@ -8780,70 +8765,6 @@ export default {
           for (const k in next) if (el.style[k] !== next[k]) el.style[k] = next[k]
         }
 
-        // ── the same three, in the sidebar ──
-        // A "Recommended" group between Pinned and Sessions. React owns that column, so this
-        // only ever inserts its own node beside React's and puts it back if a re-render drops it.
-        const ensureRec = item => records[keyOf(item.session)] || (records[keyOf(item.session)] = RECENTS.emptyRecord(keyOf(item.session)))
-        const rail = document.createElement('div')
-        rail.id = 'zf-rec'
-        rail.setAttribute('aria-label', 'Recommended sessions')
-        let railOpen = ctx.storage.get(STORE_KEYS.recRail, true) !== false
-        let railSig = ''
-        let railFind = 0
-        let railTick = 0
-        const sessionsGroup = () => {
-          for (const g of document.querySelectorAll("[data-slot='sidebar-group']")) {
-            const b = g.querySelector('button')
-            if (b && b.textContent.trim() === 'Sessions') return g
-          }
-          return null
-        }
-        const railDraw = () => {
-          const { pick } = choose()
-          const sig = railOpen + '|' + pick.map(i => i.id + '\u0001' + i.reason + '\u0001' + (i.session.title || '')).join('\u0002')
-          if (sig === railSig) return
-          railSig = sig
-          rail.hidden = !pick.length
-          const head = document.createElement('button')
-          head.type = 'button'
-          head.className = 'zf-rec-h'
-          head.setAttribute('aria-expanded', String(railOpen))
-          const label = document.createElement('span')
-          label.textContent = 'Recommended'
-          const chev = document.createElement('i')
-          chev.className = 'codicon codicon-chevron-right'
-          head.append(label, chev)
-          head.addEventListener('click', () => { railOpen = !railOpen; try { ctx.storage.set(STORE_KEYS.recRail, railOpen) } catch {} ; railDraw() })
-          const parts = [head]
-          if (railOpen) {
-            for (const item of pick) {
-              const row = document.createElement('div')
-              row.className = 'zf-rec-row'
-              const b = document.createElement('button')
-              b.type = 'button'
-              b.className = 'zf-rec-open'
-              const t = document.createElement('span')
-              t.className = 'zf-rec-title'
-              t.textContent = (item.session.title || '').trim() || 'Untitled'
-              const r = document.createElement('span')
-              r.className = 'zf-rec-why'
-              r.textContent = item.reason
-              b.append(t, r)
-              b.addEventListener('click', () => open(item.id))
-              const x = document.createElement('button')
-              x.type = 'button'
-              x.className = 'zf-rec-x'
-              x.title = 'Not this one'
-              x.setAttribute('aria-label', 'Not this one')
-              x.textContent = '×'
-              x.addEventListener('click', e => { e.stopPropagation(); ensureRec(item).dismissed = Date.now(); queueSave(); railSig = ''; railDraw(); if (shown) draw() })
-              row.append(b, x)
-              parts.push(row)
-            }
-          }
-          rail.replaceChildren(...parts)
-        }
-
         return {
           // called on every page pass with the empty pane's box, or null
           sync(rect, tagline) {
@@ -8856,34 +8777,13 @@ export default {
             if (sessions.length) draw()
             refresh().then(() => { if (shown && mine === token && !el.querySelector('.zf-card')) draw() })
           },
-          syncRail() {
-            if (dead) return
-            if (!homeOn.get()) { if (rail.isConnected) rail.remove(); return }
-            const now = Date.now()
-            // placed? (cheap). If not, look for the Sessions group, at most twice a second.
-            const nx = rail.isConnected ? rail.nextElementSibling : null
-            const nb = nx && nx.querySelector('button')
-            const placed = Boolean(nb && nx.getAttribute('data-slot') === 'sidebar-group' && nb.textContent.trim() === 'Sessions')
-            if (!placed) {
-              if (now - railFind < 500) return
-              railFind = now
-              const g = sessionsGroup()
-              if (!g || !g.parentElement) { if (rail.isConnected) rail.remove(); return }
-              g.parentElement.insertBefore(rail, g)
-            }
-            if (now - railTick < 2000) return
-            railTick = now
-            if (sessions.length) railDraw()
-            refresh().then(() => { if (!dead) railDraw() })
-          },
-          poke() { if (shown && !homeOn.get()) hide(); if (!homeOn.get() && rail.isConnected) rail.remove() },
-          reset() { records = {}; flush(); railSig = ''; if (rail.isConnected) railDraw(); if (shown) draw() },
+          poke() { if (shown && !homeOn.get()) hide() },
+          reset() { records = {}; flush(); if (shown) draw() },
           dispose() {
             dead = true
             unbind.forEach(u => { try { u() } catch {} })
             flush()
             el.remove()
-            rail.remove()
           },
         }
       })()
@@ -8953,7 +8853,6 @@ export default {
           delete root.dataset.zfLanding
         }
         home.sync(empties.length ? empties[0].r : null, [...document.querySelectorAll("[data-slot='aui_intro'] p, #zf-landing p")].filter(e => !/wordmark/.test(String(e.className)) && e.getClientRects().length).pop())
-        home.syncRail()
       }
       let pageQueued = false
       // The sheet matched 13 things with :has(). Scrolling mounts rows, and each

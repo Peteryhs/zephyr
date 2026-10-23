@@ -9039,14 +9039,19 @@ export default {
       // Cmd+S / the mode button morph between pinned and floating: the column
       // and the main pane are captured and glide to their new boxes.
       const morph = fn => {
-        if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) { fn(); return }
+        if (document.hidden || !document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) { fn(); return }
         const col = column()
         const split = col && col.parentElement
         const main = split && Array.from(split.children).filter(c => c !== col && c.getClientRects().length).sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0]
         if (col) col.style.viewTransitionName = 'zf-side'
         if (main) main.style.viewTransitionName = 'zf-main'
         root.dataset.zfMorph = '1'
-        const t = document.startViewTransition(fn)
+        // The toggle must not wait on the animation: a view transition holds its callback until a
+        // frame is presented, which can take seconds under load, and a second press then undoes the first.
+        let ran = false
+        const once = () => { if (!ran) { ran = true; fn() } }
+        const t = document.startViewTransition(once)
+        setTimeout(once, 400)
         t.finished.finally(() => {
           if (col) col.style.viewTransitionName = ''
           if (main) main.style.viewTransitionName = ''

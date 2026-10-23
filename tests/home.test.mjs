@@ -61,6 +61,17 @@ test('the shelf uses the plugin card radius, not a one-off 18px', () => {
   assert.equal(home.includes('border-radius: 18px'), false)
 })
 
+test('the shelf does not cut card shadows at its clip edge', () => {
+  const root = ruleFor('#zf-home')
+  assert.match(root, /overflow: clip;/)
+  assert.match(root, /overflow-clip-margin: 48px/)
+  assert.doesNotMatch(root, /overflow: hidden/)
+})
+
+test('the scenery text shadow is dropped in a light host theme', () => {
+  assert.match(home, /html:not\(\.dark\) #zf-home h3 \{ text-shadow: none; \}/)
+})
+
 test('text shadow stays on text over scenery, not inside the card', () => {
   assert.match(ruleFor('#zf-home h3'), /text-shadow:/)
   assert.doesNotMatch(ruleFor('#zf-home .zf-card-title'), /text-shadow/)

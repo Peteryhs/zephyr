@@ -4636,11 +4636,17 @@ const HOME_CSS = [
   '  --zf-home-ink-2: var(--zf-ink-2, var(--ui-text-secondary, inherit));',
   '  --zf-home-ink-3: var(--zf-ink-3, var(--ui-text-tertiary, inherit));',
   '  --zf-home-hi: var(--zf-hi, 255, 255, 255);',
-  '  position: fixed; z-index: 2; display: none; flex-direction: column; gap: 18px; pointer-events: none; overflow: hidden;',
+  // The cards cast a 24-32px shadow. A plain hidden clip turns that into a hard
+  // edge at the shelf's right and bottom; clip, but 48px past the box, so the
+  // shadow can finish. Placement leaves 88px below the shelf for it.
+  '  position: fixed; z-index: 2; display: none; flex-direction: column; gap: 18px; pointer-events: none; overflow: clip; overflow-clip-margin: 48px;',
   '}',
   "#zf-home[data-on='1'] { display: flex; animation: zf-home-in 420ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both; }",
   '@keyframes zf-home-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }',
   '#zf-home h3 { margin: 0 0 14px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--zf-home-ink-0); opacity: 0.92; text-shadow: 0 1px 2px rgba(0,0,0,0.7), 0 0 14px rgba(0,0,0,0.55); }',
+  // In Zephyr the label sits on the sky and needs the shadow. In a light host
+  // theme it sits on a flat page, where the same black halo reads as dirt.
+  'html:not(.dark) #zf-home h3 { text-shadow: none; }',
   '#zf-home .zf-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }',
   '@media (max-width: 640px) { #zf-home .zf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
   '#zf-home .zf-card { position: relative; pointer-events: auto; min-width: 0; }',

@@ -23,4 +23,9 @@ spawnSync(process.execPath, ['scripts/build-sky.mjs'], { stdio: 'ignore' })
 const after = await readFile('plugin.js', 'utf8')
 if (before !== after) throw new Error('plugin.js §6 is stale: run npm run build:sky and commit the result')
 
+/* the same for the recents engine: plugin.js carries a generated copy */
+const beforeRecents = await readFile('plugin.js', 'utf8')
+spawnSync(process.execPath, ['scripts/build-recents.mjs'], { stdio: 'ignore' })
+if (beforeRecents !== await readFile('plugin.js', 'utf8')) throw new Error('plugin.js recents block is stale: run npm run build:recents and commit the result')
+
 console.log('All sky modules parse, a frozen frame evaluates, and plugin.js §6 matches sky/.')

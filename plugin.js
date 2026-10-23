@@ -29,7 +29,7 @@
  *   §9  PLUGIN REGISTRATION (register: settings, timers, observers)
  */
 
-import { atom, Button, Codicon, ListRow, requestTheme, SegmentedControl, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, setAccentOverride, Tip, ToggleRow, useValue } from '@hermes/plugin-sdk'
+import { atom, Button, Codicon, host, ListRow, requestTheme, SegmentedControl, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, setAccentOverride, Tip, ToggleRow, useValue } from '@hermes/plugin-sdk'
 import { jsx, jsxs } from 'react/jsx-runtime'
 
 // ══ §1 SETUP & CONSTANTS ═══════════════════════════════════════════════════
@@ -37,7 +37,7 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 const THEMES_AREA = 'themes'
 const DIRECTIVE_AREA = 'transcript.directives'
 
-const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin' }
+const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin', home: 'home', recents: 'recents', recRail: 'recRail' }
 const REPO_URL = 'https://github.com/Peteryhs/zephyr'
 
 // write an attribute only when its value changes: an identical write still queues a
@@ -594,6 +594,38 @@ const polishCss = (gruv = false) => [
   '@keyframes zf-land-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }',
   "html[data-zf-landing='1'] :is(#zf-landing, .zf-landing-x) > * { animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }",
   "html[data-zf-landing='1'] :is(#zf-landing, .zf-landing-x) .zf-land-line { animation-delay: 80ms; }",
+  // The new-tab shelf: what to open next.
+  '#zf-home { position: fixed; z-index: 2; display: none; flex-direction: column; gap: 18px; pointer-events: none; overflow: hidden; }',
+  "#zf-home[data-on='1'] { display: flex; animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both; }",
+  '#zf-home h3 { margin: 0 0 14px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--zf-ink-0, #fbf1c7); opacity: 0.92; text-shadow: 0 1px 2px rgba(0,0,0,0.7), 0 0 14px rgba(0,0,0,0.55); }',
+  '#zf-home .zf-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }',
+  '@media (max-width: 640px) { #zf-home .zf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
+  '#zf-home .zf-card { position: relative; pointer-events: auto; min-width: 0; }',
+  '#zf-home .zf-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 5px; width: 100%; min-width: 0; padding: 17px 38px 17px 19px; border-radius: 18px; cursor: pointer; background: linear-gradient(180deg, rgba(var(--zf-hi), 0.13), rgba(var(--zf-hi), 0.05)), rgba(14, 24, 19, 0.58); box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.14), 0 0 0 1px rgba(var(--zf-hi), 0.12), 0 8px 24px rgba(0,0,0,0.28); backdrop-filter: blur(20px) saturate(1.25); -webkit-backdrop-filter: blur(20px) saturate(1.25); transition: box-shadow 140ms ease, background 140ms ease, transform 140ms ease; }',
+  '#zf-home .zf-card-open:hover { background: linear-gradient(180deg, rgba(var(--zf-hi), 0.2), rgba(var(--zf-hi), 0.08)), rgba(14, 24, 19, 0.6); box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.22), 0 0 0 1px rgba(var(--zf-hi), 0.28), 0 12px 28px rgba(0,0,0,0.34); transform: translateY(-2px); }',
+  '#zf-home .zf-card-open:focus-visible { box-shadow: 0 0 0 2px rgba(var(--zf-hi), 0.7); }',
+  '#zf-home .zf-card-title { font-size: 15.5px; font-weight: 600; letter-spacing: 0.005em; color: var(--zf-ink-0, #fbf1c7); text-shadow: 0 1px 2px rgba(0,0,0,0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+  '#zf-home .zf-card-why { font-size: 12.5px; color: var(--zf-ink-2, #ebdbb2); opacity: 0.72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+  '#zf-home .zf-card-x { all: unset; position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-size: 15px; line-height: 1; cursor: pointer; color: var(--zf-ink-2, #ebdbb2); opacity: 0; transition: opacity 120ms ease, background 120ms ease; }',
+  '#zf-home .zf-card:hover .zf-card-x, #zf-home .zf-card:focus-within .zf-card-x { opacity: 0.7; }',
+  '#zf-home .zf-card-x:hover { opacity: 1; background: rgba(var(--zf-hi), 0.14); }',
+  '#zf-rec { flex: none; width: 100%; min-width: 0; margin: 2px 0 4px; }',
+  '#zf-rec[hidden] { display: none; }',
+  '#zf-rec .zf-rec-h { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 8px 6px; cursor: pointer; font-size: 10.24px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--zf-ink-2, #ebdbb2); }',
+  '#zf-rec .zf-rec-h .codicon { font-size: 12px; opacity: 0.7; transition: transform 140ms ease; transform: rotate(90deg); }',
+  "#zf-rec .zf-rec-h[aria-expanded='false'] .codicon { transform: none; }",
+  '#zf-rec .zf-rec-h:focus-visible, #zf-rec .zf-rec-open:focus-visible { outline: 2px solid rgba(var(--zf-hi), 0.7); outline-offset: -2px; border-radius: 8px; }',
+  '#zf-rec .zf-rec-row { position: relative; }',
+  '#zf-rec .zf-rec-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 1px; width: 100%; min-width: 0; padding: 6px 28px 6px 10px; border-radius: 8px; cursor: pointer; transition: background 120ms ease; }',
+  '#zf-rec .zf-rec-open:hover { background: rgba(var(--zf-hi), 0.09); }',
+  '#zf-rec .zf-rec-title { font-size: 13px; font-weight: 500; color: var(--zf-ink-0, #fbf1c7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+  '#zf-rec .zf-rec-why { font-size: 11px; color: var(--zf-ink-2, #ebdbb2); opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+  '#zf-rec .zf-rec-x { all: unset; position: absolute; top: 50%; right: 6px; width: 20px; height: 20px; margin-top: -10px; border-radius: 6px; display: grid; place-items: center; font-size: 14px; line-height: 1; cursor: pointer; color: var(--zf-ink-2, #ebdbb2); opacity: 0; transition: opacity 120ms ease, background 120ms ease; }',
+  '#zf-rec .zf-rec-row:hover .zf-rec-x, #zf-rec .zf-rec-row:focus-within .zf-rec-x { opacity: 0.7; }',
+  '#zf-rec .zf-rec-x:hover { opacity: 1; background: rgba(var(--zf-hi), 0.14); }',
+  '@media (prefers-reduced-motion: reduce) { #zf-rec .zf-rec-h .codicon, #zf-rec .zf-rec-open { transition: none; } }',
+  '#zf-landing p:not(.wordmark) { font-size: 17px !important; line-height: 1.5 !important; font-weight: 500 !important; letter-spacing: 0.01em !important; text-wrap: balance; color: var(--zf-ink-0, #fbf1c7) !important; opacity: 0.95 !important; text-shadow: 0 1px 2px rgba(0,0,0,0.8), 0 0 22px rgba(0,0,0,0.65), 0 0 48px rgba(0,0,0,0.4); }',
+  '@media (prefers-reduced-motion: reduce) { #zf-home[data-on="1"] { animation: none; } #zf-home .zf-card-open { transition: none; } }',
   // Settings is a floating sheet, solid enough that nothing reads through it
   "div.rounded-xl[data-zf-setbox] { background: var(--zf-m-sheet) !important; box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 30px 80px rgba(0, 0, 0, 0.55) !important; isolation: isolate; }",
   "[class*='grid-cols-[13rem_minmax(0,1fr)]'] > aside { background: rgba(0, 0, 0, 0.16) !important; }",
@@ -4758,6 +4790,221 @@ function PhaseChip({ phase, auto, pins, held, clock, onCycle }) {
   })
 }
 
+/* ── recents/engine.js ──────────────────────────────────────── generated by scripts/build-recents.mjs, edit recents/engine.js instead */
+const RECENTS = (() => {
+/* Which sessions to put in front of you on a new tab.
+
+   Pure functions over plain data: no DOM, no Hermes, no clock of their own (every
+   function takes `now`). That keeps the rules testable and keeps the adapter in
+   plugin.js a thin layer that only records visits and draws the result.
+
+   The constants come from replaying real history: the score is ranked at the start
+   of each day using only earlier data, and the question is how often the session
+   actually opened that day was in the top six.
+     - a 3 day half-life put it there on 81% of days (plain recency: 65%); a 30 day
+       half-life with a lifetime-count multiplier, the Firefox shape, fell to 53%.
+       Heavy sessions come back within days, not months.
+     - no session with one or two user turns was ever reopened on a later day. */
+
+const DAY = 86400000
+const HALF_LIFE_DAYS = 3
+const VISIT_GAP_MS = 45 * 60 * 1000     // a pause longer than this starts a new visit
+const QUICK_MAX_MESSAGES = 6            // at most this many messages in total...
+const QUICK_MAX_TURNS = 3               // ...and you spoke at most this many times
+const QUICK_GRACE_MS = DAY              // a fresh quick chat stays where it is for a day
+const REGULAR_MIN_DAYS = 3              // distinct days opened before a session counts as a regular
+const REGULAR_WINDOW_DAYS = 45          // a regular unseen this long drops off
+const MAX_RECORDS = 500
+const MAX_VISITS = 40
+const MAX_DAYS = 120
+
+const dayOf = t => Math.floor(t / DAY)
+const finite = n => typeof n === 'number' && Number.isFinite(n)
+
+const emptyRecord = id => ({ id, visits: [], days: [], dismissed: 0, keep: false, never: false })
+
+/* ── recording ──────────────────────────────────────────────────────────── */
+
+/* A visit is {t: start, last: latest sign of life, turns: times you sent something,
+   seeded: true when it was inferred from the session list, not watched}. */
+const currentVisit = (rec, now) => {
+  const v = rec.visits[rec.visits.length - 1]
+  return v && now - v.last <= VISIT_GAP_MS && now >= v.t ? v : null
+}
+
+function recordFocus(rec, now) {
+  let v = currentVisit(rec, now)
+  if (!v) {
+    v = { t: now, last: now, turns: 0 }
+    rec.visits.push(v)
+    if (rec.visits.length > MAX_VISITS) rec.visits.splice(0, rec.visits.length - MAX_VISITS)
+  } else v.last = now
+  const d = dayOf(now)
+  if (!rec.days.includes(d)) {
+    rec.days.push(d)
+    rec.days.sort((a, b) => a - b)
+    if (rec.days.length > MAX_DAYS) rec.days.splice(0, rec.days.length - MAX_DAYS)
+  }
+  return rec
+}
+
+function recordTurn(rec, now) {
+  recordFocus(rec, now)
+  currentVisit(rec, now).turns++
+  return rec
+}
+
+/* A session never watched still has a last-active time: give it one inferred
+   visit so the first day is not empty. It does not count as a day opened (that
+   would pass for a return), and it is weighted down. */
+function seedFromSession(rec, session) {
+  if (rec.visits.length || !finite(session.last_active)) return rec
+  const t = session.last_active * 1000
+  rec.visits.push({ t, last: t, turns: (session.message_count || 0) >= 10 ? 4 : 1, seeded: true })
+  return rec
+}
+
+/* ── reading ────────────────────────────────────────────────────────────── */
+
+const lastTouch = (rec, session) => {
+  const v = rec && rec.visits[rec.visits.length - 1]
+  const fromSession = session && finite(session.last_active) ? session.last_active * 1000 : 0
+  return Math.max(v ? v.last : 0, fromSession)
+}
+
+const turnsOf = rec => (rec ? rec.visits.reduce((n, v) => n + (v.seeded ? 0 : v.turns), 0) : 0)
+const daysOf = rec => (rec ? rec.days.length : 0)
+
+/* Quick chat: a small errand. Only the shape of the conversation decides, never
+   how much the agent did: "clean up this directory" can run 40 tool calls and
+   still be an errand, and a C++ deep dive can be pure talk. */
+function isQuick(session, rec, now) {
+  if (session.pinned || (rec && (rec.keep || rec.never))) return false
+  if ((session.message_count || 0) > QUICK_MAX_MESSAGES) return false
+  if (turnsOf(rec) > QUICK_MAX_TURNS || daysOf(rec) >= 2) return false
+  return now - lastTouch(rec, session) > QUICK_GRACE_MS
+}
+
+const visitWeight = v => {
+  if (v.seeded) return v.turns >= 4 ? 0.6 : 0.25
+  return v.turns < 2 ? 0.2 : v.turns < 4 ? 0.6 : 1
+}
+
+function scoreRecent(rec, now) {
+  const lambda = Math.LN2 / (HALF_LIFE_DAYS * DAY)
+  let s = 0
+  for (const v of rec.visits) if (v.last <= now) s += visitWeight(v) * Math.exp(-lambda * (now - v.last))
+  return s
+}
+
+const median = xs => {
+  const a = [...xs].sort((x, y) => x - y)
+  const m = a.length >> 1
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2
+}
+
+/* The usual gap, in days, between the days a session was opened. null with too
+   little history to say. */
+function cadence(rec) {
+  if (rec.days.length < REGULAR_MIN_DAYS) return null
+  const gaps = []
+  for (let i = 1; i < rec.days.length; i++) gaps.push(rec.days[i] - rec.days[i - 1])
+  return Math.max(1, Math.round(median(gaps)))
+}
+
+function ago(ms) {
+  const m = Math.max(0, Math.round(ms / 60000))
+  if (m < 2) return 'just now'
+  if (m < 60) return m + 'm ago'
+  const h = Math.round(m / 60)
+  if (h < 24) return h + 'h ago'
+  const d = Math.round(h / 24)
+  return d < 14 ? d + 'd ago' : Math.round(d / 7) + 'w ago'
+}
+
+const candidates = (sessions, records, now, exclude) =>
+  sessions.filter(s => s && s.id && !s.hidden && !s.archived && !exclude.has(s.id) && !s.is_internal_child)
+    .map(s => ({ s, rec: records[s.id] || null }))
+
+/* "Pick up where you left off": fast recency. Pinned sessions are already one
+   click away, quick chats are noise, and a dismissed one stays gone until you
+   open it again. */
+const PICK_UP_COUNT = 3   // one row of three on the new tab; the same three in the sidebar
+
+function pickUp(sessions, records, now, { exclude = new Set(), limit = PICK_UP_COUNT } = {}) {
+  const out = []
+  for (const { s, rec } of candidates(sessions, records, now, exclude)) {
+    if (!rec || s.pinned || rec.never || isQuick(s, rec, now)) continue
+    if (rec.dismissed && rec.dismissed >= lastTouch(rec, null)) continue
+    const score = scoreRecent(rec, now)
+    if (score < 0.05) continue
+    const touched = lastTouch(rec, s)
+    const lately = rec.days.filter(d => d > dayOf(now) - 30).length
+    out.push({ id: s.id, session: s, score, touched,
+      reason: lately >= 3 ? `Opened on ${lately} of the last 30 days` : 'Left off ' + ago(now - touched) })
+  }
+  out.sort((a, b) => b.score - a.score || b.touched - a.touched)
+  return out.slice(0, limit)
+}
+
+/* "Your regulars": the few you keep coming back to, however rarely. Ordered by
+   whether you are due, then by how many days you have opened them. They never
+   compete with recency, so this row does not churn. */
+function regulars(sessions, records, now, { exclude = new Set(), limit = 4 } = {}) {
+  const out = []
+  for (const { s, rec } of candidates(sessions, records, now, exclude)) {
+    if (!rec || rec.never) continue
+    const days = daysOf(rec)
+    if (!rec.keep && (days < REGULAR_MIN_DAYS || now - lastTouch(rec, s) > REGULAR_WINDOW_DAYS * DAY)) continue
+    const gap = cadence(rec)
+    const since = Math.floor((now - lastTouch(rec, s)) / DAY)
+    const due = gap !== null && gap >= 2 && since >= Math.round(gap * 0.7)
+    const reason = due ? `Usually every ~${gap} days, last ${since === 0 ? 'today' : since + ' days ago'}`
+      : rec.keep ? 'Kept by you' : `Opened on ${days} days`
+    out.push({ id: s.id, session: s, due, days, touched: lastTouch(rec, s), reason })
+  }
+  out.sort((a, b) => Number(b.due) - Number(a.due) || b.days - a.days || b.touched - a.touched)
+  return out.slice(0, limit)
+}
+
+/* ── storage ────────────────────────────────────────────────────────────── */
+
+/* Stored data is read back through this: a damaged or hand-edited value yields
+   fewer records, never an exception or a poisoned score. */
+function sanitize(raw) {
+  const out = {}
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out
+  for (const id of Object.keys(raw)) {
+    const r = raw[id]
+    if (!r || typeof r !== 'object' || typeof id !== 'string' || id.length > 200 || id === '__proto__') continue
+    const rec = emptyRecord(id)
+    for (const v of Array.isArray(r.visits) ? r.visits.slice(-MAX_VISITS) : []) {
+      if (v && finite(v.t) && finite(v.last) && v.last >= v.t && finite(v.turns) && v.turns >= 0)
+        rec.visits.push({ t: v.t, last: v.last, turns: Math.min(v.turns, 1e4), ...(v.seeded ? { seeded: true } : {}) })
+    }
+    rec.days = (Array.isArray(r.days) ? r.days : []).filter(d => finite(d) && d > 0).slice(-MAX_DAYS).sort((a, b) => a - b)
+    rec.dismissed = finite(r.dismissed) ? r.dismissed : 0
+    rec.keep = r.keep === true
+    rec.never = r.never === true
+    out[id] = rec
+  }
+  return out
+}
+
+/* Keep the most recently touched MAX_RECORDS. */
+function prune(records) {
+  const ids = Object.keys(records)
+  if (ids.length <= MAX_RECORDS) return records
+  const last = id => (records[id].visits.at(-1) || { last: 0 }).last
+  ids.sort((a, b) => last(b) - last(a))
+  const out = {}
+  for (const id of ids.slice(0, MAX_RECORDS)) out[id] = records[id]
+  return out
+}
+return { DAY, HALF_LIFE_DAYS, VISIT_GAP_MS, QUICK_MAX_MESSAGES, QUICK_MAX_TURNS, QUICK_GRACE_MS, REGULAR_MIN_DAYS, REGULAR_WINDOW_DAYS, MAX_RECORDS, MAX_VISITS, MAX_DAYS, emptyRecord, recordFocus, recordTurn, seedFromSession, lastTouch, isQuick, scoreRecent, cadence, ago, PICK_UP_COUNT, pickUp, regulars, sanitize, prune }
+})()
+/* ── end recents/engine.js ── */
+
 // ══ §9 PLUGIN REGISTRATION (register: settings, timers, observers) ═════════
 
 
@@ -5033,6 +5280,8 @@ export default {
     const weatherNow = atom('')
     const statusDock = atom(stored(STORE_KEYS.statusDock) !== false)
     const library = atom(stored(STORE_KEYS.library) !== false)
+    const homeOn = atom(stored(STORE_KEYS.home) !== false)
+    let homeApi = { reset() {} }
 
     const persist = () => {
       ctx.storage.set(STORE_KEYS.pins, pins.get())
@@ -5048,6 +5297,7 @@ export default {
       ctx.storage.set(STORE_KEYS.quality, quality.get())
       ctx.storage.set(STORE_KEYS.statusDock, statusDock.get())
       ctx.storage.set(STORE_KEYS.library, library.get())
+      ctx.storage.set(STORE_KEYS.home, homeOn.get())
     }
 
     const applyMargins = on => {
@@ -8392,6 +8642,254 @@ export default {
       const extraLandings = []
       let rootTimer = 0
       let rootTries = 0
+      // ── New-tab shelf ──────────────────────────────────────────────────────
+      // What to open next, drawn on the empty page. The rules live in RECENTS
+      // (recents/engine.js, tested on their own); this only records visits and
+      // draws what the rules return. Nothing is sent anywhere: the history is a
+      // small record per session in this plugin's own storage.
+      const home = (() => {
+        const none = { sync() {}, syncRail() {}, reset() {}, dispose() {} }
+        if (typeof host === 'undefined' || !host.state || typeof host.listPersistedSessions !== 'function') return none
+        const SEED_WINDOW = 30 * 86400
+        const REFRESH_MS = 20000
+        let records = RECENTS.sanitize(ctx.storage.get(STORE_KEYS.recents, {}))
+        let sessions = []
+        let fetchedAt = 0
+        let fetching = null
+        let saveTimer = 0
+        let dead = false
+        let shown = false
+        let token = 0
+        const unbind = []
+        const keyOf = s => s._lineage_root_id || s.id
+        const rootOfStored = id => {
+          const s = sessions.find(x => x.id === id || (Array.isArray(x._lineage_ids) && x._lineage_ids.includes(id)))
+          return s ? keyOf(s) : id
+        }
+        const flush = () => { clearTimeout(saveTimer); saveTimer = 0; try { ctx.storage.set(STORE_KEYS.recents, RECENTS.prune(records)) } catch {} }
+        const queueSave = () => { if (!saveTimer && !dead) saveTimer = setTimeout(flush, 2000) }
+
+        // ── recording ──
+        const touch = turn => {
+          if (dead || !homeOn.get()) return
+          const id = host.state.focusedStoredSessionId.get()
+          if (!id || typeof id !== 'string') return
+          const key = rootOfStored(id)
+          const rec = records[key] || (records[key] = RECENTS.emptyRecord(key))
+          if (turn) RECENTS.recordTurn(rec, Date.now())
+          else RECENTS.recordFocus(rec, Date.now())
+          queueSave()
+        }
+        let sending = false
+        unbind.push(host.state.focusedStoredSessionId.subscribe(() => touch(false)))
+        unbind.push(host.state.awaitingResponse.subscribe(v => { if (v && !sending) touch(true); sending = Boolean(v) }))
+        ctx.setInterval?.(() => { if (document.visibilityState === 'visible' && document.hasFocus()) touch(false) }, 60000)
+
+        // ── reading ──
+        const refresh = () => {
+          if (fetching) return fetching
+          if (sessions.length && Date.now() - fetchedAt < REFRESH_MS) return Promise.resolve()
+          fetching = (async () => {
+            try {
+              const r = await host.listPersistedSessions(null, { profile: host.state.profile.get(), limit: 200 })
+              if (dead) return
+              sessions = Array.isArray(r && r.sessions) ? r.sessions.filter(s => s && typeof s.id === 'string') : []
+              fetchedAt = Date.now()
+              let added = false
+              for (const s of sessions) {
+                const k = keyOf(s)
+                if (!records[k] && Date.now() / 1000 - s.last_active < SEED_WINDOW) { records[k] = RECENTS.seedFromSession(RECENTS.emptyRecord(k), s); added = true }
+              }
+              if (added) queueSave()
+            } catch { /* no gateway yet: the shelf stays away */ } finally { fetching = null }
+          })()
+          return fetching
+        }
+        const choose = () => {
+          const now = Date.now()
+          const byRow = {}
+          for (const s of sessions) byRow[s.id] = records[keyOf(s)]
+          const focused = host.state.focusedStoredSessionId.get()
+          const exclude = new Set(focused ? sessions.filter(s => s.id === focused || (s._lineage_ids || []).includes(focused)).map(s => s.id) : [])
+          const pick = RECENTS.pickUp(sessions, byRow, now, { exclude })
+          const reg = RECENTS.regulars(sessions, byRow, now, { exclude: new Set([...exclude, ...pick.map(x => x.id)]) })
+          return { pick, reg }
+        }
+
+        // ── drawing ──
+        const el = document.createElement('div')
+        el.id = 'zf-home'
+        el.setAttribute('aria-label', 'Suggested sessions')
+        document.body.appendChild(el)
+        const open = id => { try { Promise.resolve(host.openSession(id)).catch(() => {}) } catch {} }
+        const card = (item, dropTitle, drop) => {
+          const wrap = document.createElement('div')
+          wrap.className = 'zf-card'
+          const b = document.createElement('button')
+          b.type = 'button'
+          b.className = 'zf-card-open'
+          const t = document.createElement('span')
+          t.className = 'zf-card-title'
+          t.textContent = (item.session.title || '').trim() || 'Untitled'
+          const r = document.createElement('span')
+          r.className = 'zf-card-why'
+          r.textContent = item.reason
+          b.append(t, r)
+          b.addEventListener('click', () => open(item.id))
+          const x = document.createElement('button')
+          x.type = 'button'
+          x.className = 'zf-card-x'
+          x.title = dropTitle
+          x.setAttribute('aria-label', dropTitle)
+          x.textContent = '×'
+          x.addEventListener('click', e => { e.stopPropagation(); drop(item); wrap.remove(); if (!el.querySelector('.zf-card')) el.replaceChildren() })
+          wrap.append(b, x)
+          return wrap
+        }
+        const row = (label, items, dropTitle, drop) => {
+          if (!items.length) return null
+          const sec = document.createElement('section')
+          const h = document.createElement('h3')
+          h.textContent = label
+          const cards = document.createElement('div')
+          cards.className = 'zf-cards'
+          for (const it of items) cards.appendChild(card(it, dropTitle, drop))
+          sec.append(h, cards)
+          return sec
+        }
+        const draw = () => {
+          const { pick, reg } = choose()
+          const ensure = item => records[keyOf(item.session)] || (records[keyOf(item.session)] = RECENTS.emptyRecord(keyOf(item.session)))
+          const parts = [
+            row('Pick up where you left off', pick, 'Not this one', item => { ensure(item).dismissed = Date.now(); queueSave() }),
+            row('Your regulars', reg, 'Not a regular', item => { ensure(item).never = true; queueSave() }),
+          ].filter(Boolean)
+          el.replaceChildren(...parts)
+          el.dataset.on = parts.length ? '1' : ''
+        }
+        const hide = () => { shown = false; token++; el.dataset.on = ''; el.replaceChildren() }
+        const place = (r, tagline) => {
+          const width = Math.max(260, Math.min(920, r.width - 48))
+          // Sit just under the tagline's real bottom edge (it can wrap to two lines); fall back to a fixed fraction.
+          const tb = tagline && tagline.getBoundingClientRect()
+          let top = tb && tb.height > 0 && tb.bottom > r.top && tb.bottom < r.top + r.height ? tb.bottom + 44 : r.top + r.height * 0.6
+          // the pinned status shelf (Sky etc.) sits right under the tagline: start below it when it is showing
+          const pinned = document.getElementById('zephyr-shelf-below')
+          const sb = pinned && !pinned.hidden ? pinned.getBoundingClientRect() : null
+          if (sb && sb.height > 0 && sb.bottom + 28 > top && sb.top < r.top + r.height) top = sb.bottom + 28
+          const next = { left: Math.round(r.left + (r.width - width) / 2) + 'px', top: Math.round(top) + 'px', width: Math.round(width) + 'px', maxHeight: Math.max(0, Math.round(r.top + r.height - top - 88)) + 'px' }
+          for (const k in next) if (el.style[k] !== next[k]) el.style[k] = next[k]
+        }
+
+        // ── the same three, in the sidebar ──
+        // A "Recommended" group between Pinned and Sessions. React owns that column, so this
+        // only ever inserts its own node beside React's and puts it back if a re-render drops it.
+        const ensureRec = item => records[keyOf(item.session)] || (records[keyOf(item.session)] = RECENTS.emptyRecord(keyOf(item.session)))
+        const rail = document.createElement('div')
+        rail.id = 'zf-rec'
+        rail.setAttribute('aria-label', 'Recommended sessions')
+        let railOpen = ctx.storage.get(STORE_KEYS.recRail, true) !== false
+        let railSig = ''
+        let railFind = 0
+        let railTick = 0
+        const sessionsGroup = () => {
+          for (const g of document.querySelectorAll("[data-slot='sidebar-group']")) {
+            const b = g.querySelector('button')
+            if (b && b.textContent.trim() === 'Sessions') return g
+          }
+          return null
+        }
+        const railDraw = () => {
+          const { pick } = choose()
+          const sig = railOpen + '|' + pick.map(i => i.id + '\u0001' + i.reason + '\u0001' + (i.session.title || '')).join('\u0002')
+          if (sig === railSig) return
+          railSig = sig
+          rail.hidden = !pick.length
+          const head = document.createElement('button')
+          head.type = 'button'
+          head.className = 'zf-rec-h'
+          head.setAttribute('aria-expanded', String(railOpen))
+          const label = document.createElement('span')
+          label.textContent = 'Recommended'
+          const chev = document.createElement('i')
+          chev.className = 'codicon codicon-chevron-right'
+          head.append(label, chev)
+          head.addEventListener('click', () => { railOpen = !railOpen; try { ctx.storage.set(STORE_KEYS.recRail, railOpen) } catch {} ; railDraw() })
+          const parts = [head]
+          if (railOpen) {
+            for (const item of pick) {
+              const row = document.createElement('div')
+              row.className = 'zf-rec-row'
+              const b = document.createElement('button')
+              b.type = 'button'
+              b.className = 'zf-rec-open'
+              const t = document.createElement('span')
+              t.className = 'zf-rec-title'
+              t.textContent = (item.session.title || '').trim() || 'Untitled'
+              const r = document.createElement('span')
+              r.className = 'zf-rec-why'
+              r.textContent = item.reason
+              b.append(t, r)
+              b.addEventListener('click', () => open(item.id))
+              const x = document.createElement('button')
+              x.type = 'button'
+              x.className = 'zf-rec-x'
+              x.title = 'Not this one'
+              x.setAttribute('aria-label', 'Not this one')
+              x.textContent = '×'
+              x.addEventListener('click', e => { e.stopPropagation(); ensureRec(item).dismissed = Date.now(); queueSave(); railSig = ''; railDraw(); if (shown) draw() })
+              row.append(b, x)
+              parts.push(row)
+            }
+          }
+          rail.replaceChildren(...parts)
+        }
+
+        return {
+          // called on every page pass with the empty pane's box, or null
+          sync(rect, tagline) {
+            if (dead) return
+            if (!rect || !homeOn.get()) { if (shown) hide(); return }
+            place(rect, tagline)
+            if (shown) return
+            shown = true
+            const mine = ++token
+            if (sessions.length) draw()
+            refresh().then(() => { if (shown && mine === token && !el.querySelector('.zf-card')) draw() })
+          },
+          syncRail() {
+            if (dead) return
+            if (!homeOn.get()) { if (rail.isConnected) rail.remove(); return }
+            const now = Date.now()
+            // placed? (cheap). If not, look for the Sessions group, at most twice a second.
+            const nx = rail.isConnected ? rail.nextElementSibling : null
+            const nb = nx && nx.querySelector('button')
+            const placed = Boolean(nb && nx.getAttribute('data-slot') === 'sidebar-group' && nb.textContent.trim() === 'Sessions')
+            if (!placed) {
+              if (now - railFind < 500) return
+              railFind = now
+              const g = sessionsGroup()
+              if (!g || !g.parentElement) { if (rail.isConnected) rail.remove(); return }
+              g.parentElement.insertBefore(rail, g)
+            }
+            if (now - railTick < 2000) return
+            railTick = now
+            if (sessions.length) railDraw()
+            refresh().then(() => { if (!dead) railDraw() })
+          },
+          poke() { if (shown && !homeOn.get()) hide(); if (!homeOn.get() && rail.isConnected) rail.remove() },
+          reset() { records = {}; flush(); railSig = ''; if (rail.isConnected) railDraw(); if (shown) draw() },
+          dispose() {
+            dead = true
+            unbind.forEach(u => { try { u() } catch {} })
+            flush()
+            el.remove()
+            rail.remove()
+          },
+        }
+      })()
+
+      homeApi = home
       const syncPage = () => {
         if (pageDead) return
         // several tabs keep their thread mounted in the same spot; only the one
@@ -8455,6 +8953,8 @@ export default {
         } else if (root.dataset.zfLanding) {
           delete root.dataset.zfLanding
         }
+        home.sync(empties.length ? empties[0].r : null, [...document.querySelectorAll("[data-slot='aui_intro'] p, #zf-landing p")].filter(e => !/wordmark/.test(String(e.className)) && e.getClientRects().length).pop())
+        home.syncRail()
       }
       let pageQueued = false
       // The sheet matched 13 things with :has(). Scrolling mounts rows, and each
@@ -8516,6 +9016,7 @@ export default {
       syncPage()
       ctx.onDispose?.(() => {
         pageDead = true
+        home.dispose()
         clearTimeout(rootTimer)
         delete root.dataset.zfClip
         root.style.removeProperty('--zf-chat-clip')
@@ -8685,6 +9186,7 @@ export default {
         const isTint = useValue(tint)
         const isSky = useValue(sky)
         const isMargins = useValue(margins)
+        const isHome = useValue(homeOn)
         const isCollapseWork = useValue(collapseWork)
         const isMotion = useValue(motion)
         const isStatusDock = useValue(statusDock)
@@ -8892,6 +9394,23 @@ export default {
         ])
 
         const chatSection = section('comment-discussion', 'Chat', [
+          jsx(ToggleRow, {
+            checked: isHome,
+            description: 'On a new tab: the sessions you are most likely to want, and the ones you keep coming back to. It learns only from when you open sessions and send messages, keeps that on this computer, and shows why each one is there. The x on a card removes it.',
+            label: 'Suggest sessions on new tabs',
+            onChange: on => {
+              homeOn.set(on)
+              persist()
+              homeApi.poke?.()
+            }
+          }),
+          isHome
+            ? jsx(ListRow, {
+                description: 'Clears what Zephyr has learned about which sessions you open.',
+                title: 'Forget my session history',
+                action: jsx(Button, { size: 'sm', variant: 'ghost', onClick: () => homeApi.reset(), children: 'Forget' })
+              })
+            : null,
           jsx(ToggleRow, {
             checked: isMargins,
             description: 'A narrower reading column with wide margins, lined up with the message box.',

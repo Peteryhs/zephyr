@@ -1115,6 +1115,8 @@ const ARCLIKE_CSS = [
   '  width: 272px !important; height: auto !important; min-width: 0 !important; max-width: none !important;',
   '  flex: none !important; z-index: 60 !important;',
   '  border-radius: 16px !important; overflow: hidden !important;',
+  '  background: var(--zf-m-solid) !important; background-image: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;',
+  '  box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 24px 60px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35) !important;',
   '  translate: calc(-100% - 28px) 0; opacity: 0; pointer-events: none;',
   '  transition: translate 150ms cubic-bezier(0.4, 0, 1, 1), opacity 110ms ease;',
   '  will-change: translate, opacity; contain: layout paint;',
@@ -1122,6 +1124,10 @@ const ARCLIKE_CSS = [
   "html[data-zf-arc='1'][data-zf-arc-open='1'] [data-zf-arc-col] {",
   '  translate: 0 0; opacity: 1; pointer-events: auto;',
   '  transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease;',
+  '}',
+  // the card's own surfaces are see-through so the card is one piece of glass
+  "html[data-zf-arc='1'] [data-zf-arc-col] > div, html[data-zf-arc='1'] [data-zf-arc-col] [data-slot='sidebar'] {",
+  '  background: transparent !important; border: 0 !important;',
   '}',
   // room at the bottom of the column for snippets + status
   // The snippet card and the status-dock head are the app's own fixed layers:
@@ -1181,7 +1187,10 @@ const ARCLIKE_CSS = [
   "html:not([data-zf-arc='1']) [data-zf-arc-col] {",
   '  margin: 10px 0 10px 10px !important; height: calc(100vh - 20px) !important; align-self: flex-start;',
   '  border-radius: 16px !important; overflow: hidden !important;',
+  '  background: var(--zf-m-pin-b) !important;',
+  '  box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 18px 48px rgba(0, 0, 0, 0.35) !important;',
   '}',
+  "html:not([data-zf-arc='1']) [data-zf-arc-col] > div, html:not([data-zf-arc='1']) [data-zf-arc-col] [data-slot='sidebar'] { background: transparent !important; border: 0 !important; }",
   // sidebar mode switch, sitting in the command-center row
   "#zf-mode-btn { position: absolute; left: 8px; top: 4px; z-index: 5; display: none; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--zf-ink-2, #ebdbb2); cursor: pointer; -webkit-app-region: no-drag; transition: background-color 120ms ease, color 120ms ease, transform 120ms ease; }",
   "[data-zf-arc-col] > #zf-mode-btn { display: inline-grid; position: absolute !important; left: 10px !important; top: 3px !important; width: 24px !important; height: 24px !important; margin: 0 !important; transform: none; }",

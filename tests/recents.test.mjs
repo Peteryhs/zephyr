@@ -173,9 +173,9 @@ test('ago reads naturally', () => {
   assert.equal(R.ago(21 * D), '3w ago')
 })
 
-test('pickUp offers six when there are six to offer, and no more', () => {
+test('pickUp offers three when there are more to offer, and no more', () => {
   const sessions = [], records = {}
   for (let i = 0; i < 9; i++) { sessions.push(sess('s' + i)); records['s' + i] = rec('s' + i, [visit((i + 1) * H)]) }
-  assert.equal(R.PICK_UP_COUNT, 6)
-  assert.equal(R.pickUp(sessions, records, NOW).length, 6)
+  assert.equal(R.PICK_UP_COUNT, 3)
+  assert.equal(R.pickUp(sessions, records, NOW).length, 3)
 })

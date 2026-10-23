@@ -135,7 +135,7 @@ const candidates = (sessions, records, now, exclude) =>
 /* "Pick up where you left off": fast recency. Pinned sessions are already one
    click away, quick chats are noise, and a dismissed one stays gone until you
    open it again. */
-export const PICK_UP_COUNT = 6   // three rows of two or two rows of three: fills the width
+export const PICK_UP_COUNT = 3   // one row of three on the new tab; the same three in the sidebar
 
 export function pickUp(sessions, records, now, { exclude = new Set(), limit = PICK_UP_COUNT } = {}) {
   const out = []

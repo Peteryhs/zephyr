@@ -541,15 +541,15 @@ const polishCss = (gruv = false) => [
   // The new-tab shelf: what to open next.
   '#zf-home { position: fixed; z-index: 2; display: none; flex-direction: column; gap: 18px; pointer-events: none; overflow: hidden; }',
   "#zf-home[data-on='1'] { display: flex; animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both; }",
-  '#zf-home h3 { margin: 0 0 12px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--zf-ink-0, #fbf1c7); opacity: 0.92; text-shadow: 0 1px 2px rgba(0,0,0,0.7), 0 0 14px rgba(0,0,0,0.55); }',
+  '#zf-home h3 { margin: 0 0 14px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--zf-ink-0, #fbf1c7); opacity: 0.92; text-shadow: 0 1px 2px rgba(0,0,0,0.7), 0 0 14px rgba(0,0,0,0.55); }',
   '#zf-home .zf-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }',
   '@media (max-width: 640px) { #zf-home .zf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
   '#zf-home .zf-card { position: relative; pointer-events: auto; min-width: 0; }',
-  '#zf-home .zf-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 5px; width: 100%; min-width: 0; padding: 14px 34px 14px 16px; border-radius: 16px; cursor: pointer; background: linear-gradient(180deg, rgba(var(--zf-hi), 0.13), rgba(var(--zf-hi), 0.05)), rgba(14, 24, 19, 0.58); box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.14), 0 0 0 1px rgba(var(--zf-hi), 0.12), 0 8px 24px rgba(0,0,0,0.28); backdrop-filter: blur(20px) saturate(1.25); -webkit-backdrop-filter: blur(20px) saturate(1.25); transition: box-shadow 140ms ease, background 140ms ease, transform 140ms ease; }',
+  '#zf-home .zf-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 5px; width: 100%; min-width: 0; padding: 17px 38px 17px 19px; border-radius: 18px; cursor: pointer; background: linear-gradient(180deg, rgba(var(--zf-hi), 0.13), rgba(var(--zf-hi), 0.05)), rgba(14, 24, 19, 0.58); box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.14), 0 0 0 1px rgba(var(--zf-hi), 0.12), 0 8px 24px rgba(0,0,0,0.28); backdrop-filter: blur(20px) saturate(1.25); -webkit-backdrop-filter: blur(20px) saturate(1.25); transition: box-shadow 140ms ease, background 140ms ease, transform 140ms ease; }',
   '#zf-home .zf-card-open:hover { background: linear-gradient(180deg, rgba(var(--zf-hi), 0.2), rgba(var(--zf-hi), 0.08)), rgba(14, 24, 19, 0.6); box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.22), 0 0 0 1px rgba(var(--zf-hi), 0.28), 0 12px 28px rgba(0,0,0,0.34); transform: translateY(-2px); }',
   '#zf-home .zf-card-open:focus-visible { box-shadow: 0 0 0 2px rgba(var(--zf-hi), 0.7); }',
-  '#zf-home .zf-card-title { font-size: 14px; font-weight: 600; letter-spacing: 0.005em; color: var(--zf-ink-0, #fbf1c7); text-shadow: 0 1px 2px rgba(0,0,0,0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
-  '#zf-home .zf-card-why { font-size: 12px; color: var(--zf-ink-2, #ebdbb2); opacity: 0.72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+  '#zf-home .zf-card-title { font-size: 15.5px; font-weight: 600; letter-spacing: 0.005em; color: var(--zf-ink-0, #fbf1c7); text-shadow: 0 1px 2px rgba(0,0,0,0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+  '#zf-home .zf-card-why { font-size: 12.5px; color: var(--zf-ink-2, #ebdbb2); opacity: 0.72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
   '#zf-home .zf-card-x { all: unset; position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-size: 15px; line-height: 1; cursor: pointer; color: var(--zf-ink-2, #ebdbb2); opacity: 0; transition: opacity 120ms ease, background 120ms ease; }',
   '#zf-home .zf-card:hover .zf-card-x, #zf-home .zf-card:focus-within .zf-card-x { opacity: 0.7; }',
   '#zf-home .zf-card-x:hover { opacity: 1; background: rgba(var(--zf-hi), 0.14); }',
@@ -568,7 +568,7 @@ const polishCss = (gruv = false) => [
   '#zf-rec .zf-rec-row:hover .zf-rec-x, #zf-rec .zf-rec-row:focus-within .zf-rec-x { opacity: 0.7; }',
   '#zf-rec .zf-rec-x:hover { opacity: 1; background: rgba(var(--zf-hi), 0.14); }',
   '@media (prefers-reduced-motion: reduce) { #zf-rec .zf-rec-h .codicon, #zf-rec .zf-rec-open { transition: none; } }',
-  '#zf-landing p:not(.wordmark) { text-shadow: 0 1px 3px rgba(0,0,0,0.65), 0 0 18px rgba(0,0,0,0.45); }',
+  '#zf-landing p:not(.wordmark) { font-size: 17px !important; line-height: 1.5 !important; font-weight: 500 !important; letter-spacing: 0.01em !important; text-wrap: balance; color: var(--zf-ink-0, #fbf1c7) !important; opacity: 0.95 !important; text-shadow: 0 1px 2px rgba(0,0,0,0.8), 0 0 22px rgba(0,0,0,0.65), 0 0 48px rgba(0,0,0,0.4); }',
   '@media (prefers-reduced-motion: reduce) { #zf-home[data-on="1"] { animation: none; } #zf-home .zf-card-open { transition: none; } }',
   // Settings is a floating sheet, solid enough that nothing reads through it
   "div.rounded-xl[data-zf-setbox] { background: var(--zf-m-sheet) !important; box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 30px 80px rgba(0, 0, 0, 0.55) !important; isolation: isolate; }",
@@ -8665,10 +8665,14 @@ export default {
         }
         const hide = () => { shown = false; token++; el.dataset.on = ''; el.replaceChildren() }
         const place = (r, tagline) => {
-          const width = Math.max(260, Math.min(780, r.width - 48))
+          const width = Math.max(260, Math.min(920, r.width - 48))
           // Sit just under the tagline's real bottom edge (it can wrap to two lines); fall back to a fixed fraction.
           const tb = tagline && tagline.getBoundingClientRect()
-          const top = tb && tb.height > 0 && tb.bottom > r.top && tb.bottom < r.top + r.height ? tb.bottom + 36 : r.top + r.height * 0.6
+          let top = tb && tb.height > 0 && tb.bottom > r.top && tb.bottom < r.top + r.height ? tb.bottom + 44 : r.top + r.height * 0.6
+          // the pinned status shelf (Sky etc.) sits right under the tagline: start below it when it is showing
+          const pinned = document.getElementById('zephyr-shelf-below')
+          const sb = pinned && !pinned.hidden ? pinned.getBoundingClientRect() : null
+          if (sb && sb.height > 0 && sb.bottom + 28 > top && sb.top < r.top + r.height) top = sb.bottom + 28
           const next = { left: Math.round(r.left + (r.width - width) / 2) + 'px', top: Math.round(top) + 'px', width: Math.round(width) + 'px', maxHeight: Math.max(0, Math.round(r.top + r.height - top - 88)) + 'px' }
           for (const k in next) if (el.style[k] !== next[k]) el.style[k] = next[k]
         }
@@ -8845,7 +8849,7 @@ export default {
         } else if (root.dataset.zfLanding) {
           delete root.dataset.zfLanding
         }
-        home.sync(empties.length ? empties[0].r : null, [...landing.querySelectorAll('p')].filter(e => !e.classList.contains('wordmark')).pop())
+        home.sync(empties.length ? empties[0].r : null, [...document.querySelectorAll("[data-slot='aui_intro'] p, #zf-landing p")].filter(e => !/wordmark/.test(String(e.className)) && e.getClientRects().length).pop())
         home.syncRail()
       }
       let pageQueued = false

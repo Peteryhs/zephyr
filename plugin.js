@@ -1421,6 +1421,15 @@ const skyStyleFor = (date, gl = false) => {
     '  border: none !important;',
     '  outline: none !important;',
     '}',
+    // A long bubble scrolls inside the host's fixed height. The painted
+    // scrollbar sits just inside the ring and reads as a second border, so the
+    // bubble keeps the host's scrolling but loses the visible track.
+    ":is([data-slot='aui_user-message-root'], [data-slot='user-message']) :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) {",
+    '  scrollbar-width: none;',
+    '}',
+    ":is([data-slot='aui_user-message-root'], [data-slot='user-message']) :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container)::-webkit-scrollbar {",
+    '  display: none;',
+    '}',
     // User message bubbles: styled to match the frosted panels and composer cards
     ":is([data-slot='aui_user-message-root'], [data-slot='user-message']) :is(.composer-human-message, [class*='composer-human-message']),",
     ":is(.composer-human-message, [class*='composer-human-message'], .composer-human-message-container) {",
@@ -2154,8 +2163,8 @@ const skyStyleFor = (date, gl = false) => {
     '  outline: none !important;',
     '  box-shadow: none !important;',
     '}',
-    ":is([data-slot='aui_user-message-root'], [data-slot='user-message']) :is(.composer-human-message, [class*='composer-human-message']),",
-    ":is(.composer-human-message, [class*='composer-human-message'], .composer-human-message-container) {",
+    ":is([data-slot='aui_user-message-root'], [data-slot='user-message']) :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container),",
+    ":is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) {",
     '  box-shadow: var(--zf-lift) !important;',
     '}',
     `${SWITCH_HOOK} > [role='tablist'],`,

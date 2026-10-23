@@ -4,7 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-const src = readFileSync(new URL('../plugin.js', import.meta.url), 'utf8')
+const src = readFileSync(new URL('../plugin.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const cut = (from, to) => { const a = src.indexOf(from), b = src.indexOf(to, a); assert.ok(a >= 0 && b > a, `${from} not found`); return src.slice(a, b) }
 
 test('hexRgb is never handed an [r, g, b] triple (it parsed "213,19" into 33, 3, 25)', () => {
@@ -22,10 +22,10 @@ test('getSolar only trusts finite, ordered live sun times', () => {
   assert.equal(make(ok)(), ok)
 })
 test('a fetched sunrise that does not parse is dropped before it is stored', () => {
-  assert.match(src, /Number\.isFinite\(rise\) && Number\.isFinite\(set\) && rise < set\)\) return\n\s+liveSolar = \{/)
+  assert.match(src, /Number\.isFinite\(rise\) && Number\.isFinite\(set\) && rise < set\)\) return\r?\n\s+liveSolar = \{/)
 })
 test('a hidden window does not spin the frame timer', () => {
-  assert.match(src, /run\.last = t\n\s+run\.lastSky = t/)
+  assert.match(src, /run\.last = t\r?\n\s+run\.lastSky = t/)
 })
 test('stored weather and quality names must be own keys, not "constructor"', () => {
   assert.match(src, /Object\.hasOwn\(WEATHER_LABEL, stored\(STORE_KEYS\.weather\)\)/)
@@ -44,7 +44,7 @@ test('the session-click replay is not swallowed by its own handler, and the swap
 })
 test('the solar fetch result is ignored after dispose', () => {
   assert.match(src, /zfDisposed = true/)
-  assert.match(src, /\.then\(\(\) => \{\n\s+if \(zfDisposed\) return/)
+  assert.match(src, /\.then\(\(\) => \{\r?\n\s+if \(zfDisposed\) return/)
 })
 test('npm test runs every test file', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))

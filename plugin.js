@@ -353,6 +353,62 @@ const ensurePictureStyle = url => {
   if (el.textContent !== value) el.textContent = value
 }
 
+// Session tabs (the session rows in the tree — `data-tree-tab`, workspace or
+// session-tile): wide pills, the active one a raised piece of glass. The pane
+// tabs (Sessions / Bots) are NOT these; they keep their own look.
+const SESSION_TAB_CSS = [
+  // Top tabs: soft pills, sentence case, no rules between them. The active tab
+  // is a raised piece of the same dark glass as the cards; the rest stay quiet
+  // until hovered.
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) {",
+  '  position: relative;',
+  '  height: 26px !important; min-height: 26px !important; margin: 4px 1px 0 !important;',
+  '  padding-inline: 4px 6px !important;',
+  '  border: 0 !important; border-radius: 8px !important;',
+  '  background: transparent !important; box-shadow: none !important;',
+  '  color: var(--zf-ink-2, #ebdbb2) !important; opacity: 0.78;',
+  '  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;',
+  '}',
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *)::before { display: none !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) .uppercase {",
+  '  text-transform: none !important; letter-spacing: 0 !important;',
+  '  font-size: 12px !important; font-weight: 500 !important;',
+  '}',
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):is(:hover, [aria-selected='true']) { opacity: 1; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):hover {",
+  '  color: var(--zf-ink-1, #ebdbb2) !important;',
+  '  background: rgba(var(--zf-hi), 0.06) !important;',
+  '}',
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *)[aria-selected='true'] {",
+  '  color: var(--zf-ink-0, #fbf1c7) !important;',
+  '  background: var(--zf-m-tab) !important;',
+  '  box-shadow: inset 0 0 0 1px rgba(var(--zf-hi), 0.10), 0 4px 14px rgba(0, 0, 0, 0.28) !important;',
+  '}',
+  // the + button: a quiet rounded square in line with the pills
+  "button[aria-label='New session tab'] {",
+  '  width: 26px !important; height: 26px !important; margin: 4px 0 0 4px !important; border-radius: 8px !important;',
+  '  color: var(--zf-ink-3, #d5c4a1) !important; background: transparent !important; border: 0 !important;',
+  '  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;',
+  '}',
+  "button[aria-label='New session tab']:hover { background: rgba(var(--zf-hi), 0.08) !important; color: var(--zf-ink-0, #fbf1c7) !important; }",
+  "button[aria-label='New session tab']:active { transform: scale(0.94); }",
+  "button[aria-label='New session tab'] :is(svg, i) { width: 14px !important; height: 14px !important; font-size: 14px !important; }",
+  // a tab's close button: hidden until the tab is hovered or active
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button { border-radius: 5px !important; opacity: 0; transition: opacity 120ms ease, background-color 120ms ease; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):is(:hover, [aria-selected='true']) button { opacity: 0.7; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button:hover { opacity: 1; background: rgba(var(--zf-hi), 0.10) !important; }",
+  // Wider tabs: the app caps them at 12rem and sizes them to the title. Give
+  // every tab a generous fixed span (Chrome-style), shrinking only when crowded.
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) { flex: 0 1 220px !important; width: 220px !important; min-width: 120px !important; max-width: 260px !important; height: 28px !important; padding-inline: 10px 6px !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) .truncate { flex: 1 1 auto !important; min-width: 0 !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button[aria-label='Close'] { width: 18px !important; height: 18px !important; margin-left: 6px !important; flex: none !important; align-self: center !important; }",
+  // the app hides the close slot (opacity 0, no pointer) until hover; show it on the active tab too
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *):is(:hover, [aria-selected='true']) span:has(> button[aria-label='Close']) { opacity: 1 !important; pointer-events: auto !important; z-index: 2; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) .pane-tab-content { padding-right: 22px !important; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) span:has(> button[aria-label='Close']) { align-items: center !important; padding-right: 6px; }",
+  "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) button[aria-label='Close'] .codicon { opacity: 1 !important; visibility: visible !important; font-size: 12px !important; color: var(--zf-ink-2, #ebdbb2) !important; }",
+]
+
 // ── Refinement pass ────────────────────────────────────────────────────────
 // The audit found ten different corner radii, ten font sizes, three border
 // colours that were not ours, and every message group 16px wider than the column
@@ -2044,6 +2100,7 @@ const skyStyleFor = (date, gl = false) => {
     // properties, and a stray `{` inside a declaration block makes the parser
     // swallow everything after it.
     ...materialVars(gruv),
+    ...SESSION_TAB_CSS,
     ...(gruv ? gruvboxTextCss() : []),
     ...polishCss(gruv),
     // Sidebar cards, the composer and the switch pill share the material.

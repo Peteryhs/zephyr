@@ -304,7 +304,7 @@ const gruvboxMaterial = () => ({
   // the status bar, the fold line, shortcuts — and gruvbox's Comment grey is
   // simply too quiet at that size over a tinted ground, so the quiet tier sits
   // at fg1. This is the one place the theme deliberately out-contrasts gruvbox.
-  ink: [hexRgb(SKIN.ink), hexRgb(SKIN.ink2), hexRgb(GB.fg2), hexRgb(SKIN.ink2)],
+  ink: [hexRgb(SKIN.ink), hexRgb(SKIN.ink2), GB.fg2, hexRgb(SKIN.ink2)],
   night: 0.2,
   accent: SKIN.accent
 })
@@ -792,7 +792,7 @@ const calcSolarTimes = (date = new Date(), lat = 43.65, lng = -79.38) => {
 }
 
 const getSolar = (date = new Date()) => {
-  if (liveSolar) return liveSolar
+  if (liveSolar && Number.isFinite(liveSolar.rise) && Number.isFinite(liveSolar.set) && liveSolar.rise < liveSolar.set) return liveSolar
   const [lat, lng] = getApproxCoords()
   return calcSolarTimes(date, lat, lng)
 }
@@ -4088,6 +4088,7 @@ const createSky = (opts = {}) => {
       else if (skyDue || wasFading) paint(skyDue)
     } else {
       run.last = t
+      run.lastSky = t   // else schedule() waits 0 ms and the timer spins while hidden
     }
     schedule()
   }
@@ -4302,6 +4303,7 @@ const syncSolar = async ctx => {
       const setD = new Date(todaySunset)
       const rise = riseD.getHours() + riseD.getMinutes() / 60
       const set = setD.getHours() + setD.getMinutes() / 60
+      if (!(Number.isFinite(rise) && Number.isFinite(set) && rise < set)) return
       liveSolar = { rise, set, tz, lat: loc.latitude, lng: loc.longitude, date: new Date().toDateString() }
       ctx.storage.set('solar', liveSolar)
     }
@@ -4960,8 +4962,8 @@ export default {
     const motion = atom(stored(STORE_KEYS.motion) !== false)
     const phase = atom(phaseAt(new Date()))
     const glOn = atom(stored(STORE_KEYS.glSky) !== false)
-    const weatherMode = atom(WEATHER_LABEL[stored(STORE_KEYS.weather)] ? stored(STORE_KEYS.weather) : 'live')
-    const quality = atom(QUALITY[stored(STORE_KEYS.quality)] ? stored(STORE_KEYS.quality) : 'balanced')
+    const weatherMode = atom(Object.hasOwn(WEATHER_LABEL, stored(STORE_KEYS.weather)) ? stored(STORE_KEYS.weather) : 'live')
+    const quality = atom(Object.hasOwn(QUALITY, stored(STORE_KEYS.quality)) ? stored(STORE_KEYS.quality) : 'balanced')
     const weatherNow = atom('')
     const statusDock = atom(stored(STORE_KEYS.statusDock) !== false)
     const library = atom(stored(STORE_KEYS.library) !== false)
@@ -5641,6 +5643,7 @@ export default {
     }
     const onPinMove = e => {
       if (e.pointerId !== pinDrag.id || !pinDrag.el) return
+      if (e.buttons === 0 && e.pointerType === 'mouse') { endPinDrag(); return }
       const src = pinDrag.src
       if (!pinDrag.moving) {
         if (Math.hypot(e.clientX - pinDrag.x, e.clientY - pinDrag.y) < 6) return
@@ -7792,6 +7795,7 @@ export default {
     let glFailed = false
     let liveWeather = null
     let previewTimer = null
+    let zfDisposed = false
 
     const reducedMotion = () =>
       typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -7956,6 +7960,7 @@ export default {
     apply(nowAt())
     syncSolar(ctx)
       .then(() => {
+        if (zfDisposed) return
         if (glSky && liveSolar?.lat != null) glSky.setLocation(liveSolar.lat, liveSolar.lng)
         apply(nowAt())
         return refreshWeather()
@@ -8435,7 +8440,7 @@ export default {
       const schedulePage = () => {
         if (pageQueued) return
         pageQueued = true
-        requestAnimationFrame(() => { pageQueued = false; markStrips(); markHas(); syncPage() })
+        requestAnimationFrame(() => { pageQueued = false; if (pageDead) return; markStrips(); markHas(); syncPage() })
       }
       const pageObs = new MutationObserver(schedulePage)
       pageObs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected', 'data-state', 'hidden'] })
@@ -8471,8 +8476,9 @@ export default {
       // retire the tab it replaces.
       const topTabs = () => Array.from(document.querySelectorAll("[role='tab'][data-tree-tab]")).filter(t => !t.closest('[data-zf-arc-col]'))
       let swapping = false
+      let replaying = false
       const onRowClick = event => {
-        if (swapping || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+        if (replaying || swapping || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
         // the whole row counts (it is ~62px tall; the title button is 18px),
         // except its own controls: the actions menu and the reorder handle
         const t = event.target
@@ -8491,6 +8497,8 @@ export default {
         const r = btn.getBoundingClientRect()
         row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 20, clientY: r.top + r.height / 2, button: 2 }))
         const finish = () => { swapping = false; delete root.dataset.zfGhostMenu }
+        // pick and retire run on animation frames, which a hidden window never delivers
+        setTimeout(() => { if (swapping) finish() }, 3000)
         let tries = 0
         const pick = () => {
           const items = Array.from(document.querySelectorAll("[role='menuitem']"))
@@ -8499,7 +8507,7 @@ export default {
           if (!item) {
             // already open somewhere: close the menu, let the app route it
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
-            setTimeout(() => { finish(); btn.click() }, 60)
+            setTimeout(() => { finish(); replaying = true; try { btn.click() } finally { replaying = false } }, 60)
             return
           }
           const before = new Set(topTabs().map(t => t.dataset.treeTab))
@@ -9129,6 +9137,7 @@ export default {
 
     // A plugin is a guest: leave the host as we found it when it unloads.
     ctx.onDispose?.(() => {
+      zfDisposed = true
       themeObs?.disconnect()
       clearInterval(configTimer)
       clearInterval(timer)

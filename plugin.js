@@ -4837,7 +4837,9 @@ const candidates = (sessions, records, now, exclude) =>
 /* "Pick up where you left off": fast recency. Pinned sessions are already one
    click away, quick chats are noise, and a dismissed one stays gone until you
    open it again. */
-function pickUp(sessions, records, now, { exclude = new Set(), limit = 5 } = {}) {
+const PICK_UP_COUNT = 6   // three rows of two or two rows of three: fills the width
+
+function pickUp(sessions, records, now, { exclude = new Set(), limit = PICK_UP_COUNT } = {}) {
   const out = []
   for (const { s, rec } of candidates(sessions, records, now, exclude)) {
     if (!rec || s.pinned || rec.never || isQuick(s, rec, now)) continue
@@ -4907,7 +4909,7 @@ function prune(records) {
   for (const id of ids.slice(0, MAX_RECORDS)) out[id] = records[id]
   return out
 }
-return { DAY, HALF_LIFE_DAYS, VISIT_GAP_MS, QUICK_MAX_MESSAGES, QUICK_MAX_TURNS, QUICK_GRACE_MS, REGULAR_MIN_DAYS, REGULAR_WINDOW_DAYS, MAX_RECORDS, MAX_VISITS, MAX_DAYS, emptyRecord, recordFocus, recordTurn, seedFromSession, lastTouch, isQuick, scoreRecent, cadence, ago, pickUp, regulars, sanitize, prune }
+return { DAY, HALF_LIFE_DAYS, VISIT_GAP_MS, QUICK_MAX_MESSAGES, QUICK_MAX_TURNS, QUICK_GRACE_MS, REGULAR_MIN_DAYS, REGULAR_WINDOW_DAYS, MAX_RECORDS, MAX_VISITS, MAX_DAYS, emptyRecord, recordFocus, recordTurn, seedFromSession, lastTouch, isQuick, scoreRecent, cadence, ago, PICK_UP_COUNT, pickUp, regulars, sanitize, prune }
 })()
 /* ── end recents/engine.js ── */
 

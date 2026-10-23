@@ -135,7 +135,9 @@ const candidates = (sessions, records, now, exclude) =>
 /* "Pick up where you left off": fast recency. Pinned sessions are already one
    click away, quick chats are noise, and a dismissed one stays gone until you
    open it again. */
-export function pickUp(sessions, records, now, { exclude = new Set(), limit = 5 } = {}) {
+export const PICK_UP_COUNT = 6   // three rows of two or two rows of three: fills the width
+
+export function pickUp(sessions, records, now, { exclude = new Set(), limit = PICK_UP_COUNT } = {}) {
   const out = []
   for (const { s, rec } of candidates(sessions, records, now, exclude)) {
     if (!rec || s.pinned || rec.never || isQuick(s, rec, now)) continue

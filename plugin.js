@@ -541,17 +541,19 @@ const polishCss = (gruv = false) => [
   // The new-tab shelf: what to open next.
   '#zf-home { position: fixed; z-index: 2; display: none; flex-direction: column; gap: 18px; pointer-events: none; overflow: hidden; }',
   "#zf-home[data-on='1'] { display: flex; animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both; }",
-  '#zf-home h3 { margin: 0 0 8px 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--zf-ink-2, #ebdbb2); opacity: 0.75; }',
-  '#zf-home .zf-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }',
+  '#zf-home h3 { margin: 0 0 12px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--zf-ink-0, #fbf1c7); opacity: 0.92; text-shadow: 0 1px 2px rgba(0,0,0,0.7), 0 0 14px rgba(0,0,0,0.55); }',
+  '#zf-home .zf-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }',
+  '@media (max-width: 640px) { #zf-home .zf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
   '#zf-home .zf-card { position: relative; pointer-events: auto; min-width: 0; }',
-  '#zf-home .zf-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0; padding: 12px 30px 12px 14px; border-radius: 14px; cursor: pointer; background: var(--zf-m-pin-b); box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.1); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); transition: box-shadow 140ms ease, transform 140ms ease; }',
-  '#zf-home .zf-card-open:hover { box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.3); transform: translateY(-1px); }',
+  '#zf-home .zf-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 5px; width: 100%; min-width: 0; padding: 14px 34px 14px 16px; border-radius: 16px; cursor: pointer; background: linear-gradient(180deg, rgba(var(--zf-hi), 0.13), rgba(var(--zf-hi), 0.05)), rgba(14, 24, 19, 0.58); box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.14), 0 0 0 1px rgba(var(--zf-hi), 0.12), 0 8px 24px rgba(0,0,0,0.28); backdrop-filter: blur(20px) saturate(1.25); -webkit-backdrop-filter: blur(20px) saturate(1.25); transition: box-shadow 140ms ease, background 140ms ease, transform 140ms ease; }',
+  '#zf-home .zf-card-open:hover { background: linear-gradient(180deg, rgba(var(--zf-hi), 0.2), rgba(var(--zf-hi), 0.08)), rgba(14, 24, 19, 0.6); box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.22), 0 0 0 1px rgba(var(--zf-hi), 0.28), 0 12px 28px rgba(0,0,0,0.34); transform: translateY(-2px); }',
   '#zf-home .zf-card-open:focus-visible { box-shadow: 0 0 0 2px rgba(var(--zf-hi), 0.7); }',
-  '#zf-home .zf-card-title { font-size: 13.5px; font-weight: 600; color: var(--zf-ink-0, #fbf1c7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
-  '#zf-home .zf-card-why { font-size: 12px; color: var(--zf-ink-2, #ebdbb2); opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
-  '#zf-home .zf-card-x { all: unset; position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font-size: 15px; line-height: 1; cursor: pointer; color: var(--zf-ink-2, #ebdbb2); opacity: 0; transition: opacity 120ms ease, background 120ms ease; }',
-  "#zf-home .zf-card:hover .zf-card-x, #zf-home .zf-card:focus-within .zf-card-x { opacity: 0.7; }",
+  '#zf-home .zf-card-title { font-size: 14px; font-weight: 600; letter-spacing: 0.005em; color: var(--zf-ink-0, #fbf1c7); text-shadow: 0 1px 2px rgba(0,0,0,0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+  '#zf-home .zf-card-why { font-size: 12px; color: var(--zf-ink-2, #ebdbb2); opacity: 0.72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+  '#zf-home .zf-card-x { all: unset; position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-size: 15px; line-height: 1; cursor: pointer; color: var(--zf-ink-2, #ebdbb2); opacity: 0; transition: opacity 120ms ease, background 120ms ease; }',
+  '#zf-home .zf-card:hover .zf-card-x, #zf-home .zf-card:focus-within .zf-card-x { opacity: 0.7; }',
   '#zf-home .zf-card-x:hover { opacity: 1; background: rgba(var(--zf-hi), 0.14); }',
+  '#zf-landing p:not(.wordmark) { text-shadow: 0 1px 3px rgba(0,0,0,0.65), 0 0 18px rgba(0,0,0,0.45); }',
   '@media (prefers-reduced-motion: reduce) { #zf-home[data-on="1"] { animation: none; } #zf-home .zf-card-open { transition: none; } }',
   // Settings is a floating sheet, solid enough that nothing reads through it
   "div.rounded-xl[data-zf-setbox] { background: var(--zf-m-sheet) !important; box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 30px 80px rgba(0, 0, 0, 0.55) !important; isolation: isolate; }",
@@ -8647,18 +8649,21 @@ export default {
           el.dataset.on = parts.length ? '1' : ''
         }
         const hide = () => { shown = false; token++; el.dataset.on = ''; el.replaceChildren() }
-        const place = r => {
+        const place = (r, tagline) => {
           const width = Math.max(260, Math.min(780, r.width - 48))
-          const next = { left: Math.round(r.left + (r.width - width) / 2) + 'px', top: Math.round(r.top + r.height * 0.6) + 'px', width: Math.round(width) + 'px', maxHeight: Math.max(0, Math.round(r.height * 0.4 - 24)) + 'px' }
+          // Sit just under the tagline's real bottom edge (it can wrap to two lines); fall back to a fixed fraction.
+          const tb = tagline && tagline.getBoundingClientRect()
+          const top = tb && tb.height > 0 && tb.bottom > r.top && tb.bottom < r.top + r.height ? tb.bottom + 36 : r.top + r.height * 0.6
+          const next = { left: Math.round(r.left + (r.width - width) / 2) + 'px', top: Math.round(top) + 'px', width: Math.round(width) + 'px', maxHeight: Math.max(0, Math.round(r.top + r.height - top - 88)) + 'px' }
           for (const k in next) if (el.style[k] !== next[k]) el.style[k] = next[k]
         }
 
         return {
           // called on every page pass with the empty pane's box, or null
-          sync(rect) {
+          sync(rect, tagline) {
             if (dead) return
             if (!rect || !homeOn.get()) { if (shown) hide(); return }
-            place(rect)
+            place(rect, tagline)
             if (shown) return
             shown = true
             const mine = ++token
@@ -8740,7 +8745,7 @@ export default {
         } else if (root.dataset.zfLanding) {
           delete root.dataset.zfLanding
         }
-        home.sync(empties.length ? empties[0].r : null)
+        home.sync(empties.length ? empties[0].r : null, [...landing.querySelectorAll('p')].filter(e => !e.classList.contains('wordmark')).pop())
       }
       let pageQueued = false
       // The sheet matched 13 things with :has(). Scrolling mounts rows, and each

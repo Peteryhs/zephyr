@@ -37,7 +37,7 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 const THEMES_AREA = 'themes'
 const DIRECTIVE_AREA = 'transcript.directives'
 
-const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin', home: 'home', homeCard: 'homeCard', recents: 'recents' }
+const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', chrome: 'chrome', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin', home: 'home', homeCard: 'homeCard', recents: 'recents' }
 const REPO_URL = 'https://github.com/Peteryhs/zephyr'
 
 // write an attribute only when its value changes: an identical write still queues a
@@ -554,6 +554,19 @@ const polishCss = (gruv = false) => [
   '  padding: 0.12em 0.36em;',
   '  font-size: 0.92em;',
   '}',
+  // A code card already has an edge and a fill. react-shiki nests its own
+  // <pre class="shiki"> inside the wrapper <pre>, and both matched the rule
+  // above, so the inner one drew its own border and fill inside the wrapper's
+  // padding — the upside-down U-shaped seam around the code. The card is the
+  // surface; a pre inside it is content, not a second surface.
+  "[data-slot='aui_thread-content'] [data-slot='code-card'] pre {",
+  '  border: 0 !important;',
+  '  border-radius: 0 !important;',
+  '}',
+  "[data-slot='aui_thread-content'] [data-slot='code-card'] pre pre {",
+  '  padding: 0 !important;',
+  '  background: transparent !important;',
+  '}',
   // The code card floats its copy chip over the block's top-right corner (20px
   // tall, 6px down). The block's own padding puts the first line underneath it,
   // so a long line runs behind the chip. Reserve the band the chip sits in.
@@ -728,7 +741,7 @@ const gruvboxTextCss = () => [
   '}'
 ]
 
-// Read by skyStyleFor, which is a pure function of (date, gl) everywhere else.
+// Read by skyStyleFor, which stays a pure function of (date, gl, switches).
 // The look is a module-level switch so the sheet builder stays a single path.
 let LOOK_MODE = 'sunset'
 const setLookMode = mode => { LOOK_MODE = mode === 'gruvbox' ? 'gruvbox' : 'sunset' }
@@ -1224,7 +1237,11 @@ const ARCLIKE_CSS = [
   '}',
 ]
 
-const skyStyleFor = (date, gl = false) => {
+// `backdrop` paints the ground the app sits on (sky, painting or picture);
+// `chrome` paints Zephyr's own panels, type and controls. They are separate
+// switches in Settings, so a plain Hermes chrome can keep its sky, and the
+// glass can stay without a backdrop behind it.
+const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) => {
   const gruv = LOOK_MODE === 'gruvbox'
   const sky = skyAt(date)
   const isNight = !gruv && phaseAt(date) === 'night'
@@ -1248,6 +1265,7 @@ const skyStyleFor = (date, gl = false) => {
     gruv
       ? `/* Zephyr · gruvbox. The Backwater, ${BACKWATER_FILE}, full ${4096}×${2428}, cover-fitted. */`
       : `/* Zephyr sky. Blended for ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}, exposure ${sky.exposure.toFixed(2)}, horizon ${horizonTilt.angle.toFixed(1)}°. */`,
+    ...(backdrop ? [
     'html {',
     `  background-color: ${gruv ? '#1d2021' : cssRgb(sky.base)};`,
     '}',
@@ -1294,6 +1312,8 @@ const skyStyleFor = (date, gl = false) => {
     `  background: radial-gradient(circle, ${cssRgba(sky.orb, sky.orbAlpha)} 0%, transparent 62%);`,
     '}',
         ]),
+    ] : []),
+    ...(chrome ? [
     // Panel density, and it is deliberately mode-scoped: Zephyr's phases are
     // dark palettes, and a light-mode app would not want a translucent ground.
     ':root.dark {',
@@ -2317,15 +2337,17 @@ const skyStyleFor = (date, gl = false) => {
     '* { scrollbar-color: rgba(255, 255, 255, 0.14) transparent; scrollbar-width: thin; }',
     ...ARCLIKE_CSS,
     ...MORPH_CSS,
+    ] : []),
   ].join('\n')
 }
 
 // ══ §5b APP MOTION (fold + interface animation, independent of the sky) ════
 
-// Interface motion is not a sky visual: it must survive Sky being off, so it
-// lives in its own always-on <style> (like the snippet sheet), never in
-// skyStyleFor — that sheet is rewritten every few minutes as the light drifts
-// (which would restart keyframes) and is removed entirely with the sky.
+// Interface motion is not part of the painted sheet: it must survive both the
+// Sky switch and Zephyr styling being off, so it lives in its own always-on
+// <style> (like the snippet sheet), never in skyStyleFor — that sheet is
+// rewritten every few minutes as the light drifts (which would restart
+// keyframes) and is removed when nothing of Zephyr is on screen.
 //
 // The rules are deliberately cheap: opacity and transform only (compositor),
 // plus paint-only colour swaps for hover and press. Nothing here animates a
@@ -4315,8 +4337,11 @@ const createSky = (opts = {}) => {
 // style recalc of the app, so this cuts that cost by ~5x.
 const SKY_STEP_MS = 5 * 60 * 1000
 
-const paintSky = (date, gl = false) => {
+const paintSky = (date, gl = false, opts = {}) => {
   if (typeof document === 'undefined') return
+  const backdrop = opts.backdrop !== false
+  const chrome = opts.chrome !== false
+  if (!backdrop && !chrome) { clearSky(); return }
 
   let el = document.getElementById(SKY_STYLE_ID)
 
@@ -4327,7 +4352,7 @@ const paintSky = (date, gl = false) => {
   }
 
   const quantized = new Date(Math.floor(date.getTime() / SKY_STEP_MS) * SKY_STEP_MS)
-  const next = skyStyleFor(quantized, gl)
+  const next = skyStyleFor(quantized, gl, { backdrop, chrome })
   if (el.textContent !== next) el.textContent = next
 }
 
@@ -5301,7 +5326,12 @@ export default {
     }
     const wake = () => { if (!away) return; away = false; ctx.storage.set('away', false) }
     const tint = atom(stored(STORE_KEYS.tint) === true)
+    // Three independent switches. `sky` is only the live sky backdrop; the
+    // painting and a custom picture are backgrounds of their own. `chrome` is
+    // Zephyr's sheet of glass, type and controls, which used to be welded to
+    // `sky` because both lived in one <style>.
     const sky = atom(stored(STORE_KEYS.sky) !== false)
+    const chromeOn = atom(stored(STORE_KEYS.chrome) !== false)
     // 'sunset' = the painted sky (the default); 'gruvbox' = the built-in
     // Backwater skin at its shipped defaults; 'custom' = the same skin driven by
     // your own picture and knobs (zephyr-theme.json). Built-in and custom differ
@@ -5329,6 +5359,7 @@ export default {
       ctx.storage.set(STORE_KEYS.auto, auto.get())
       ctx.storage.set(STORE_KEYS.tint, tint.get())
       ctx.storage.set(STORE_KEYS.sky, sky.get())
+      ctx.storage.set(STORE_KEYS.chrome, chromeOn.get())
       ctx.storage.set(STORE_KEYS.look, look.get())
       ctx.storage.set(STORE_KEYS.margins, margins.get())
       ctx.storage.set(STORE_KEYS.collapseWork, collapseWork.get())
@@ -8234,18 +8265,25 @@ export default {
       glSky = null
     }
 
+    // The sky is only the sunset look's ground. The painting and a custom
+    // picture are backgrounds in their own right, so the Sky switch does not
+    // take them away; `chromeOn` controls the glass and layout sheet alone.
+    const surfaceOn = () => chromeOn.get() || sky.get() || look.get() !== 'sunset'
     const renderSky = now => {
       if (away) { dropGl(); clearSky(); return }
-      if (!sky.get()) {
+      const lookNow = look.get()
+      const backdrop = lookNow !== 'sunset' || sky.get()
+      const chrome = chromeOn.get()
+      if (!backdrop && !chrome) {
         dropGl()
         clearSky()
         return
       }
       // gruvbox is a still painting, so there is no canvas sky and no clock to
       // hold; gl=true would also blank the image layer, so it is forced off.
-      const gl = look.get() !== 'sunset' ? (dropGl(), null) : glOn.get() ? ensureGl() : (dropGl(), null)
+      const gl = !backdrop || lookNow !== 'sunset' ? (dropGl(), null) : glOn.get() ? ensureGl() : (dropGl(), null)
       if (gl) gl.setHold(heldMoment())
-      paintSky(now, Boolean(gl))
+      paintSky(now, Boolean(gl), { backdrop, chrome })
     }
 
     const refreshWeather = () =>
@@ -8288,7 +8326,7 @@ export default {
     const tick = () => {
       const now = nowAt()
       writeSun(now)
-      if (sky.get()) renderSky(now)
+      if (surfaceOn()) renderSky(now)
       if (glSky && weatherMode.get() === 'live' && !liveWeather) applyWeather()
       if (phaseAt(now) !== phase.get()) apply(now)
     }
@@ -8383,7 +8421,7 @@ export default {
         if (want !== pin.get()) { pin.set(want); ctx.storage.set(STORE_KEYS.phasePin, want) }
         if (look.get() !== 'sunset') { switchLook('sunset'); return }
         apply(nowAt())
-        if (sky.get()) renderSky(nowAt())
+        renderSky(nowAt())
       }
       themeObs = new MutationObserver(onTheme)
       themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-hermes-theme'] })
@@ -8439,15 +8477,37 @@ export default {
     })
 
     // ── settings ─────────────────────────────────────────────────────────────
-    // One page, three short sections in the order people reach for them: the
-    // sky, the light, the chat. Rows that only matter under another switch
-    // (weather, smoothness, preview under the realistic sky) appear only when
-    // that switch is on, and the pin roster appears only once there is a pin.
+    // Look is the short, front page: background, the sky switch and Zephyr
+    // styling. Sky detail, picture knobs and the rest only appear when they
+    // apply, and the long Chat/Snippets sections stay folded until asked for.
     const PHASE_TITLE = { dawn: 'Dawn', sunrise: 'Sunrise', day: 'Day', dusk: 'Dusk', night: 'Night' }
     const QUALITY_FPS = { low: 4, balanced: 8, high: 16 }
-    const section = (icon, title, rows) =>
-      jsxs('section', {
-        className: 'mb-6',
+    // `collapse` keeps the long, occasional sections (chat, snippets) to one
+    // line until they are opened. Native <details>/<summary> needs no state and
+    // keeps the app's own disclosure marker.
+    const section = (icon, title, rows, opts = {}) => {
+      const body = rows.filter(Boolean)
+      if (opts.collapse) {
+        return jsxs('details', {
+          className: 'mb-3',
+          open: opts.open || undefined,
+          children: [
+            jsx('summary', {
+              className: 'mb-1 cursor-pointer pt-2 text-[length:var(--conversation-text-font-size)] font-medium',
+              children: jsxs('span', {
+                className: 'inline-flex items-center gap-2',
+                children: [
+                  jsx(Codicon, { className: 'text-muted-foreground', name: icon, size: '1rem' }),
+                  jsx('span', { children: title })
+                ]
+              })
+            }),
+            ...body
+          ]
+        })
+      }
+      return jsxs('section', {
+        className: 'mb-5',
         children: [
           jsxs('div', {
             className: 'mb-1 flex items-center gap-2 pt-2 text-[length:var(--conversation-text-font-size)] font-medium',
@@ -8456,9 +8516,10 @@ export default {
               jsx('span', { children: title })
             ]
           }),
-          ...rows.filter(Boolean)
+          ...body
         ]
       })
+    }
 
     // ── the skin as state: wallpaper + every knob the editor exposes ──────────
     // The image is stored under its own key because a full-resolution picture
@@ -8480,7 +8541,7 @@ export default {
       setSkin(next === 'custom' ? { ...skin.get() } : { ...SKIN_DEFAULTS })
       ensurePictureStyle(SKIN.image)
       apply(nowAt())
-      if (sky.get()) renderSky(nowAt())
+      renderSky(nowAt())
     }
     const pushSkin = patch => {
       const next = { ...skin.get(), ...patch }
@@ -9076,65 +9137,69 @@ export default {
         control
       ]})
 
+    const SkinPicture = () => {
+      const cfg = useValue(skin)
+      const isUpload = typeof cfg.image === 'string' && cfg.image.startsWith('data:')
+      return jsxs('div', { className: 'mt-1 flex flex-wrap items-center gap-2 pb-2', children: [
+        jsx('label', {
+          className: 'cursor-pointer rounded-md px-2 py-1 text-[0.75rem]',
+          style: { border: '1px solid var(--zf-edge, var(--ui-stroke-tertiary, rgba(255,255,255,0.16)))' },
+          children: [
+            'Choose image…',
+            jsx('input', {
+              type: 'file', accept: 'image/*', style: { display: 'none' },
+              onChange: event => {
+                const file = event.target.files && event.target.files[0]
+                void useImageFile(file)
+                event.target.value = ''
+              }
+            })
+          ]
+        }),
+        jsx('input', {
+          type: 'text',
+          value: isUpload ? '' : String(cfg.image || ''),
+          placeholder: isUpload ? '(uploaded image)' : 'image URL or file path',
+          className: 'rounded-md bg-transparent px-2 py-1 text-[0.75rem]',
+          style: { flex: '1 1 12rem', minWidth: '10rem', border: '1px solid var(--zf-edge, var(--ui-stroke-tertiary, rgba(255,255,255,0.16)))' },
+          onChange: event => {
+            const value = event.target.value.trim()
+            if (value) pushSkin({ image: value })
+          }
+        }),
+        jsx('button', {
+          type: 'button',
+          className: 'rounded-md px-2 py-1 text-[0.75rem]',
+          style: { border: '1px solid var(--zf-edge, var(--ui-stroke-tertiary, rgba(255,255,255,0.16)))' },
+          onClick: () => resetSkin(),
+          children: 'Reset'
+        }),
+        jsx('button', {
+          type: 'button',
+          className: 'rounded-md px-2 py-1 text-[0.75rem]',
+          style: { border: '1px solid var(--zf-edge, var(--ui-stroke-tertiary, rgba(255,255,255,0.16)))' },
+          title: '~/.hermes/zephyr-theme.json: every colour, opacity and filter of the Custom look, as one editable file',
+          onClick: () => { openConfig() },
+          children: 'Theme file'
+        })
+      ]})
+    }
+
     const SkinEditor = () => {
       const cfg = useValue(skin)
       const slider = ([key, label, min, max, step]) =>
         SkinRow(label, jsx('input', {
           type: 'range', min, max, step, value: cfg[key],
-          style: { width: '10rem', accentColor: 'var(--zf-accent)' },
+          style: { width: '10rem', accentColor: 'var(--zf-accent, var(--ui-accent, currentColor))' },
           onChange: event => pushSkin({ [key]: Number(event.target.value) })
         }))
       const swatch = ([key, label]) =>
         SkinRow(label, jsx('input', {
           type: 'color', value: cfg[key],
-          style: { width: '2.25rem', height: '1.5rem', padding: '0', border: '1px solid var(--zf-edge)', borderRadius: '0.375rem', background: 'transparent' },
+          style: { width: '2.25rem', height: '1.5rem', padding: '0', border: '1px solid var(--zf-edge, var(--ui-stroke-tertiary, rgba(255,255,255,0.16)))', borderRadius: '0.375rem', background: 'transparent' },
           onChange: event => pushSkin({ [key]: event.target.value })
         }))
-      const isUpload = typeof cfg.image === 'string' && cfg.image.startsWith('data:')
       return jsxs('div', { className: 'mt-1 flex flex-col gap-0.5', children: [
-        jsxs('div', { className: 'flex flex-wrap items-center gap-2 pb-2', children: [
-          jsx('label', {
-            className: 'cursor-pointer rounded-md px-2 py-1 text-[0.75rem]',
-            style: { border: '1px solid var(--zf-edge)' },
-            children: [
-              'Choose image…',
-              jsx('input', {
-                type: 'file', accept: 'image/*', style: { display: 'none' },
-                onChange: event => {
-                  const file = event.target.files && event.target.files[0]
-                  void useImageFile(file)
-                  event.target.value = ''
-                }
-              })
-            ]
-          }),
-          jsx('input', {
-            type: 'text',
-            value: isUpload ? '' : String(cfg.image || ''),
-            placeholder: isUpload ? '(uploaded image)' : 'image URL or file path',
-            className: 'rounded-md bg-transparent px-2 py-1 text-[0.75rem]',
-            style: { flex: '1 1 12rem', minWidth: '10rem', border: '1px solid var(--zf-edge)' },
-            onChange: event => {
-              const value = event.target.value.trim()
-              if (value) pushSkin({ image: value })
-            }
-          }),
-          jsx('button', {
-            type: 'button',
-            className: 'rounded-md px-2 py-1 text-[0.75rem]',
-            style: { border: '1px solid var(--zf-edge)' },
-            onClick: () => resetSkin(),
-            children: 'Reset'
-          }),
-          jsx('button', {
-            type: 'button',
-            className: 'rounded-md px-2 py-1 text-[0.75rem]',
-            style: { border: '1px solid var(--zf-edge)' },
-            title: '~/.hermes/zephyr-theme.json: every colour, opacity and filter of the Custom look, as one editable file',
-            onClick: () => { openConfig() },
-            children: 'Theme file'
-          })
-        ]}),
         ...SKIN_SLIDERS.map(slider),
         ...SKIN_COLORS.map(swatch)
       ]})
@@ -9148,6 +9213,7 @@ export default {
         const isAuto = useValue(auto)
         const isTint = useValue(tint)
         const isSky = useValue(sky)
+        const isChrome = useValue(chromeOn)
         const isMargins = useValue(margins)
         const isHome = useValue(homeOn)
         const isHomeCard = useValue(homeCard)
@@ -9162,15 +9228,19 @@ export default {
         const nowWeather = useValue(weatherNow)
         const nowPhase = useValue(phase)
         const list = useValue(pins)
-        const realistic = isSky && isGl && !glFailed && lookNow === 'sunset'
+        const skyLook = lookNow === 'sunset'
+        const realistic = skyLook && isSky && isGl && !glFailed
 
         const status = lookNow === 'gruvbox'
-          ? ['Gruvbox', 'The Backwater, Wyllie', '4096 × 2428 at full size', !isSky ? 'background off' : 'painting behind glass'].join('  ·  ')
-          : [
-          `${PHASE_TITLE[nowPhase] || nowPhase}, ${PHASE_BLURB[nowPhase]}`,
-          realistic ? (mode === 'live' ? (nowWeather ? `live weather: ${nowWeather}` : 'live weather') : WEATHER_LABEL[mode]) : null,
-          !isSky ? 'sky off' : realistic ? `sky at ${QUALITY_FPS[q]} fps` : 'painted sky'
-        ].filter(Boolean).join('  ·  ')
+          ? ['Gruvbox', 'The Backwater, Wyllie', '4096 × 2428 at full size', isChrome ? 'Zephyr styling' : 'Hermes styling'].join('  ·  ')
+          : lookNow === 'custom'
+            ? ['Custom picture', isChrome ? 'Zephyr styling' : 'Hermes styling'].join('  ·  ')
+            : [
+              `${PHASE_TITLE[nowPhase] || nowPhase}, ${PHASE_BLURB[nowPhase]}`,
+              realistic ? (mode === 'live' ? (nowWeather ? `live weather: ${nowWeather}` : 'live weather') : WEATHER_LABEL[mode]) : null,
+              !isSky ? 'sky off' : realistic ? `sky at ${QUALITY_FPS[q]} fps` : 'painted sky',
+              !isChrome ? 'Hermes styling' : null
+            ].filter(Boolean).join('  ·  ')
 
         const repoLink = jsxs('a', {
           className: 'mt-1 inline-flex items-center gap-1 text-[0.75rem] text-(--ui-text-tertiary) underline-offset-2 hover:text-(--ui-text-secondary) hover:underline',
@@ -9211,14 +9281,14 @@ export default {
           ]
         })
 
-        const skySection = section('cloud', 'Sky', [
+        const lookSection = section('cloud', 'Look', [
           jsx(ListRow, {
             title: 'Background',
             description: lookNow === 'sunset'
-              ? 'The sky where you are, painted from the real sun, with the clock driving dawn, day, dusk and night.'
+              ? 'The live sky where you are, driven by the real sun and your weather.'
               : lookNow === 'gruvbox'
-                ? 'The built-in look: The Backwater (Charles W. Wyllie, 1903), 4096×2428, behind green glass with gruvbox cream text. Also in Appearance › Theme as Zephyr Gruvbox.'
-                : 'Your own picture, with your own glass. Every knob below is yours; the built-in look stays one click away.',
+                ? 'The Backwater (Charles W. Wyllie, 1903) behind green glass with gruvbox cream text. Also in Appearance › Theme as Zephyr Gruvbox.'
+                : 'Your own picture with your own glass. Choose the image and tune it under Picture & glass below.',
             action: jsx(SegmentedControl, {
               value: lookNow,
               options: [
@@ -9229,31 +9299,44 @@ export default {
               onChange: next => switchLook(next)
             })
           }),
-          jsx(ToggleRow, {
-            checked: isSky,
-            description: 'Show the sky behind the app. Off gives a plain dark background.',
-            label: 'Sky',
-            onChange: on => {
-              sky.set(on)
-              persist()
-              renderSky(nowAt())
-            }
-          }),
-          isSky
+          skyLook
             ? jsx(ToggleRow, {
-                checked: isGl && !glFailed,
-                disabled: glFailed,
-                description: glFailed
-                  ? 'This device could not start it (no WebGL), so the painted gradient sky is used.'
-                  : 'The sun where you really are, clouds that follow the weather, and twilight colours. Off uses a lighter painted gradient.',
-                label: 'Realistic sky',
+                checked: isSky,
+                description: 'Show the live sky behind the app. Off gives a plain dark ground and leaves Zephyr styling on; Built-in and Custom keep their own picture.',
+                label: 'Sky',
                 onChange: on => {
-                  glOn.set(on)
+                  sky.set(on)
                   persist()
                   renderSky(nowAt())
                 }
               })
             : null,
+          jsx(ToggleRow, {
+            checked: isChrome,
+            description: 'Zephyr’s glass panels, floating sidebar, cards and type. Off keeps Hermes’s own chrome and only the background you chose.',
+            label: 'Zephyr styling',
+            onChange: on => {
+              chromeOn.set(on)
+              persist()
+              renderSky(nowAt())
+            }
+          })
+        ])
+
+        const skySection = skyLook && isSky ? section('cloud', 'Sky', [
+          jsx(ToggleRow, {
+            checked: isGl && !glFailed,
+            disabled: glFailed,
+            description: glFailed
+              ? 'This device could not start it (no WebGL), so the painted gradient sky is used.'
+              : 'The sun where you really are, clouds that follow the weather, and twilight colours. Off uses a lighter painted gradient.',
+            label: 'Realistic sky',
+            onChange: on => {
+              glOn.set(on)
+              persist()
+              renderSky(nowAt())
+            }
+          }),
           realistic
             ? jsx(ListRow, {
                 title: 'Weather',
@@ -9320,18 +9403,23 @@ export default {
                 })
               })
             : null
-        ])
+        ]) : null
 
-        const skinSection = section('paintcan', 'Picture & glass', [
-          jsx(ListRow, {
-            title: 'Wallpaper',
-            description: lookNow === 'custom'
-              ? 'Your picture, at its own resolution. Anything the browser can decode: JPG, PNG, WebP, AVIF, HEIC on macOS. Large files are downscaled once, only if the store cannot hold the original.'
-              : 'Switch Background to Custom to paint your own picture. Built-in uses The Backwater.',
-            action: jsx('span', { className: 'text-[0.75rem] text-(--ui-text-tertiary)', children: lookNow === 'custom' ? 'Custom' : lookNow === 'gruvbox' ? 'Built-in' : 'Sky' })
-          }),
-          jsx(SkinEditor, {})
-        ])
+        const skinSection = lookNow === 'custom'
+          ? section('paintcan', 'Picture & glass', [
+            jsx(SkinPicture, {}),
+            jsx('details', {
+              className: 'mb-2',
+              children: [
+                jsx('summary', {
+                  className: 'cursor-pointer py-1 text-[0.75rem] text-(--ui-text-tertiary)',
+                  children: 'Colour, glass and fit'
+                }),
+                jsx(SkinEditor, {})
+              ]
+            })
+          ])
+          : null
 
         const lightSection = section('symbol-color', 'Light', [
           jsx(ToggleRow, {
@@ -9357,7 +9445,7 @@ export default {
           })
         ])
 
-        const chatSection = section('comment-discussion', 'Chat', [
+        const chatSection = section('comment-discussion', 'Chat & motion', [
           jsx(ToggleRow, {
             checked: isHome,
             description: 'On a new tab: the sessions you are most likely to want, and the ones you keep coming back to. It learns only from when you open sessions and send messages, keeps that on this computer, and shows why each one is there. The x on a card removes it.',
@@ -9437,7 +9525,7 @@ export default {
               syncStatusDock()
             }
           })
-        ])
+        ], { collapse: true })
 
         const pinSection = section('bookmark', list.length ? `Snippets (${list.length})` : 'Snippets', [
           jsx(ToggleRow, {
@@ -9474,9 +9562,9 @@ export default {
                 })
               })
             : null
-        ])
+        ], { collapse: true })
 
-        return jsxs('div', { children: [header, skySection, skinSection, lightSection, chatSection, pinSection].filter(Boolean) })
+        return jsxs('div', { children: [header, lookSection, skySection, skinSection, lightSection, chatSection, pinSection].filter(Boolean) })
       }
     })
 
@@ -9527,6 +9615,17 @@ export default {
       hot.id = 'zf-rail-hot'
       hot.setAttribute('aria-hidden', 'true')
       document.body.appendChild(hot)
+
+      // The sidebar switch is drawn by ARCLIKE_CSS, which is part of the
+      // styling sheet. With Zephyr styling off there is no sheet to position or
+      // hide it, so keep the raw button and the edge sensor out of the way.
+      const syncChromeControls = () => {
+        const show = chromeOn.get()
+        modeBtn.style.display = show ? '' : 'none'
+        hot.style.display = show ? '' : 'none'
+      }
+      const chromeUnsub = chromeOn.subscribe?.(syncChromeControls)
+      syncChromeControls()
 
       const toggleBtn = () => Array.from(document.querySelectorAll('button'))
         .find(el => /^(show|hide) sidebar/i.test(el.getAttribute('aria-label') || ''))
@@ -9698,6 +9797,7 @@ export default {
         document.documentElement.removeEventListener('mouseleave', onArcLeave)
         window.removeEventListener('keydown', onArcEsc)
         clearTimeout(closeTimer)
+        try { chromeUnsub?.() } catch {}
         hot.remove(); modeBtn.remove()
         for (const k of ['zfArc', 'zfArcOpen', 'zfArcReady', 'zfArcSeen', 'zfMorph']) delete root.dataset[k]
         document.querySelectorAll('[data-zf-arc-col]').forEach(el => { delete el.dataset.zfArcCol })

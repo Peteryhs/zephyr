@@ -54,7 +54,9 @@ Open **Settings > Zephyr**.
 
 | Setting | What it does |
 | --- | --- |
-| Sky | Shows the sky behind the app. Off gives a plain dark background. |
+| Background | **Sky** (the live sky), **Built-in** (The Backwater, a painting behind green glass) or **Custom** (your own picture and colours). |
+| Sky | Shows the live sky behind the app when Background is Sky. Off gives a plain dark ground; Built-in and Custom keep their picture. |
+| Zephyr styling | The glass panels, floating sidebar, cards and type. Off leaves Hermes's own chrome and keeps only the background you chose. |
 | Realistic sky | Uses the full WebGL sky. Off, or on a device without WebGL, you get a lighter painted gradient. |
 | Weather | Live weather, or one fixed sky type. |
 | Smoothness | Low, Balanced or High (4, 8 or 16 frames a second). Clouds drift slowly, so Balanced looks the same as High and uses half the power. |
@@ -66,7 +68,6 @@ Open **Settings > Zephyr**.
 | App animations | Short fades and slides on menus, the history list, the composer and folded steps. Off makes every interaction instant. Follows your system's reduced-motion setting. |
 | Status panel in Simple mode | Moves the status bar into the sessions sidebar. |
 | Snippet library | Shows the Snippets card in the sidebar with everything you've pinned. |
-| Background | **Sky** (the live sky), **Built-in** (The Backwater, a painting behind green glass) or **Custom** (your own picture and colours). |
 
 ## Looks
 

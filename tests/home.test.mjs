@@ -81,6 +81,11 @@ test('the active session tab wears the same matte material as the cards', () => 
   assert.equal(/backdrop-filter|gradient/.test(active), false, 'nothing glossy on the tab')
 })
 
+test('no plugin-drawn close button floats over the right-hand panels', () => {
+  assert.equal(src.includes('zf-panel-close'), false, 'the floating X over previews and drawers is gone')
+  assert.equal(src.includes('unmissable close'), false, 'and so is the block that placed it')
+})
+
 test('the shelf uses the plugin card radius, not a one-off 18px', () => {
   assert.match(ruleFor('#zf-home .zf-card-open'), /border-radius: var\(--zf-radius-lg, var\(--zf-r-card, 12px\)\)/)
   assert.equal(home.includes('border-radius: 18px'), false)

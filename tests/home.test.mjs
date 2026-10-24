@@ -81,10 +81,16 @@ test('the active session tab wears the same matte material as the cards', () => 
   assert.equal(/backdrop-filter|gradient/.test(active), false, 'nothing glossy on the tab')
 })
 
-test('a code card reserves the band its copy chip floats in', () => {
-  assert.ok(src.includes("[data-slot='aui_thread-content'] [data-slot='code-card'] pre {"),
-    'the code-card rule is missing')
-  assert.ok(src.includes("'  padding-top: 2rem !important;'"),
+test('a code card is one surface, with one band above the code', () => {
+  const start = src.indexOf('// A code card already has an edge and a fill.')
+  const end = src.indexOf('// Tables scroll instead of pushing the column wide.', start)
+  assert.ok(start > 0 && end > start, 'the code-card block is missing')
+  const card = src.slice(start, end)
+  assert.match(card, /\[data-slot='code-card'\] pre \{",\n  '  border: 0 !important;/,
+    'the card would draw a second border inside its own')
+  assert.match(card, /\[data-slot='code-card'\] pre pre \{",\n  '  padding: 0 !important;/,
+    'the nested shiki pre would add a second padding ring')
+  assert.match(card, /padding-top: 2rem !important/,
     'the copy chip overlaps the first code line without the reserved band')
 })
 

@@ -554,6 +554,12 @@ const polishCss = (gruv = false) => [
   '  padding: 0.12em 0.36em;',
   '  font-size: 0.92em;',
   '}',
+  // The code card floats its copy chip over the block's top-right corner (20px
+  // tall, 6px down). The block's own padding puts the first line underneath it,
+  // so a long line runs behind the chip. Reserve the band the chip sits in.
+  "[data-slot='aui_thread-content'] [data-slot='code-card'] pre {",
+  '  padding-top: 2rem !important;',
+  '}',
 
   // Tables scroll instead of pushing the column wide.
   "[data-slot='aui_thread-content'] table {",

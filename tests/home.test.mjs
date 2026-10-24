@@ -81,6 +81,13 @@ test('the active session tab wears the same matte material as the cards', () => 
   assert.equal(/backdrop-filter|gradient/.test(active), false, 'nothing glossy on the tab')
 })
 
+test('a code card reserves the band its copy chip floats in', () => {
+  assert.ok(src.includes("[data-slot='aui_thread-content'] [data-slot='code-card'] pre {"),
+    'the code-card rule is missing')
+  assert.ok(src.includes("'  padding-top: 2rem !important;'"),
+    'the copy chip overlaps the first code line without the reserved band')
+})
+
 test('no plugin-drawn close button floats over the right-hand panels', () => {
   assert.equal(src.includes('zf-panel-close'), false, 'the floating X over previews and drawers is gone')
   assert.equal(src.includes('unmissable close'), false, 'and so is the block that placed it')

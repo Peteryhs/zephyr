@@ -37,7 +37,7 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 const THEMES_AREA = 'themes'
 const DIRECTIVE_AREA = 'transcript.directives'
 
-const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin', home: 'home', recents: 'recents' }
+const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin', home: 'home', homeCard: 'homeCard', recents: 'recents' }
 const REPO_URL = 'https://github.com/Peteryhs/zephyr'
 
 // write an attribute only when its value changes: an identical write still queues a
@@ -354,12 +354,13 @@ const ensurePictureStyle = url => {
 }
 
 // Session tabs (the session rows in the tree — `data-tree-tab`, workspace or
-// session-tile): wide pills, the active one a raised piece of glass. The pane
-// tabs (Sessions / Bots) are NOT these; they keep their own look.
+// session-tile): wide pills, the active one a flat matte block, the same
+// material the suggestion cards wear. The pane tabs (Sessions / Bots) are NOT
+// these; they keep their own look.
 const SESSION_TAB_CSS = [
   // Top tabs: soft pills, sentence case, no rules between them. The active tab
-  // is a raised piece of the same dark glass as the cards; the rest stay quiet
-  // until hovered.
+  // is a flat matte block of the same material as the cards; the rest stay
+  // quiet until hovered.
   "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *) {",
   '  position: relative;',
   '  height: 26px !important; min-height: 26px !important; margin: 4px 1px 0 !important;',
@@ -381,8 +382,11 @@ const SESSION_TAB_CSS = [
   '}',
   "[role='tab'][data-tree-tab]:not([data-zf-arc-col] *)[aria-selected='true'] {",
   '  color: var(--zf-ink-0, #fbf1c7) !important;',
-  '  background: var(--zf-m-tab) !important;',
-  '  box-shadow: inset 0 0 0 1px rgba(var(--zf-hi), 0.10), 0 4px 14px rgba(0, 0, 0, 0.28) !important;',
+  // The active tab wears the same matte material as the suggestion cards: one
+  // flat opaque fill, no white wash, no inset ring, no drop shadow. Lifted one
+  // step toward the ink so it still reads as raised on the bar.
+  '  background: color-mix(in srgb, var(--zf-m-solid, rgb(17, 18, 24)) 90%, rgb(var(--zf-hi, 255, 255, 255))) !important;',
+  '  box-shadow: none !important;',
   '}',
   // the + button: a quiet rounded square in line with the pills
   "button[aria-label='New session tab'] {",
@@ -4632,15 +4636,14 @@ const SNIPPET_CSS = [
 
 // The new-tab shelf is plugin UI, not scenery. It keeps its own always-on
 // sheet so it survives Zephyr being away (another theme, or Sky off): the fill
-// is the plugin's two-stop card glass when a Zephyr look is active, and the
-// host's own card when it is not. The drop shadow, text shadow and shape are
-// the plugin's own; only the material and ink are theme values. No live
+// is the plugin's own sidebar-card material (`--zf-side-card`, the same glass
+// the snippet and tool cards wear) and the host's widget surface when no Zephyr
+// look is active. Shape, edge and shadow follow the rest of the plugin: one
+// `--zf-edge` hairline, `--zf-radius-lg`, no white wash over the fill. No live
 // backdrop-filter: like every other large Zephyr surface, the card sits on a
 // material, not on a blurred copy of the sky.
 const HOME_CSS = [
   '#zf-home {',
-  '  --zf-home-fill-a: var(--zf-m-pin-a, var(--ui-widget-surface-background, rgba(20, 22, 28, 0.55)));',
-  '  --zf-home-fill-b: var(--zf-m-pin-b, var(--ui-sidebar-surface-background, rgba(12, 14, 20, 0.6)));',
   '  --zf-home-ink-0: var(--zf-ink-0, var(--ui-text-primary, inherit));',
   '  --zf-home-ink-2: var(--zf-ink-2, var(--ui-text-secondary, inherit));',
   '  --zf-home-ink-3: var(--zf-ink-3, var(--ui-text-tertiary, inherit));',
@@ -4659,8 +4662,15 @@ const HOME_CSS = [
   '#zf-home .zf-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }',
   '@media (max-width: 640px) { #zf-home .zf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
   '#zf-home .zf-card { position: relative; pointer-events: auto; min-width: 0; }',
-  '#zf-home .zf-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 5px; width: 100%; min-width: 0; padding: 17px 38px 17px 19px; border-radius: var(--zf-r-card, 12px); cursor: pointer; background: linear-gradient(180deg, rgba(var(--zf-home-hi), 0.13), rgba(var(--zf-home-hi), 0.05)), linear-gradient(180deg, var(--zf-home-fill-a), var(--zf-home-fill-b)); box-shadow: inset 0 1px 0 rgba(var(--zf-home-hi), 0.14), 0 0 0 1px rgba(var(--zf-home-hi), 0.12), 0 8px 24px rgba(0,0,0,0.28); transition: box-shadow 140ms ease, background 140ms ease, transform 140ms ease; }',
-  '#zf-home .zf-card-open:hover { background: linear-gradient(180deg, rgba(var(--zf-home-hi), 0.2), rgba(var(--zf-home-hi), 0.08)), linear-gradient(180deg, var(--zf-home-fill-a), var(--zf-home-fill-b)); box-shadow: inset 0 1px 0 rgba(var(--zf-home-hi), 0.22), 0 0 0 1px rgba(var(--zf-home-hi), 0.28), 0 12px 28px rgba(0,0,0,0.34); transform: translateY(-2px); }',
+  '#zf-home .zf-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; width: 100%; min-width: 0; padding: 18px 38px 18px 20px; border-radius: var(--zf-radius-lg, var(--zf-r-card, 12px)); cursor: pointer; transition: background-color 140ms ease, box-shadow 140ms ease; }',
+  // Matte: the plugin's own card material worn the way the sidebar, snippet and
+  // tool cards wear it. One flat fill, no ring, no drop shadow, no white wash -
+  // nothing that picks up the sky behind it, so it cannot read as reflective.
+  "#zf-home[data-cards='matte'] .zf-card-open { background: var(--zf-m-solid, rgb(17, 18, 24)); }",
+  "#zf-home[data-cards='matte'] .zf-card-open:hover { background: color-mix(in srgb, var(--zf-m-solid, rgb(17, 18, 24)) 90%, #fff); }",
+  // Glass: the sidebar-card glass, edged and lifted off the page.
+  "#zf-home[data-cards='glass'] .zf-card-open { background: var(--zf-side-card, var(--ui-widget-surface-background, rgba(20, 22, 28, 0.55))); box-shadow: 0 0 0 1px var(--zf-edge, rgba(255, 255, 255, 0.07)), 0 10px 26px rgba(0, 0, 0, 0.24); }",
+  "#zf-home[data-cards='glass'] .zf-card-open:hover { background: var(--zf-side-card-hi, var(--zf-side-card, var(--ui-widget-surface-background, rgba(20, 22, 28, 0.55)))); box-shadow: 0 0 0 1px color-mix(in srgb, var(--zf-hi, 255, 255, 255) 16%, transparent), 0 14px 32px rgba(0, 0, 0, 0.3); }",
   '#zf-home .zf-card-open:focus-visible { box-shadow: 0 0 0 2px rgba(var(--zf-home-hi), 0.7); }',
   '#zf-home .zf-card-title { font-size: 15.5px; font-weight: 600; letter-spacing: 0.005em; color: var(--zf-home-ink-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
   '#zf-home .zf-card-why { font-size: 12.5px; color: var(--zf-home-ink-2); opacity: 0.72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
@@ -5305,6 +5315,7 @@ export default {
     const statusDock = atom(stored(STORE_KEYS.statusDock) !== false)
     const library = atom(stored(STORE_KEYS.library) !== false)
     const homeOn = atom(stored(STORE_KEYS.home) !== false)
+    const homeCard = atom(stored(STORE_KEYS.homeCard) === 'glass' ? 'glass' : 'matte')
     let homeApi = { reset() {} }
 
     const persist = () => {
@@ -5322,6 +5333,7 @@ export default {
       ctx.storage.set(STORE_KEYS.statusDock, statusDock.get())
       ctx.storage.set(STORE_KEYS.library, library.get())
       ctx.storage.set(STORE_KEYS.home, homeOn.get())
+      ctx.storage.set(STORE_KEYS.homeCard, homeCard.get())
     }
 
     const applyMargins = on => {
@@ -8749,7 +8761,9 @@ export default {
         const el = document.createElement('div')
         el.id = 'zf-home'
         el.setAttribute('aria-label', 'Suggested sessions')
+        el.dataset.cards = homeCard.get()
         document.body.appendChild(el)
+        unbind.push(homeCard.subscribe?.(v => { el.dataset.cards = v }))
         const open = id => { try { Promise.resolve(host.openSession(id)).catch(() => {}) } catch {} }
         const card = (item, dropTitle, drop) => {
           const wrap = document.createElement('div')
@@ -9130,6 +9144,7 @@ export default {
         const isSky = useValue(sky)
         const isMargins = useValue(margins)
         const isHome = useValue(homeOn)
+        const isHomeCard = useValue(homeCard)
         const isCollapseWork = useValue(collapseWork)
         const isMotion = useValue(motion)
         const isStatusDock = useValue(statusDock)
@@ -9347,6 +9362,23 @@ export default {
               homeApi.poke?.()
             }
           }),
+          isHome
+            ? jsx(ListRow, {
+                title: 'Suggestion card material',
+                description: 'Matte is the flat fill the sidebar, snippet and tool cards wear, with no edge or shadow. Glass is the translucent sidebar glass, edged and lifted.',
+                action: jsx(SegmentedControl, {
+                  value: isHomeCard,
+                  options: [
+                    { id: 'matte', label: 'Matte' },
+                    { id: 'glass', label: 'Glass' }
+                  ],
+                  onChange: next => {
+                    homeCard.set(next)
+                    persist()
+                  }
+                })
+              })
+            : null,
           isHome
             ? jsx(ListRow, {
                 description: 'Clears what Zephyr has learned about which sessions you open.',

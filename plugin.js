@@ -7724,7 +7724,7 @@ export default {
       if (target?.nodeType === 1 && target.closest?.('[data-chat-surface]')) scheduleScanWork()
     }
 
-    const onNavChange = () => scheduleScanWork()
+    const onNavChange = () => { scheduleScanWork(); runRescanHooks() }
 
     // Core lifts data-session-switching once the new transcript's rows are
     // placed and the scroll has settled. Attribute MutationObserver callbacks
@@ -7858,6 +7858,15 @@ export default {
       startSettleCurtain(surface, viewport, atBottom)
     }
 
+    /* Re-scan hooks. The page marks and the rail are measured off surfaces that
+       the app mounts and unmounts, so their observers are scoped to those
+       surfaces and re-attached here. A session switch or a route change is what
+       can move them; a streamed token cannot, and the transcript commits one per
+       chunk. Before this, both observers watched document.body and every chunk
+       woke a full-document sweep. */
+    const rescanHooks = []
+    const runRescanHooks = () => { for (const hook of rescanHooks) { try { hook() } catch {} } }
+
     let chatObserver = null
     if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
       // Streaming fires this on every token; all the real work is batched
@@ -7879,6 +7888,7 @@ export default {
               settledSurfaces.add(surface)
               settled = true
               settleSwitch(surface)
+              runRescanHooks()
             } else if (name === 'data-message-streaming') {
               relevant = true
             }
@@ -8342,14 +8352,26 @@ export default {
     }
     // Live work tiles count up once a second. Only the turns that are still
     // running (and the newest reply, which may have just started) are touched.
+    // The newest reply is the last thing in the transcript, so walk down its
+    // last-child chain: scanning every message root in the document, once a
+    // second for the whole session, was the one thing here that grew with the
+    // length of the conversation.
+    const newestMessageRoot = () => {
+      let el = document.querySelector?.("[data-slot='aui_thread-content']")
+      for (let depth = 0; el && depth < 6; depth += 1) {
+        if (el.matches?.("[data-slot='aui_assistant-message-root']")) return el
+        el = el.lastElementChild
+      }
+      return null
+    }
     const liveTimer = setInterval(() => {
       if (typeof document === 'undefined' || document.hidden || !collapseWork.get() || !scrollSettled()) return
       const groups = new Set()
       document.querySelectorAll?.(".zephyr-work-summary[data-live]").forEach(el => {
         const g = groupContainerOf(el.closest?.("[data-slot='aui_assistant-message-root']")); if (g) groups.add(g)
       })
-      const all = document.querySelectorAll?.("[data-slot='aui_assistant-message-root']")
-      if (all && all.length) { const g = groupContainerOf(all[all.length - 1]); if (g) groups.add(g) }
+      const newest = newestMessageRoot()
+      if (newest) { const g = groupContainerOf(newest); if (g) groups.add(g) }
       groups.forEach(g => processTurn(g, true))
     }, 1000)
     const flareTimer = setInterval(() => { if (typeof document !== 'undefined' && !document.hidden && scrollSettled()) fitStatusStack() }, 1000)
@@ -8675,8 +8697,15 @@ export default {
       await readConfig(false)
     }
     resolvePluginFiles().catch(error => console.warn('[zephyr] plugin files:', String(error)))
+    // zephyr-theme.json is read through the desktop bridge, so a poll is an IPC
+    // plus a file read, not a property access. 2s while you are looking at the
+    // window (an edit lands live), 30s while you are not (an edit is followed by
+    // coming back here anyway).
+    let configTicks = 0
     const configTimer = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return
+      configTicks += 1
+      if (configTicks % 15 !== 0 && !document.hasFocus?.()) return
       readConfig(true)
     }, 2000)
     const openConfig = async () => {
@@ -9033,7 +9062,20 @@ export default {
         requestAnimationFrame(() => { pageQueued = false; if (pageDead) return; markStrips(); markHas(); syncPage() })
       }
       const pageObs = new MutationObserver(schedulePage)
-      pageObs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected', 'data-state', 'hidden'] })
+      // The tab strips, the sidebar rows and the settings grid are what these
+      // marks measure. Watching document.body put a full-document sweep on every
+      // chunk the transcript committed; the transcript itself is covered by the
+      // rescan hook (a session switch or a route change is what moves a mark).
+      const PAGE_TARGETS = ["[data-panel-header]", "[data-slot='sidebar-content']", "[class*='grid-cols-[13rem_minmax(0,1fr)]']"]
+      const attachPageObs = () => {
+        const targets = PAGE_TARGETS.map(sel => document.querySelector(sel)).filter(Boolean)
+        pageObs.disconnect()
+        for (const target of targets.length ? targets : [document.body]) {
+          pageObs.observe(target, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected', 'data-state', 'hidden'] })
+        }
+      }
+      attachPageObs()
+      rescanHooks.push(() => { attachPageObs(); schedulePage() })
       window.addEventListener('resize', schedulePage)
       markStrips()
       markHas()
@@ -9732,7 +9774,15 @@ export default {
         requestAnimationFrame(() => { queued = false; sync() })
       }
       const railObs = new MutationObserver(schedule)
-      railObs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected', 'data-state', 'hidden'] })
+      // Scoped like the page marks: the rail is measured off the sidebar column,
+      // so the transcript does not need to wake it. Re-attached on a session
+      // switch or a route change, when the column can be a new node.
+      const attachRailObs = () => {
+        railObs.disconnect()
+        railObs.observe(document.querySelector("[data-slot='sidebar-wrapper']") || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected', 'data-state', 'hidden'] })
+      }
+      attachRailObs()
+      rescanHooks.push(() => { attachRailObs(); schedule() })
       window.addEventListener('resize', schedule)
       sync()
 

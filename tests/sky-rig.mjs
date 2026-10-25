@@ -110,7 +110,18 @@ const makeElement = tag => {
 }
 globalThis.document = {
   hidden: false,
-  documentElement: { style: { setProperty: () => {}, removeProperty: () => {} } },
+  documentElement: {
+    style: { setProperty: () => {}, removeProperty: () => {} },
+    // register() reads the picked theme and the margins/status attributes from
+    // the root before it paints; the older stub predated those reads.
+    dataset: {},
+    classList: { add: () => {}, remove: () => {}, toggle: () => {} },
+    getAttribute: () => null,
+    setAttribute: () => {},
+    removeAttribute: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  },
   createElement: tag => makeElement(tag),
   getElementById: id => head.get(id) || body.get(id) || null,
   querySelector: () => null,

@@ -255,7 +255,7 @@ const materialVars = gruv => {
       '  --zf-m-bub-a: rgba(255, 255, 255, 0.10); --zf-m-bub-b: rgba(255, 255, 255, 0.07);',
       '  --zf-m-sheet: rgba(14, 15, 22, 0.74);',
       '  --zf-m-on: #11121a;',
-      '  --ui-row-active-background: rgba(255, 255, 255, 0.10) !important;',
+      '  --ui-row-active-background: var(--zf-selected, rgba(255, 255, 255, 0.10)) !important;',
       '}'
     ]
   }
@@ -271,7 +271,7 @@ const materialVars = gruv => {
     `  --zf-m-bub-a: rgba(${hexTriple(bub)}, ${(g('bubble') * 0.60).toFixed(3)}); --zf-m-bub-b: rgba(${hexTriple(card)}, ${(g('bubble') * 0.68).toFixed(3)});`,
     `  --zf-m-sheet: rgba(${tri(mixHex(deep, ground, 0.5))}, ${(g('card') * 0.92).toFixed(3)});`,
     `  --zf-m-on: ${deep};`,
-    `  --ui-row-active-background: rgba(${tri(mixHex(bub, SKIN.ink, 0.18))}, 0.62) !important;`,
+    '  --ui-row-active-background: var(--zf-selected, rgba(255, 255, 255, 0.10)) !important;',
     '}'
   ]
 }
@@ -442,23 +442,43 @@ const polishCss = (gruv = false) => [
   `  --zf-ink-3: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.60)' : '#d5c4a1'} !important;`,
   '}',
   ':root {',
-  '  --zf-r-chip: 4px;',
-  '  --zf-r-control: 8px;',
-  '  --zf-r-card: 12px;',
-  // the app's own scale, set once: its radius utilities read these
+  // One ladder, four steps: chip 4, control/row/well 8, card 12, sheet 16.
+  '  --zf-r-1: 4px;',
+  '  --zf-r-2: 8px;',
+  '  --zf-r-3: 12px;',
+  '  --zf-r-4: 16px;',
+  '  --zf-r-chip: var(--zf-r-1);',
+  '  --zf-r-control: var(--zf-r-2);',
+  '  --zf-r-card: var(--zf-r-3);',
+  // The app's utility radii are computed from `--radius-scalar`, pinned to .2
+  // by its own base sheet: `rounded-xl` was 3.2px, `rounded-lg` 2.4px, while
+  // Zephyr drew 8-16px surfaces beside them. That is why a command well, a
+  // menu and the sheet around them never read as one family. One scalar puts
+  // every Tailwind radius on the same scale as the tokens below:
+  //   rounded-sm 6px · rounded-md 7.5px · rounded-lg 9px · rounded-xl 12px
+  //   rounded-2xl 18px · rounded-3xl 24px
+  '  --radius-scalar: .75;',
+  // No explicit --radius-sm/md/lg overrides: the app's base sheet already
+  // derives those from the scalar, and re-declaring them (8/12/6) made
+  // rounded-lg tie rounded-xl at 12. The scalar alone gives the scale above;
+  // --radius stays as the app's standalone base token.
   '  --radius: 12px;',
-  '  --radius-md: 8px;',
-  '  --radius-lg: 12px;',
-  '  --radius-sm: 6px;',
-  '  --zf-radius: 8px;',
-  '  --zf-radius-lg: 12px;',
-  `  --zf-hair: rgba(${hexTriple(SKIN.edge)}, 0.55);`,
+  // Zephyr's two surface aliases: cards/floating lists, and sheets.
+  '  --zf-radius: var(--zf-r-3);',
+  '  --zf-radius-lg: var(--zf-r-4);',
+  // The backwater edge is a green hairline; it belongs to the painting look,
+  // not to the sky. Sunset uses the same white hairline as every other edge,
+  // otherwise cards/code/dividers carried a green cast over a blue sky.
+  `  --zf-hair: ${gruv ? `rgba(${hexTriple(SKIN.edge)}, 0.55)` : 'var(--zf-edge)'};`,
+  '  --zf-selected: color-mix(in srgb, var(--zf-accent, #fe8019) 14%, transparent);',
   '  --zf-ease: cubic-bezier(0.2, 0, 0, 1);',
   '}',
 
   // One radius per role. Buttons, inputs and rows are controls; cards and code
-  // are surfaces; chips are inline.
-  "button:not([class*='rounded-full']), input, select, textarea, [role='button']:not([class*='rounded-full']), [role='tab'], [role='option'] {",
+  // are surfaces; chips are inline. Zephyr's own components (`zf-*`) opt out:
+  // their sheet/card radius must not be flattened to the control radius just
+  // because the host renders them as a <button> (the new-tab shelf cards were).
+  "button:not([class*='rounded-full']):not([class*='zf-']), input, select, textarea, [role='button']:not([class*='rounded-full']):not([class*='zf-']), [role='tab'], [role='option'] {",
   '  border-radius: var(--zf-r-control) !important;',
   '}',
   "[data-slot='aui_message'] :is(pre, table),",
@@ -476,7 +496,7 @@ const polishCss = (gruv = false) => [
   // specificity no matter how early this sheet is injected.
   // ...but never on an edge the app meant to be invisible: re-colouring
   // border-transparent drew a box around every nav row in Settings and the sidebar.
-  "html body :is(div, span, button, a, li, table, th, td, input, textarea, select, section, header, footer, aside, nav)[class]:not([class*='border-transparent']) {",
+  "html body :is(div, span, button, a, li, table, th, td, input, textarea, select, section, header, footer, aside, nav)[class]:not([class*='border-transparent']):not([class*='border-destructive']):not([class*='border-red']) {",
   '  border-color: var(--zf-hair) !important;',
   '}',
   // the accent is for state, not decoration: a focused control keeps its ring
@@ -544,11 +564,25 @@ const polishCss = (gruv = false) => [
 
   // Code: one padding, one radius, one border, tabular figures in blocks.
   "[data-slot='aui_thread-content'] pre {",
-  '  padding: 13px 15px !important;',
+  '  padding: 12px !important;',
   '  border-radius: var(--zf-r-card) !important;',
   '  border: 1px solid var(--zf-hair) !important;',
   '  line-height: 1.55 !important;',
   '  font-variant-numeric: tabular-nums;',
+  '}',
+  // A code card already has an edge and a fill. react-shiki nests its own pre
+  // inside the wrapper pre, and both matched the rule above, so the inner one
+  // drew a second border and fill inside the wrapper's padding — the
+  // upside-down U-shaped seam around the code. The card is the surface; a pre
+  // inside it is content, not a second surface.
+  "[data-slot='aui_thread-content'] [data-slot='code-card'] pre {",
+  '  border: 0 !important;',
+  '  border-radius: 0 !important;',
+  '  padding: 2rem 12px 12px !important;',
+  '}',
+  "[data-slot='aui_thread-content'] [data-slot='code-card'] pre pre {",
+  '  padding: 0 !important;',
+  '  background: transparent !important;',
   '}',
   "[data-slot='aui_thread-content'] :not(pre) > code {",
   '  padding: 0.12em 0.36em;',
@@ -599,7 +633,7 @@ const polishCss = (gruv = false) => [
   "html[data-zf-landing='1'] :is(#zf-landing, .zf-landing-x) > * { animation: zf-land-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }",
   "html[data-zf-landing='1'] :is(#zf-landing, .zf-landing-x) .zf-land-line { animation-delay: 80ms; }",
   // Settings is a floating sheet, solid enough that nothing reads through it
-  "div.rounded-xl[data-zf-setbox] { background: var(--zf-m-sheet) !important; box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 30px 80px rgba(0, 0, 0, 0.55) !important; isolation: isolate; }",
+  "div.rounded-xl[data-zf-setbox] { background: var(--zf-glass-strong) !important; border-radius: var(--zf-radius-lg) !important; box-shadow: var(--zf-lift-float) !important; isolation: isolate; }",
   "[class*='grid-cols-[13rem_minmax(0,1fr)]'] > aside { background: rgba(0, 0, 0, 0.16) !important; }",
   // focus: a soft cream ring, never the orange accent; the composer gets none
   "html body :focus-visible { outline: 1.5px solid rgba(var(--zf-hi), 0.38) !important; outline-offset: 2px; border-color: rgba(var(--zf-hi), 0.28) !important; }",
@@ -616,7 +650,9 @@ const polishCss = (gruv = false) => [
     "html body div[data-slot='composer-surface'][data-slot][class] { background: linear-gradient(var(--zf-m-comp-a), var(--zf-m-comp-b)) !important; backdrop-filter: blur(18px) saturate(1.25) brightness(1.08) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 10px 30px rgba(0, 0, 0, 0.22) !important; }",
     "html body :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) { background: linear-gradient(var(--zf-m-bub-a), var(--zf-m-bub-b)) !important; box-shadow: inset 0 1px 0 rgba(var(--zf-hi), 0.07), inset 0 0 0 1px rgba(var(--zf-hi), 0.06), 0 6px 20px rgba(0, 0, 0, 0.16) !important; border-color: transparent !important; }",
   ] : []),
-  "div.rounded-xl[data-zf-setbox] { background: var(--zf-m-sheet) !important; backdrop-filter: blur(28px) saturate(1.1) !important; }",
+  // No live backdrop blur on a full-height sheet: the frosted glass it sat
+  // behind is already baked, and the 28px pass was the most expensive one left.
+  "div.rounded-xl[data-zf-setbox] { backdrop-filter: none !important; }",
 
   // Two text roles still resolved to a colour the theme never chose — the pane
   // tab label and the sidebar timestamps both computed to rgb(33 3 25), which is
@@ -756,7 +792,11 @@ const SKY_STYLE_ID = 'zephyr-sky-style'
 // surface carries the hour's hue. `sky.top` is the zenith colour; its hue is
 // normalised before mixing so a dark night sky still tints rather than greys.
 const ZF_INK = [9, 13, 22]
+// The neutral night surface (the grey Peter asked to keep). Panels cross over
+// to it as the light goes, rather than stepping on the `phaseAt` boundary.
+const ZF_NIGHT = [20, 21, 25]
 const clamp01 = x => Math.min(1, Math.max(0, x))
+const smooth01 = x => x * x * (3 - 2 * x)
 const zephyrMaterial = sky => {
   const peak = Math.max(1, ...sky.top)
   const hue = sky.top.map(v => Math.round((v / peak) * 255))
@@ -765,7 +805,12 @@ const zephyrMaterial = sky => {
      panels need MORE body after dark, not less (Peter, 2026-10-10). */
   const night = clamp01((0.45 - sky.exposure) / 0.27)
   const n = night * night * (3 - 2 * night)
-  const tint = blendRgb(blendRgb(ZF_INK, blendRgb(sky.top, hue, 0.35), 0.16 - 0.06 * n), [3, 5, 10], 0.42 * n)
+  // Sky-tinted by day, a neutral grey after dark. The crossover follows the
+  // actual light level (exposure 0.32 -> 0.20), not the phase name, so there is
+  // no visible jump at duskEnd: by the time `isNight` is true the tint is
+  // already grey.
+  const grey = smooth01(clamp01((0.32 - sky.exposure) / 0.12))
+  const tint = blendRgb(blendRgb(blendRgb(ZF_INK, blendRgb(sky.top, hue, 0.35), 0.16 - 0.06 * n), [3, 5, 10], 0.42 * n), ZF_NIGHT, grey)
   const tintHi = blendRgb(tint, [255, 255, 255], 0.05 - 0.01 * n)
   const ink = [
     blendRgb([250, 251, 253], hue, 0.04),
@@ -1120,7 +1165,7 @@ const ARCLIKE_CSS = [
   '  flex: none !important; z-index: 60 !important;',
   '  border-radius: 16px !important; overflow: hidden !important;',
   '  background: var(--zf-m-solid) !important; background-image: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;',
-  '  box-shadow: 0 0 0 1px rgba(var(--zf-hi), 0.08), 0 24px 60px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35) !important;',
+  '  box-shadow: var(--zf-lift-float) !important;',
   '  translate: calc(-100% - 28px) 0; opacity: 0; pointer-events: none;',
   '  transition: translate 150ms cubic-bezier(0.4, 0, 1, 1), opacity 110ms ease;',
   '  will-change: translate, opacity; contain: layout paint;',
@@ -1771,9 +1816,10 @@ const skyStyleFor = (date, gl = false) => {
     '  padding: 0;',
     '  border: none;',
     '  border-radius: 999px;',
-    // Recessed: the same fill and frost as the cards, one step down, so the
-    // pill on top reads as the raised piece.
-    '  background: var(--zf-side-card);',
+    // Recessed: a well, not a card, so the pill on top reads as the raised
+    // piece instead of a card on a card.
+    '  background: var(--zf-well);',
+    '  box-shadow: inset 0 0 0 1px var(--zf-edge);',
     '  overflow: hidden;',
     '}',
     `${SWITCH_HOOK} > [role='tablist']::after {`,
@@ -1786,7 +1832,7 @@ const skyStyleFor = (date, gl = false) => {
     // left uncovered at either end.
     '  width: 50%;',
     '  border-radius: 999px;',
-    '  background: var(--zf-side-card-hi);',
+    '  background: var(--zf-glass-hover);',
     '  box-shadow: none;',
     '  transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);',
     '  pointer-events: none;',
@@ -1986,39 +2032,18 @@ const skyStyleFor = (date, gl = false) => {
     // Work progress collapse on finished turns lives in the always-on motion
     // sheet (§5b), not here: folding is an interface behaviour, not a sky
     // visual, so it must survive Sky being off. Search for "THE WORK FOLD".
-    // Night mode: opaque black-ish grey surface across panels, toggle, and input bar
-    // (2026-10-10, Peter: too light at night) one notch darker, with a breath
-    // of the night-sky navy so they sit in the sky instead of on it.
+    // Night is a TONE of the same material now: the tint itself turns neutral
+    // as the light goes (see zephyrMaterial), so there is no separate opaque
+    // night palette to switch on at duskEnd. What still needs saying at night
+    // is that the composer's inner layers must not paint the app's own grey
+    // behind the glass, and that its text stays on the ink ramp.
     ...(isNight
       ? [
-          ':root {',
-          '  --zf-night-well: rgb(13, 14, 17);',
-          '  --zf-night-panel: rgb(20, 21, 25);',
-          '  --zf-night-raised: rgb(24, 25, 29);',
-          '  --zf-night-hover: rgb(31, 32, 37);',
-          '}',
-          "[data-slot='sidebar-content'] > [data-sessions-mode] {",
-          '  background: var(--zf-side-card) !important;',
-          '  opacity: 1 !important;',
-          '}',
+          "[data-slot='sidebar-content'] > [data-sessions-mode],",
           "[data-slot='sidebar-content'] > [data-slot='sidebar-group'],",
           "[data-slot='sidebar-content'] > div:has(input),",
-          "[data-slot='sidebar-content'] > div:last-child {",
-          '  background: var(--zf-side-card) !important;',
-          '  opacity: 1 !important;',
-          '}',
-          `${SWITCH_HOOK} [role='tablist'] {`,
-          '  background: var(--zf-side-card) !important;',
-          '  opacity: 1 !important;',
-          '}',
-          `${SWITCH_HOOK} [role='tablist']::after {`,
-          '  background: var(--zf-side-card-hi) !important;',
-          '  opacity: 1 !important;',
-          '}',
-          // Composer input bar: ensure dock and root stay transparent, while surface retains original rounded pill shape
-          "[data-slot='composer-root'] {",
-          '  --composer-fill: var(--zf-night-raised) !important;',
-          '}',
+          "[data-slot='sidebar-content'] > div:last-child { opacity: 1 !important; }",
+          "[data-slot='composer-root'] { --composer-fill: var(--zf-glass) !important; }",
           "[data-slot='composer-dock'],",
           "[data-slot='composer-root'],",
           "[class~='group/composer'] {",
@@ -2026,23 +2051,21 @@ const skyStyleFor = (date, gl = false) => {
           '  background-color: transparent !important;',
           '}',
           ":is([data-slot='composer-surface'], [class~='group/composer-surface'], .composer-fallback-surface) {",
-          '  --composer-fill: var(--zf-night-raised) !important;',
-          '  background-color: var(--zf-night-raised) !important;',
-          '  background: var(--zf-night-raised) !important;',
+          '  --composer-fill: var(--zf-glass) !important;',
+          '  background-color: var(--zf-glass) !important;',
+          '  background: var(--zf-glass) !important;',
           '  border-radius: var(--zf-radius) !important;',
           '  overflow: hidden !important;',
           '  opacity: 1 !important;',
           '}',
           ":is([data-slot='composer-surface'], [class~='group/composer-surface']) > div:first-child,",
           ":is([data-slot='composer-surface'], [class~='group/composer-surface']) [class*='composerInputBacking'] {",
-          '  background-color: var(--zf-night-raised) !important;',
-          '  background: var(--zf-night-raised) !important;',
+          '  background-color: var(--zf-glass) !important;',
+          '  background: var(--zf-glass) !important;',
           '  border-radius: var(--zf-radius) !important;',
           '  opacity: 1 !important;',
           '}',
-          "[data-slot='composer-status-stack'] > div[class*='rounded-t-'] {",
-          '  background: var(--zf-night-raised) !important;',
-          '}',
+          "[data-slot='composer-status-stack'] > div[class*='rounded-t-'] { background: var(--zf-glass) !important; }",
           "form[data-slot='composer'] :is(textarea, input),",
           "[data-slot='composer-root'] :is(textarea, input, [contenteditable='true']) {",
           '  color: var(--zf-ink-0) !important;',
@@ -2058,13 +2081,13 @@ const skyStyleFor = (date, gl = false) => {
           '}',
           ":is([data-slot='aui_user-message-root'], [data-slot='user-message']) :is(.composer-human-message, [class*='composer-human-message']),",
           ":is(.composer-human-message, [class*='composer-human-message'], .composer-human-message-container) {",
-          '  background: var(--zf-night-raised) !important;',
-          '  background-color: var(--zf-night-raised) !important;',
+          '  background: var(--zf-glass-hover) !important;',
+          '  background-color: var(--zf-glass-hover) !important;',
           '  border-radius: var(--zf-radius) !important;',
           '  border: none !important;',
           '}',
           ":is(.composer-human-message, [class*='composer-human-message']):hover {",
-          '  background: var(--zf-night-hover) !important;',
+          '  background: var(--zf-glass-hover) !important;',
           '}',
           ":is([data-slot='aui_user-message-root'], [data-slot='user-message']) [class*='group-hover/user-message'] {",
           '  background: transparent !important;',
@@ -2078,39 +2101,53 @@ const skyStyleFor = (date, gl = false) => {
     // (2026-10-11, Peter). It now gets the sidebar-card ground, its command
     // and output step up to ink-1, and the transcript line sits in a well.
     // Closed rows keep the open sky; by day they get a soft shadow instead.
-    "[data-slot='tool-block'][data-tool-open] { background: var(--zf-side-card); border-color: var(--zf-edge) !important; }",
+    "[data-slot='tool-block'][data-tool-open] { background: var(--zf-side-card) !important; border: 0 !important; border-radius: var(--zf-radius) !important; box-shadow: var(--zf-lift) !important; }",
     "[data-slot='tool-block'][data-tool-open] :is(pre, code) { color: var(--zf-ink-1) !important; }",
     "[data-slot='tool-block'][data-tool-open] div:has(> code) { background: var(--zf-well) !important; border-color: var(--zf-edge) !important; }",
     "[data-slot='tool-block'][data-tool-open] [class*='tracking-[0.08em]'] { color: var(--zf-ink-2) !important; }",
     ...(isNight ? [] : ["[data-slot='tool-block']:not([data-tool-open]), .zephyr-work-summary { text-shadow: 0 1px 0.5rem rgba(0, 0, 0, 0.35); }"]),
     // ── Zephyr material ─────────────────────────────────────────────────────
     // One glass for every surface, tinted by the sky itself: a deep ink pulled
-    // toward the current zenith colour, so panels read navy at noon, plum at
-    // dusk and near-black at night instead of a flat neutral grey. Text inks
-    // carry the same hue at a whisper. Large surfaces get NO backdrop-filter:
-    // the clouds behind them are already blur-baked, so the frost is free, and
-    // a live backdrop blur over drifting clouds would re-render every frame.
-    // Only small, transient surfaces (menus, popovers, tooltips) frost live.
+    // toward the current zenith colour, so panels read navy at noon and plum at
+    // dusk. After dark the tint goes NEUTRAL: at night the sky is a blue-black
+    // gradient, and a blue glass over it made the sidebar (neutral `--theme-
+    // neutral-*`) and the dialogs/menus (sky-tinted) two different materials
+    // that appeared to swap as you moved between them (Peter, 2026-10-25: keep
+    // the grey). Every tier now draws from one grey ramp after dark; the sky
+    // itself stays the sky. Large surfaces get NO backdrop-filter: the clouds
+    // behind them are already blur-baked, so the frost is free, and a live
+    // backdrop blur over drifting clouds would re-render every frame. Only
+    // small, transient surfaces (menus, popovers, tooltips) frost live.
     ':root {',
     `  --zf-tint: ${cssRgb(zf.tint)};`,
     `  --zf-tint-hi: ${cssRgb(zf.tintHi)};`,
-    `  --zf-glass: color-mix(in srgb, var(--zf-tint) ${glassPct(80 + 9 * zf.night)}, transparent);`,
-    `  --zf-glass-hover: color-mix(in srgb, var(--zf-tint-hi) ${glassPct(86 + 6 * zf.night)}, transparent);`,
-    `  --zf-glass-strong: color-mix(in srgb, var(--zf-tint) ${glassPct(94 + 3 * zf.night)}, transparent);`,
-    `  --zf-glass-sunk: color-mix(in srgb, var(--zf-tint) ${glassPct(50 + 18 * zf.night)}, transparent);`,
+    `  --zf-glass: color-mix(in srgb, var(--zf-tint) ${glassPct(84 + 12 * zf.night)}, transparent);`,
+    `  --zf-glass-hover: color-mix(in srgb, var(--zf-tint-hi) ${glassPct(88 + 8 * zf.night)}, transparent);`,
+    `  --zf-glass-strong: color-mix(in srgb, var(--zf-tint) ${glassPct(94 + 4 * zf.night)}, transparent);`,
+    `  --zf-glass-sunk: color-mix(in srgb, var(--zf-tint) ${glassPct(50 + 30 * zf.night)}, transparent);`,
     `  --zf-well: rgba(0, 0, 0, ${(0.16 + 0.08 * zf.night).toFixed(3)});`,
+    // Prompt/command wells need more than a black wash over an already dark
+    // sheet: an opaque mix of the hour's tint and black gives a real step.
+    '  --zf-well-prompt: color-mix(in srgb, var(--zf-tint) 50%, #000);',
     '  --zf-edge: rgba(255, 255, 255, 0.07);',
     // every card in the sessions column paints this one fill (2026-10-10,
     // Peter: nav, search, switch and status match the sessions card)
-    `  --zf-side-card: ${isNight ? 'var(--zf-night-panel)' : 'var(--zf-glass)'};`,
-    `  --zf-side-card-hi: ${isNight ? 'var(--zf-night-hover)' : 'var(--zf-glass-hover)'};`,
+    // Every card, the composer and the sidebar are the same tier now; the
+    // night grey is carried by `--zf-tint` itself, so a material can never be
+    // opaque on one surface and translucent on the next after dark.
+    '  --zf-side-card: var(--zf-glass);',
+    '  --zf-side-card-hi: var(--zf-glass-hover);',
     '  --zf-edge-strong: rgba(255, 255, 255, 0.11);',
     '  --zf-hover: rgba(255, 255, 255, 0.065);',
     '  --zf-lift: inset 0 0 0 1px var(--zf-edge), inset 0 1px 0 rgba(255, 255, 255, 0.045);',
     '  --zf-lift-high: inset 0 0 0 1px var(--zf-edge-strong), inset 0 1px 0 rgba(255, 255, 255, 0.06);',
+    // One shadow for anything that floats above the app: dialogs, menus,
+    // popovers, the drawer, the dock and the floating sidebar. It used to be
+    // five different recipes (14px/36px, 24px/60px, 30px/80px, ...).
+    '  --zf-lift-float: 0 0 0 1px var(--zf-edge-strong), 0 16px 40px rgba(0, 0, 0, 0.34), 0 2px 8px rgba(0, 0, 0, 0.18);',
     '  --zf-frost: blur(1.25rem) saturate(1.35);',
-    '  --zf-radius: 0.6rem;',
-    '  --zf-radius-lg: 0.9rem;',
+    // Radii live in polishCss's token block (`--zf-r-1..4`), which is always
+    // emitted after this one; keeping a second copy here only invited drift.
     `  --zf-ink-0: ${cssRgb(zf.ink[0])};`,
     `  --zf-ink-1: ${cssRgb(zf.ink[1])};`,
     `  --zf-ink-2: ${cssRgb(zf.ink[2])};`,
@@ -2121,6 +2158,18 @@ const skyStyleFor = (date, gl = false) => {
     // properties, and a stray `{` inside a declaration block makes the parser
     // swallow everything after it.
     ...materialVars(gruv),
+    // The matte fill (floating sidebar card, active session tab, the new-tab
+    // shelf's matte cards) used to be a fixed neutral rgb(17,18,24) while the
+    // glass cards beside it carried the hour's hue. One material means one hue:
+    // the opaque step is the same tint, and after dark it is the same grey as
+    // every other night surface.
+    ...(gruv ? [] : [
+      // `html:root` so it outranks materialVars' `html:root` block above.
+      'html:root {',
+      `  --zf-m-solid: ${cssRgb(zf.tint)};`,
+      '  --zf-m-sheet: var(--zf-glass-strong);',
+      '}'
+    ]),
     ...SESSION_TAB_CSS,
     ...(gruv ? gruvboxTextCss() : []),
     ...polishCss(gruv),
@@ -2131,6 +2180,20 @@ const skyStyleFor = (date, gl = false) => {
     "[data-slot='sidebar-content'] > div:last-child {",
     // flat: no 1px edge (2026-10-10, Peter), like the status card
     '  box-shadow: none !important;',
+    '}',
+    // One gutter and one row shape inside every sidebar card. The nav card used
+    // to be flush (padding 0, square rows) while the sessions card was inset,
+    // so two card languages sat in the same 250px column.
+    "[data-slot='sidebar-content'] > [data-slot='sidebar-group'],",
+    "[data-slot='sidebar-content'] > [data-sessions-mode],",
+    "[data-slot='sidebar-content'] > div:has(input),",
+    "[data-slot='sidebar-content'] > div:last-child {",
+    '  padding: 4px !important;',
+    '}',
+    "[data-slot='sidebar-content'] > [data-slot='sidebar-group'] [data-slot='sidebar-menu'] { gap: 1px !important; }",
+    "[data-slot='sidebar-content'] [data-slot='sidebar-group'] [data-slot='sidebar-menu-button'],",
+    "[data-slot='sidebar-content'] [data-sessions-mode] [data-slot='sidebar-menu-button'] {",
+    '  border-radius: var(--zf-r-2, 8px) !important;',
     '}',
     ":is([data-tour='sessions-sidebar'], [data-slot='sidebar-content'], [data-sessions-mode]) :is([data-slot='sidebar-menu-button'], button, a, [role='button']):hover {",
     '  background-color: var(--zf-hover) !important;',
@@ -2209,7 +2272,7 @@ const skyStyleFor = (date, gl = false) => {
     '  background: var(--zf-glass-strong) !important;',
     '  border-color: transparent !important;',
     '  border-radius: var(--zf-radius-lg) !important;',
-    '  box-shadow: var(--zf-lift-high) !important;',
+    '  box-shadow: var(--zf-lift-float) !important;',
     '  color: var(--zf-ink-1);',
     '}',
     '[data-overlay-surface] [data-glass-raised] aside {',
@@ -2239,7 +2302,7 @@ const skyStyleFor = (date, gl = false) => {
     '  background: var(--zf-glass-strong) !important;',
     '  border-color: transparent !important;',
     '  border-radius: var(--zf-radius) !important;',
-    '  box-shadow: var(--zf-lift-high) !important;',
+    '  box-shadow: var(--zf-lift-float) !important;',
     '  backdrop-filter: var(--zf-frost);',
     '  -webkit-backdrop-filter: var(--zf-frost);',
     '  color: var(--zf-ink-1);',
@@ -2257,7 +2320,7 @@ const skyStyleFor = (date, gl = false) => {
     // edge colour, one icon size, accent only on the check.
     `${MENU_SURFACES} { padding: 0.25rem !important; }`,
     `${MENU_SURFACES} ${MENU_ROWS} {`,
-    '  border-radius: calc(var(--zf-radius) - 0.25rem) !important;',
+    '  border-radius: var(--zf-r-2, 8px) !important;',
     '  color: var(--zf-ink-1);',
     '  gap: 0.5rem;',
     '}',
@@ -2269,16 +2332,163 @@ const skyStyleFor = (date, gl = false) => {
     `${MENU_SURFACES} :is([data-slot$='-item-indicator'], [data-state='checked'] > span:first-child) svg { color: var(--zf-ink-0) !important; }`,
     `${MENU_SURFACES} [data-slot='command-input-wrapper'] { border-color: var(--zf-edge) !important; }`,
     `${MENU_SURFACES} [data-slot='command-input'] { background: transparent !important; color: var(--zf-ink-0); }`,
-    "[data-slot='tooltip-content'] { border-radius: calc(var(--zf-radius) - 0.2rem) !important; }",
+    "[data-slot='tooltip-content'] { border-radius: var(--zf-r-2, 8px) !important; }",
     ":is([data-slot='dialog-content'], [data-slot='alert-dialog-content'], [data-slot='sheet-content']) {",
     '  background: var(--zf-glass-strong) !important;',
     '  border-color: transparent !important;',
-    '  box-shadow: var(--zf-lift-high) !important;',
-    '  backdrop-filter: var(--zf-frost);',
-    '  -webkit-backdrop-filter: var(--zf-frost);',
+    '  box-shadow: var(--zf-lift-float) !important;',
+    // Large sheets do not frost live: the sky behind them is already blurred
+    // in the shader, and this was the one remaining big-surface backdrop blur.
+    '  backdrop-filter: none;',
+    '  -webkit-backdrop-filter: none;',
     '  color: var(--zf-ink-1);',
     '}',
+    "[data-slot='sheet-content'] { border-radius: var(--zf-radius-lg) !important; }",
     ":is([data-slot='dialog-content'], [data-slot='alert-dialog-content']) { border-radius: var(--zf-radius-lg) !important; }",
+    // ── The command prompt: the sheet, its well, its actions ──────────────
+    // A command is content INSIDE the dialog, not a second dialog. The host's
+    // LogView was a hairline box with no fill at the sheet's own edge, and its
+    // `rounded-lg` resolved against the app's .2 radius scalar (2.4px) while
+    // the sheet sits at 16px, so it read as a cramped, square-cornered cut-out.
+    // One step down the surface ladder: a recessed well, its own breathing
+    // room, and the control radius shared with the password field.
+    // The `html body …[class]` shape is deliberate: the app's global hairline
+    // rule is more specific than a bare `[data-slot]` selector, so these
+    // declarations have to outrank it or the well keeps the app's border.
+    "html body [data-slot='dialog-content'][class][data-state],",
+    "html body [data-slot='alert-dialog-content'][class][data-state],",
+    "html body [data-slot='sheet-content'][class][data-state] {",
+    '  border-color: transparent !important;',
+    '}',
+    // A 20px gutter keeps the well's curve clear of the 16px sheet corner.
+    "[data-slot='dialog-content'] > div[class*='grid'] {",
+    '  padding: 1.25rem !important;',
+    '}',
+    "html body [data-slot='dialog-content'] [role='region'][data-selectable-text='true'] {",
+    '  margin: 0.25rem 0 0.5rem !important;',
+    '  padding: 0.5rem 0.75rem !important;',
+    '  min-height: 2.25rem !important;',
+    '  background: var(--zf-well-prompt) !important;',
+    '  border: 1px solid var(--zf-edge) !important;',
+    '  border-radius: var(--zf-r-2, 8px) !important;',
+    '  color: var(--zf-ink-1) !important;',
+    '  font-size: 0.75rem !important;',
+    '  line-height: 1.55 !important;',
+    '  overflow-wrap: anywhere;',
+    '  scrollbar-gutter: stable;',
+    '  scrollbar-width: thin;',
+    '}',
+    // The password field is the same control family as the well above: one
+    // fill, one hairline, one radius. Focus owns the ring; the base state does
+    // not paint a second inset shadow.
+    "html body [data-slot='dialog-content'][class] :is(input:not([type='checkbox']):not([type='radio']):not([type='range']), textarea)[class] {",
+    '  background: var(--zf-well-prompt) !important;',
+    '  border-radius: var(--zf-r-2, 8px) !important;',
+    '  min-height: 2.25rem;',
+    '  padding: 0.5rem 0.75rem !important;',
+    '  color: var(--zf-ink-0) !important;',
+    '  font-size: 0.8125rem !important;',
+    '  caret-color: var(--zf-ink-0);',
+    '}',
+    // Border and shadow live in the two state rules, so the focused state can
+    // never lose its ring to the base declaration (both are the same selector
+    // plus one pseudo-class).
+    "html body [data-slot='dialog-content'][class] :is(input:not([type='checkbox']):not([type='radio']):not([type='range']), textarea)[class]:not(:focus-visible) {",
+    '  border: 1px solid var(--zf-edge) !important;',
+    '  box-shadow: none !important;',
+    '}',
+    "html body [data-slot='dialog-content'][class] :is(input:not([type='checkbox']):not([type='radio']):not([type='range']), textarea)[class]:focus-visible {",
+    '  border: 1px solid color-mix(in srgb, var(--zf-accent) 60%, transparent) !important;',
+    '  box-shadow: 0 0 0 3px color-mix(in srgb, var(--zf-accent) 16%, transparent) !important;',
+    '  outline: none !important;',
+    '}',
+    "html body [data-slot='dialog-content'][class] :is(input, textarea)[aria-invalid='true']:not(:focus-visible) {",
+    '  border-color: var(--dt-destructive, #cf2d56) !important;',
+    '}',
+    "html body [data-slot='dialog-content'] :is(input, textarea)::placeholder {",
+    '  color: var(--zf-ink-3) !important;',
+    '  opacity: 1;',
+    '}',
+    // Chromium paints autofill with its own yellow/blue slab over the well.
+    "html body [data-slot='dialog-content'] input:-webkit-autofill,",
+    "html body [data-slot='dialog-content'] input:-webkit-autofill:hover,",
+    "html body [data-slot='dialog-content'] input:-webkit-autofill:focus {",
+    '  -webkit-box-shadow: 0 0 0 1000px var(--zf-well-prompt) inset !important;',
+    '  -webkit-text-fill-color: var(--zf-ink-0) !important;',
+    '  caret-color: var(--zf-ink-0);',
+    '}',
+    // The always-allow confirmation shows the command in a plain <pre> rather
+    // than a LogView; it belongs to the same well family.
+    "html body [data-slot='dialog-content'][class] pre[class] {",
+    '  margin: 0.25rem 0 0.5rem !important;',
+    '  padding: 0.5rem 0.75rem !important;',
+    '  background: var(--zf-well-prompt) !important;',
+    '  border: 1px solid var(--zf-edge) !important;',
+    '  border-radius: var(--zf-r-2, 8px) !important;',
+    '  color: var(--zf-ink-1) !important;',
+    '  font-size: 0.75rem !important;',
+    '  line-height: 1.55 !important;',
+    '  overflow-wrap: anywhere;',
+    '}',
+    // A footer is an action bar, not another row of content: one hairline and
+    // a little air put Cancel/Send apart from the form above.
+    "html body [data-slot='dialog-content'][class] [data-slot='dialog-footer'] {",
+    '  margin-top: 0.1rem;',
+    '  padding-top: 0.75rem;',
+    '  border-top: 1px solid var(--zf-edge);',
+    '  border-top-color: var(--zf-edge) !important;',
+    '  gap: 0.5rem;',
+    '}',
+    "[data-slot='dialog-footer'] [data-slot='button'] {",
+    '  min-height: 2rem;',
+    '  border-radius: var(--zf-r-control) !important;',
+    '}',
+    // ── Command approval (the transcript card) ────────────────────────────
+    // The host paints this card with the chat-surface token, so it was the one
+    // card in a conversation that did not wear Zephyr's material. One 12px
+    // frame around header + code + actions, one well for the command, and the
+    // actions on their own band.
+    "html body :is([data-slot='card-stack-surface'], [data-slot='card-stack-edge'])[class] {",
+    '  background: var(--zf-side-card) !important;',
+    '  border: 0 !important;',
+    '  border-radius: var(--zf-radius) !important;',
+    '  box-shadow: var(--zf-lift) !important;',
+    '}',
+    "[data-slot='tool-approval-card'] {",
+    '  padding: 0.75rem 0.75rem 0.5rem;',
+    '}',
+    "[data-slot='tool-approval-card'] > div:first-child {",
+    '  padding: 0 0 0.5rem !important;',
+    '  color: var(--zf-ink-2) !important;',
+    '}',
+    "[data-slot='tool-approval-card'] > pre {",
+    '  margin: 0 0 0.5rem !important;',
+    '  padding: 0.75rem !important;',
+    '  background: var(--zf-well-prompt) !important;',
+    '  border: 1px solid var(--zf-edge-strong) !important;',
+    '  border-radius: var(--zf-r-1, 4px) !important;',
+    '  color: var(--zf-ink-1) !important;',
+    '  font-size: 0.75rem !important;',
+    '  line-height: 1.55 !important;',
+    '  overflow-wrap: anywhere;',
+    '  scrollbar-gutter: stable;',
+    '}',
+    "[data-slot='tool-approval-actions'] {",
+    '  padding: 0.5rem 0 0 !important;',
+    '  border-top: 1px solid var(--zf-edge);',
+    '  gap: 0.35rem !important;',
+    '}',
+    "[data-slot='tool-approval-actions'] [data-slot='button'] {",
+    '  min-height: 1.75rem;',
+    '  border-radius: var(--zf-r-control) !important;',
+    '}',
+    "[data-slot='tool-approval-actions'] [data-variant='secondary'] {",
+    '  background: var(--zf-hover) !important;',
+    '  color: var(--zf-ink-1) !important;',
+    '}',
+    "[data-slot='tool-approval-actions'] [data-variant='secondary']:hover {",
+    '  background: color-mix(in srgb, var(--zf-ink-0) 10%, transparent) !important;',
+    '}',
     ":is([data-slot='dialog-content'], [data-slot='popover-content']) [data-slot='command'] { background: transparent !important; }",
     "[data-slot='tooltip-content'] {",
     '  background: var(--zf-glass-strong) !important;',
@@ -2772,6 +2982,50 @@ const ensureMotionStyle = () => {
   el.id = 'zephyr-motion-style'
   el.textContent = MOTION_CSS
   document.head.appendChild(el)
+}
+
+// ══ §5c INLINE PREVIEW MEASUREMENT (the transcript's HTML widgets) ══════════
+
+// Hermes's `::preview{file="…"}` widget measures itself with
+// `Math.max(html.scrollHeight, body.scrollHeight)`. The ROOT element's
+// scrollHeight is the scrolling area, which is floored at the frame's own
+// height: a 133px card inside the default 280px frame reports 280, so the
+// transcript keeps a 147px empty band under the card and the frame can never
+// shrink again (the reported number equals the frame height from then on).
+// Hermes owns that script, but it lives in the `srcdoc` string, which is an
+// ordinary attribute. Rewriting it at insertion — before the frame starts
+// navigating — makes Hermes's own measurement read the body box instead.
+// The shim is guarded on the exact source line and does nothing if Hermes
+// changes it; a future host fix simply makes this a no-op.
+// (Peter, 2026-10-25: "reduce the huge gap after html widgets render".)
+const PREVIEW_MEASURE_OLD = 'var h=Math.max(d?d.scrollHeight:0,b?b.scrollHeight:0);'
+const PREVIEW_MEASURE_NEW = 'var h=b?Math.max(b.scrollHeight,Math.ceil(b.getBoundingClientRect().height)):(d?d.scrollHeight:0);'
+const PREVIEW_FRAME_SEL = 'iframe[sandbox~="allow-scripts"][srcdoc*="hermes-inline-preview-size"]'
+
+const ensurePreviewMeasureShim = () => {
+  if (typeof document === 'undefined' || typeof MutationObserver !== 'function' || !document.body) return () => {}
+  const fixFrame = el => {
+    if (!el || el.tagName !== 'IFRAME' || !el.matches?.(PREVIEW_FRAME_SEL)) return
+    const doc = el.getAttribute('srcdoc')
+    if (!doc || !doc.includes(PREVIEW_MEASURE_OLD)) return
+    el.setAttribute('srcdoc', doc.split(PREVIEW_MEASURE_OLD).join(PREVIEW_MEASURE_NEW))
+  }
+  const scan = root => {
+    if (!root) return
+    if (root.tagName === 'IFRAME') fixFrame(root)
+    root.querySelectorAll?.(PREVIEW_FRAME_SEL).forEach(fixFrame)
+  }
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.type === 'attributes') { fixFrame(record.target); continue }
+      for (const node of record.addedNodes) if (node.nodeType === 1) scan(node)
+    }
+  })
+  // Frames already mounted when Zephyr loads (a transcript restored from
+  // history) are patched once here; the observer covers every later mount.
+  scan(document.body)
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['srcdoc'] })
+  return () => observer.disconnect()
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -4469,8 +4723,8 @@ const TONES = { accent: 'accent', plain: 'plain' }
 // pin lit. Accent shows only in the label colour. Classes plus one tiny
 // always-on stylesheet (SNIPPET_CSS), because hover cannot be inline.
 const SNIPPET_CSS = [
-  '.zf-snip { position: relative; display: flex; flex-direction: column; gap: 0.2rem; max-width: 34rem; margin: 0.35rem 0;',
-  '  padding: 0.6rem 0.8rem 0.65rem; border-radius: var(--zf-radius, 0.6rem); box-sizing: border-box;',
+  '.zf-snip { position: relative; display: flex; flex-direction: column; gap: 0.2rem; max-width: 34rem; margin: 0.5rem 0;',
+  '  padding: 0.75rem; border-radius: var(--zf-radius, 12px); box-sizing: border-box;',
   '  background: var(--zf-side-card, var(--ui-widget-surface-background)); color: var(--zf-ink-1, var(--ui-text-secondary)); }',
   '.zf-snip-head { display: flex; align-items: center; gap: 0.5rem; min-height: 1rem; }',
   '.zf-snip-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
@@ -4478,7 +4732,7 @@ const SNIPPET_CSS = [
   ".zf-snip[data-tone='accent'] .zf-snip-title { color: var(--zf-ink-0); }",
   '.zf-snip-acts { margin-left: auto; display: flex; gap: 0.1rem; opacity: 0; transition: opacity 140ms ease; }',
   '.zf-snip:is(:hover, :focus-within) .zf-snip-acts, .zf-snip-acts:has([data-on]) { opacity: 1; }',
-  '.zf-snip-act { display: grid; place-items: center; width: 1.4rem; height: 1.4rem; padding: 0; border: 0; border-radius: calc(var(--zf-radius, 0.6rem) - 0.3rem);',
+  '.zf-snip-act { display: grid; place-items: center; width: 1.4rem; height: 1.4rem; padding: 0; border: 0; border-radius: var(--zf-r-1, 4px);',
   '  background: transparent; color: var(--zf-ink-3, var(--ui-text-tertiary)); cursor: pointer; transition: background-color 120ms ease, color 120ms ease; }',
   '.zf-snip-act:hover, .zf-snip-act:focus-visible { background: var(--zf-hover, color-mix(in srgb, var(--ui-text-primary) 8%, transparent)); color: var(--zf-ink-0, var(--ui-text-primary)); outline: none; }',
   '.zf-snip-act[data-on] { color: var(--zf-accent, var(--ui-accent)); }',
@@ -4495,7 +4749,7 @@ const SNIPPET_CSS = [
   '.zf-snip:hover { background: var(--zf-side-card-hi, var(--zf-side-card, var(--ui-widget-surface-background))); }',
   // ── Shelf, sidebar Pins, preview, drag (all plugin-owned nodes in <body>) ──
   '.zf-shelf { position: fixed; z-index: 30; left: var(--zf-sh-x); top: var(--zf-sh-y); width: var(--zf-sh-w); height: var(--zf-sh-h);',
-  '  display: flex; justify-content: center; align-items: stretch; gap: 0.5rem; box-sizing: border-box; border-radius: var(--zf-radius, 0.6rem);',
+  '  display: flex; justify-content: center; align-items: stretch; gap: 0.5rem; box-sizing: border-box; border-radius: var(--zf-radius, 12px);',
   '  transition: background-color 140ms ease, opacity 160ms ease; }',
   '.zf-shelf[hidden] { display: none; }',
   // drop zones while dragging: dashed outlines, no fill
@@ -4509,7 +4763,7 @@ const SNIPPET_CSS = [
   // glass fill comes up only on hover, so the tile still reads as grabbable
   '  --zf-tile-bg: transparent;',
   '  --zf-tile-bg-hi: color-mix(in srgb, color-mix(in srgb, var(--zf-side-card, rgb(20,22,28)) 76%, #fff) 64%, transparent);',
-  '  padding: 0.45rem 0.85rem; box-sizing: border-box; border-radius: var(--zf-radius, 0.6rem); background: var(--zf-tile-bg);',
+  '  padding: 0.45rem 0.85rem; box-sizing: border-box; border-radius: var(--zf-radius, 12px); background: var(--zf-tile-bg);',
   '  cursor: pointer; user-select: none; touch-action: none; text-align: left; outline: none; transition: background-color 120ms ease, opacity 140ms ease; }',
   '.zf-tile:hover, .zf-tile:focus-visible { background: var(--zf-tile-bg-hi); }',
   '.zf-tile:focus-visible { box-shadow: inset 0 0 0 1px var(--zf-accent, rgba(255,255,255,.3)); }',
@@ -4550,7 +4804,7 @@ const SNIPPET_CSS = [
   ":root[data-zf-dragging] .zf-tile, :root[data-zf-dragging] .zf-snip { cursor: grabbing; }",
   // the snippet library: its own sidebar card, same material and faces as STATUS
   '#zephyr-snips { position: fixed; z-index: 40; left: var(--zf-lib-x); top: var(--zf-lib-y); width: var(--zf-lib-w); height: var(--zf-lib-h);',
-  '  display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; border-radius: var(--zf-radius, 0.6rem);',
+  '  display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; border-radius: var(--zf-radius, 12px);',
   '  background: var(--zf-side-card, color-mix(in srgb, var(--ui-bg-secondary) 86%, transparent)); color: var(--zf-ink-1, var(--ui-text-primary)); user-select: none;',
   '  transition: height var(--zf-sd-dur, 280ms) var(--zf-sd-ease, cubic-bezier(.32,.72,0,1)), top var(--zf-sd-dur, 280ms) var(--zf-sd-ease, cubic-bezier(.32,.72,0,1)); }',
   '#zephyr-snips[hidden] { display: none; }',
@@ -4568,7 +4822,7 @@ const SNIPPET_CSS = [
   '  opacity: 0; transition: opacity 180ms ease; }',
   '#zephyr-snips[data-open] .zf-lib-rows { opacity: 1; transition: opacity 200ms ease 60ms; }',
   '#zephyr-snips .zf-lib-row { flex: none; display: flex; align-items: center; gap: 0.5rem; min-height: var(--zf-sd-rowh, 1.75rem); padding: 0 0.5rem; box-sizing: border-box;',
-  '  border-radius: calc(var(--zf-radius, 0.6rem) - 0.25rem); font-size: var(--zf-sd-font, 0.8125rem); color: var(--zf-ink-1, var(--ui-text-primary));',
+  '  border-radius: var(--zf-r-2, 8px); font-size: var(--zf-sd-font, 0.8125rem); color: var(--zf-ink-1, var(--ui-text-primary));',
   '  cursor: pointer; touch-action: none; outline: none; white-space: nowrap; overflow: hidden; transition: background-color 120ms ease, opacity 120ms ease; }',
   '#zephyr-snips .zf-lib-row:hover, #zephyr-snips .zf-lib-row:focus-visible { background: var(--zf-hover, color-mix(in srgb, var(--ui-text-primary) 8%, transparent)); color: var(--zf-ink-0, var(--ui-text-primary)); }',
   '#zephyr-snips .zf-lib-row[data-phantom] { opacity: 0.7; outline: 1px dashed color-mix(in srgb, var(--zf-accent, #9cf) 65%, transparent); outline-offset: -1px; }',
@@ -4578,8 +4832,8 @@ const SNIPPET_CSS = [
   "[data-zephyr-lib-room] { margin-top: calc(var(--zf-sd-room, 0px) + var(--zf-lib-room, 0px)) !important; transition: margin-top var(--zf-sd-dur, 280ms) var(--zf-sd-ease, cubic-bezier(.32,.72,0,1)); }",
   // the library drawer: slides off the sidebar edge, no scrim, chat stays live
   '#zephyr-snip-drawer { position: fixed; z-index: 45; left: var(--zf-dw-x, 0.75rem); top: var(--zf-dw-y, 3.5rem); width: min(24rem, calc(100vw - var(--zf-dw-x, 0.75rem) - 1rem));',
-  '  max-height: var(--zf-dw-maxh, 70vh); display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; border-radius: var(--zf-radius, 0.6rem);',
-  '  background: var(--zf-glass-strong, color-mix(in srgb, var(--ui-bg-primary) 94%, transparent)); box-shadow: var(--zf-lift, inset 0 0 0 1px rgba(255,255,255,.07)), 0 14px 36px rgba(0,0,0,.28);',
+  '  max-height: var(--zf-dw-maxh, 70vh); display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; border-radius: var(--zf-radius, 12px);',
+  '  background: var(--zf-glass-strong, color-mix(in srgb, var(--ui-bg-primary) 94%, transparent)); box-shadow: var(--zf-lift-float, 0 16px 40px rgba(0,0,0,.34));',
   '  color: var(--zf-ink-1, var(--ui-text-primary)); animation: zf-dw-in 240ms cubic-bezier(.32,.72,0,1); outline: none; }',
   '#zephyr-snip-drawer[data-leaving] { animation: zf-dw-out 160ms ease forwards; pointer-events: none; }',
   '@keyframes zf-dw-in { from { opacity: 0; transform: translateX(-0.75rem); } }',
@@ -4589,13 +4843,13 @@ const SNIPPET_CSS = [
   '#zephyr-snip-drawer .zf-dw-count { color: var(--zf-ink-3, var(--ui-text-tertiary)); letter-spacing: 0.04em; }',
   '#zephyr-snip-drawer .zf-dw-keys { margin-left: auto; letter-spacing: 0.04em; text-transform: none; font-weight: 400; color: var(--zf-ink-3, var(--ui-text-tertiary)); }',
   '#zephyr-snip-drawer .zf-dw-icon { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; padding: 0; border: 0; cursor: pointer; flex: none;',
-  '  border-radius: calc(var(--zf-radius, 0.6rem) - 0.2rem); background: transparent; color: var(--zf-ink-3, var(--ui-text-tertiary)); transition: background-color 120ms ease, color 120ms ease; }',
+  '  border-radius: var(--zf-r-2, 8px); background: transparent; color: var(--zf-ink-3, var(--ui-text-tertiary)); transition: background-color 120ms ease, color 120ms ease; }',
   '#zephyr-snip-drawer .zf-dw-icon:hover, #zephyr-snip-drawer .zf-dw-icon:focus-visible { background: var(--zf-hover, color-mix(in srgb, var(--ui-text-primary) 8%, transparent)); color: var(--zf-ink-0, var(--ui-text-primary)); outline: none; }',
   '#zephyr-snip-drawer .zf-dw-icon[data-on] { color: var(--zf-accent, #9cf); }',
   '#zephyr-snip-drawer .zf-dw-icon svg { width: 0.85rem; height: 0.85rem; }',
   '#zephyr-snip-drawer .zf-dw-list { flex: 1; min-height: 0; overflow: hidden auto; overscroll-behavior: contain; scrollbar-width: none; padding: 0 0.35rem 0.4rem;',
   '  display: flex; flex-direction: column; gap: 0.1rem; -webkit-mask: linear-gradient(transparent, #000 0.5rem, #000 calc(100% - 0.75rem), transparent); mask: linear-gradient(transparent, #000 0.5rem, #000 calc(100% - 0.75rem), transparent); }',
-  '#zephyr-snip-drawer .zf-dw-item { flex: none; border-radius: calc(var(--zf-radius, 0.6rem) - 0.2rem); cursor: pointer; transition: background-color 200ms ease, opacity 200ms ease; opacity: 0.62; }',
+  '#zephyr-snip-drawer .zf-dw-item { flex: none; border-radius: var(--zf-r-2, 8px); cursor: pointer; transition: background-color 200ms ease, opacity 200ms ease; opacity: 0.62; }',
   '#zephyr-snip-drawer .zf-dw-item:hover { opacity: 0.9; }',
   '#zephyr-snip-drawer .zf-dw-item[data-focus] { opacity: 1; cursor: default; background: var(--zf-hover, color-mix(in srgb, var(--ui-text-primary) 8%, transparent)); }',
   '#zephyr-snip-drawer .zf-dw-line { display: flex; align-items: baseline; gap: 0.5rem; min-height: 1.9rem; padding: 0.45rem 0.55rem 0; box-sizing: border-box; white-space: nowrap; overflow: hidden; }',
@@ -4614,7 +4868,7 @@ const SNIPPET_CSS = [
   '#zephyr-snip-drawer .zf-dw-source { font-size: 0.6875rem; color: var(--zf-ink-3, var(--ui-text-tertiary)); }',
   '#zephyr-snip-drawer .zf-dw-foot { display: flex; align-items: center; gap: 0.35rem; margin-top: 0.15rem; }',
   '#zephyr-snip-drawer .zf-dw-btn { height: 1.6rem; padding: 0 0.65rem; border: 0; cursor: pointer; font: inherit; font-size: 0.75rem;',
-  '  border-radius: calc(var(--zf-radius, 0.6rem) - 0.2rem); background: var(--zf-hover, color-mix(in srgb, var(--ui-text-primary) 8%, transparent)); color: var(--zf-ink-1, var(--ui-text-primary)); transition: background-color 120ms ease, color 120ms ease; }',
+  '  border-radius: var(--zf-r-2, 8px); background: var(--zf-hover, color-mix(in srgb, var(--ui-text-primary) 8%, transparent)); color: var(--zf-ink-1, var(--ui-text-primary)); transition: background-color 120ms ease, color 120ms ease; }',
   '#zephyr-snip-drawer .zf-dw-btn:hover, #zephyr-snip-drawer .zf-dw-btn:focus-visible { background: var(--zf-edge-strong, rgba(255,255,255,.11)); color: var(--zf-ink-0, var(--ui-text-primary)); outline: none; }',
   '#zephyr-snip-drawer .zf-dw-primary { background: color-mix(in srgb, var(--zf-accent, #9cf) 22%, transparent); color: var(--zf-ink-0, var(--ui-text-primary)); }',
   '#zephyr-snip-drawer .zf-dw-primary:hover, #zephyr-snip-drawer .zf-dw-primary:focus-visible { background: color-mix(in srgb, var(--zf-accent, #9cf) 32%, transparent); }',
@@ -4623,7 +4877,7 @@ const SNIPPET_CSS = [
   '@media (prefers-reduced-motion: reduce) { #zephyr-snip-drawer, #zephyr-snip-drawer[data-leaving] { animation: none; } #zephyr-snip-drawer .zf-dw-more { transition: none; } }',
   // the drag ghost, for every source (the dock's own copy covers status rows)
   '#zephyr-statusdock-ghost { position: fixed; z-index: 2147483000; left: 0; top: 0; pointer-events: none; display: inline-flex; align-items: center; gap: 0.45rem;',
-  '  padding: 0.3rem 0.65rem; border-radius: calc(var(--zf-radius, 0.6rem) - 0.15rem); font-size: 0.75rem; white-space: nowrap; max-width: 16rem; overflow: hidden;',
+  '  padding: 0.3rem 0.65rem; border-radius: var(--zf-r-2, 8px); font-size: 0.75rem; white-space: nowrap; max-width: 16rem; overflow: hidden;',
   '  background: var(--zf-glass-strong, color-mix(in srgb, var(--ui-bg-primary) 94%, transparent)); color: var(--zf-ink-0, var(--ui-text-primary)); box-shadow: 0 6px 18px rgba(0,0,0,.35); }',
   '#zephyr-statusdock-ghost svg { width: 0.75rem; height: 0.75rem; flex: none; }',
   '#zephyr-statusdock-ghost .zf-ghost-title { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--zf-ink-3, var(--ui-text-tertiary)); }',
@@ -4662,7 +4916,7 @@ const HOME_CSS = [
   '#zf-home .zf-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }',
   '@media (max-width: 640px) { #zf-home .zf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
   '#zf-home .zf-card { position: relative; pointer-events: auto; min-width: 0; }',
-  '#zf-home .zf-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; width: 100%; min-width: 0; padding: 18px 38px 18px 20px; border-radius: var(--zf-radius-lg, var(--zf-r-card, 12px)); cursor: pointer; transition: background-color 140ms ease, box-shadow 140ms ease; }',
+  '#zf-home .zf-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; width: 100%; min-width: 0; padding: 16px 38px 16px 16px; border-radius: var(--zf-radius, var(--zf-r-card, 12px)); cursor: pointer; transition: background-color 140ms ease, box-shadow 140ms ease; }',
   // Matte: the plugin's own card material worn the way the sidebar, snippet and
   // tool cards wear it. One flat fill, no ring, no drop shadow, no white wash -
   // nothing that picks up the sky behind it, so it cannot read as reflective.
@@ -5507,8 +5761,8 @@ export default {
       '  flex-direction: column !important; justify-content: flex-start !important; align-items: stretch !important; gap: 0.35rem !important;',
       '  padding: 0.45rem !important; overflow: hidden auto;',
       '  background: var(--zf-glass-strong, color-mix(in srgb, var(--ui-bg-primary) 94%, transparent)) !important;',
-      '  border-radius: var(--zf-radius-lg, 0.9rem);',
-      '  box-shadow: var(--zf-lift-high, inset 0 0 0 1px rgba(255,255,255,.1));',
+      '  border-radius: var(--zf-radius-lg, 16px);',
+      '  box-shadow: var(--zf-lift-float, 0 16px 40px rgba(0,0,0,.34));',
       '  transform: translate(calc(-100% - 1rem), -50%); opacity: 0; visibility: hidden; pointer-events: none;',
       '  transition: transform var(--zf-t-3, 220ms) var(--zf-ease, ease), opacity var(--zf-t-2, 180ms) var(--zf-ease, ease), visibility 0s linear var(--zf-t-3, 220ms);',
       '}',
@@ -5526,7 +5780,7 @@ export default {
       '}',
       `footer[data-slot='statusbar'][${DOCK_ATTR}] > div > * {`,
       '  height: auto !important; min-height: var(--zf-sd-rowh, 1.75rem); width: 100%; justify-content: flex-start !important; box-sizing: border-box;',
-      '  padding: 0 0.5rem !important; border-radius: calc(var(--zf-radius, 0.6rem) - 0.25rem) !important;',
+      '  padding: 0 0.5rem !important; border-radius: var(--zf-r-2, 8px) !important;',
       '  transition: background-color var(--zf-t-2, 140ms) var(--zf-ease, ease), color var(--zf-t-2, 140ms) var(--zf-ease, ease);',
       // same face as the session rows (read off them at layout time)
       '  font-size: var(--zf-sd-font, 0.8125rem) !important; gap: 0.5rem !important; color: var(--zf-ink-1, var(--ui-text-primary)); background: transparent; border: 0;',
@@ -5557,7 +5811,7 @@ export default {
       `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}] {`,
       '  left: var(--zf-sd-x) !important; top: var(--zf-sd-y) !important; width: var(--zf-sd-w) !important;',
       '  max-height: var(--zf-sd-max) !important; transform: none !important;',
-      '  background: transparent !important; box-shadow: none !important; border-radius: 0 0 var(--zf-radius, 0.6rem) var(--zf-radius, 0.6rem);',
+      '  background: transparent !important; box-shadow: none !important; border-radius: 0 0 var(--zf-radius, 12px) var(--zf-radius, 12px);',
       '  box-sizing: border-box !important; padding: 0 0.3rem 0.35rem !important; z-index: 41;',
       '  overflow: hidden auto !important; scrollbar-width: none;',
       '  clip-path: inset(0 0 100% 0);',
@@ -5576,7 +5830,7 @@ export default {
       '  position: fixed; z-index: 40; left: var(--zf-sd-x); top: var(--zf-sd-y-head); width: var(--zf-sd-w); height: var(--zf-sd-h);',
       '  display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch;',
       '  padding: 0; margin: 0; border: 0; text-align: left; cursor: pointer; color: var(--zf-ink-3, var(--ui-text-tertiary));',
-      '  font: inherit; background: var(--zf-side-card, color-mix(in srgb, var(--ui-bg-secondary) 86%, transparent)); border-radius: var(--zf-radius, 0.6rem); overflow: hidden;',
+      '  font: inherit; background: var(--zf-side-card, color-mix(in srgb, var(--ui-bg-secondary) 86%, transparent)); border-radius: var(--zf-radius, 12px); overflow: hidden;',
       '  transition: height var(--zf-sd-dur) var(--zf-sd-ease), color var(--zf-t-2, 150ms) var(--zf-ease, ease), box-shadow var(--zf-t-2, 150ms) var(--zf-ease, ease);',
       '  user-select: none;',
       '}',
@@ -5601,7 +5855,7 @@ export default {
       `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}] > div > * { touch-action: none; }`,
       '#zephyr-statusdock-ghost {',
       '  position: fixed; z-index: 2147483000; left: 0; top: 0; pointer-events: none; display: inline-flex; align-items: center; gap: 0.4rem;',
-      '  padding: 0.3rem 0.65rem; border-radius: calc(var(--zf-radius, 0.6rem) - 0.15rem); font-size: 0.75rem; white-space: nowrap; max-width: 14rem; overflow: hidden;',
+      '  padding: 0.3rem 0.65rem; border-radius: var(--zf-r-2, 8px); font-size: 0.75rem; white-space: nowrap; max-width: 14rem; overflow: hidden;',
       '  background: var(--zf-glass-strong, color-mix(in srgb, var(--ui-bg-primary) 94%, transparent)); color: var(--zf-ink-0, var(--ui-text-primary)); box-shadow: 0 6px 18px rgba(0,0,0,.35);',
       '}',
       '#zephyr-statusdock-ghost svg { width: 0.75rem; height: 0.75rem; flex: none; }',
@@ -8145,7 +8399,16 @@ export default {
     // ── GL sky lifecycle ──────────────────────────────────────────────────
     let glSky = null
     let glFailed = false
-    let liveWeather = null
+    // Seed from the cache before the first frame. Without this the sky painted
+    // the synthetic 3-hour preset instantly at every launch, then crossfaded to
+    // the real weather: on a night whose synthetic block was "overcast" that
+    // read as a grey sky sliding to deep blue over ~20 minutes (Peter,
+    // 2026-10-25: "switches between grey and deep blue at random times").
+    let liveWeather = (() => {
+      const cached = ctx.storage.get('liveWeather', null)
+      return cached && cached.current ? cached.current : null
+    })()
+    let lastWeatherSig = ''
     let previewTimer = null
     let zfDisposed = false
 
@@ -8165,9 +8428,18 @@ export default {
         if (mode === 'live') key = synthWeather(new Date())
         weights = WEATHER_PRESETS[key] || WEATHER_PRESETS.fair
       }
-      // Live weather drifts over ten minutes; a manual pick shows its change in ~25 s.
-      glSky.setWeather(weights, mode === 'live' ? 600 : 25, instant)
       weatherNow.set(mode === 'live' && liveWeather ? `live, code ${liveWeather.weather_code}, ${liveWeather.cloud_cover ?? '?'}% cloud` : WEATHER_LABEL[key] || key)
+      // Applying the same weights again restarted a 20-minute fade every
+      // refresh, so the sky was permanently in transit between two states.
+      // Identical targets are a no-op unless this is the first paint of a new
+      // canvas (`instant`).
+      const wind = mode === 'live' && liveWeather ? `${liveWeather.wind_direction_10m ?? 250}:${liveWeather.wind_speed_10m ?? 15}` : ''
+      const sig = `${mode}:${key}:${JSON.stringify(weights)}:${wind}`
+      if (!instant && sig === lastWeatherSig) return
+      lastWeatherSig = sig
+      // A real change should land while you are still looking at it: two
+      // minutes, not ten (and the 4x convergence in stepScene does the rest).
+      glSky.setWeather(weights, mode === 'live' ? 120 : 25, instant)
     }
 
     // The sky runs at the quality's rate on battery too (Peter, 2026-10-10:
@@ -8245,7 +8517,9 @@ export default {
     const refreshWeather = () =>
       syncWeather(ctx)
         .then(current => {
-          liveWeather = current
+          // A failed refresh returns null; keep the last known weather rather
+          // than dropping to the synthetic sequence mid-session.
+          if (current) liveWeather = current
           applyWeather()
         })
         .catch(() => {})
@@ -8388,6 +8662,7 @@ export default {
     ensureSnippetStyle()
     ensureHomeStyle()
     ensureMotionStyle()
+    const stopPreviewMeasure = ensurePreviewMeasureShim()
     ctx.register({
       id: 'snippet',
       area: DIRECTIVE_AREA,
@@ -9704,6 +9979,7 @@ export default {
     ctx.onDispose?.(() => {
       zfDisposed = true
       themeObs?.disconnect()
+      stopPreviewMeasure?.()
       clearInterval(configTimer)
       clearInterval(timer)
       clearInterval(weatherTimer)

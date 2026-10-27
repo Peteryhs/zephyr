@@ -4,205 +4,102 @@
 
 # Zephyr
 
-A better UI for Hermes Agent, lit by the real sky.
+A better UI for the Hermes Agent desktop app: a live sky behind the app, light that follows the clock, and quieter chrome down to the last animation.
 
-Zephyr is a plugin for the Hermes Agent desktop app. It puts a live, realistic sky behind the app and changes the app's colours as the day goes by. It also adds a few small things that make chatting with your agent calmer: snippet cards you can save, a tidier status bar and roomier margins.
-
-It's one JavaScript file. There's no build step, and it doesn't modify Hermes itself, so updating the app won't undo it.
+One JavaScript file. No build step, no fork, so a Hermes update can't undo it.
 
 <p align="center">
-  <img src="assets/sky-day.png" alt="The Zephyr sky at dawn, midday, dusk and night" width="100%">
+  <img src="assets/app-dusk.png" alt="Zephyr at dusk: frosted panels, folded work and a snippet card over the sky" width="100%">
 </p>
 
-## Features
+## The sky
 
-**A sky that follows the real sun.** The background shows the sky where you are, right now. The sun rises and sets on time, twilight brings its own colours, and night goes dark.
+Zephyr paints the sky over your window, right now, from your clock and weather.
 
-**Live weather.** Clouds follow your local weather. If you prefer one look, you can hold the sky on a fixed type: clear, cumulus, cirrus, overcast, rain, storm, fog and more.
+- **Real sun.** Sunrise, sunset, twilight and night come from a city in your time zone, so evenings are late in June and early in December.
+- **Live weather.** Cloud, rain and fog follow [Open-Meteo](https://open-meteo.com). No account, no key, no location prompt.
+- **Nine sky types** to hold one instead: clear, fair, partly, cloudy, cirrus, overcast, rain, storm, fog. A change cross-fades over 25 seconds.
+- **Blended, never stepped.** Hourly anchors are interpolated, so dusk arrives gradually instead of in jumps.
+- **A real shader.** WebGL draws the sky with a soft, defocused cloud field. No WebGL, or Realistic sky off, and a painted gradient takes over.
 
 <p align="center">
-  <img src="assets/sky-weather.png" alt="The same sky under clear, cloudy, stormy and foggy weather" width="100%">
+  <img src="assets/sky-day.png" alt="Dawn, day, dusk and night" width="100%">
+  <img src="assets/sky-weather.png" alt="Clear, cloudy, storm and fog" width="100%">
 </p>
 
-**Time-of-day themes.** Pick Zephyr Sky in Appearance and Hermes's colours follow the sun through dawn, day, dusk and night. The readout in the status bar ("dynamic - 2:45 PM") is a button too: each click holds the next sky (Dawn, Sunrise, Day, Dusk, Night), then goes back to following the sun. Zephyr Dawn, Day, Dusk and Night each hold one sky. Picking any other theme in Appearance (Nous, Solarized and the rest) switches Zephyr off completely, with no sky, no painting and no theme requests, until you pick a Zephyr theme again. The accent colour (links, buttons, selection) can shift too.
+## Light
 
-**Glass panels.** The panels pick up a soft tint from the sky behind them, and they go darker at night so text stays easy to read.
+Hermes's colours move with the sun. Panels get denser as the sky brightens, so prose keeps its contrast at noon and the sky shows through at night. The accent shifts with the phase too: cool blue at midday, amber at dusk.
 
-**Snippet cards.** Your agent can show short facts as clean cards in the chat, for example a build size, a command or a time. You can copy a card, pin it to your library, or drag it onto the Shelf on the new-chat screen.
+- **Zephyr Sky** follows the sun. **Zephyr Dawn, Day, Dusk, Night** hold one sky.
+- **Zephyr Gruvbox** is a painting, *The Backwater* (C. W. Wyllie, 1903), behind tinted glass with gruvbox cream text.
+- **Custom**: your picture and glass, every colour and opacity in a `zephyr-theme.json` that Settings > Zephyr > Theme file creates; a save applies in two seconds.
 
-**Calmer chat.**
-- Spacious margins: a narrower reading column that lines up with the message box.
-- Fold finished work: when a reply is done, its thinking and tool steps fold into one line that shows how long it took.
-- Status panel: in Simple mode, the status bar (model, context, agents, radio) becomes a card in the sessions sidebar. Drag a status row onto the panel title to pin it.
-- Tab keys: Cmd+Option+Left/Right moves between tabs, and a collapsed pane drops its labels instead of stacking them letter by letter.
+The readout in the status bar ("dynamic · 2:45 PM") is a button: each click holds the next sky, then hands back to the clock. Picking any other theme in Appearance switches Zephyr off.
+
+<p align="center">
+  <img src="assets/app-day.png" alt="The same UI at midday: panels denser, sky brighter" width="100%">
+</p>
+
+## Chrome and motion
+
+Two switches keep the look independent of the background: **Background** (sky, built-in, custom) and **Zephyr styling** (glass, sidebar, cards, type).
+
+- **Floating sidebar.** Cmd/Ctrl+S, or the top-left button, morphs it between pinned and floating: floating tucks away and slides in when you touch the left edge. That morph is a view transition, so the column and the chat glide as one piece.
+- **Tabs** are wide pills. Cmd/Ctrl+Option+Left/Right walks them (a rebindable keybind), a session opens in the tab you are in, and an empty tab shows the wordmark, not a blank page.
+- **Folded work.** When a reply finishes, its thinking and tool steps fold into one line with the time it took. The fold fades; it never fights the layout.
+- **Status panel** moves the status bar into the sessions sidebar in Simple mode.
+- **Animations**: menus, selects, popovers, dialogs and tooltips (6px, in from the side they open on), exit ghosts, the history list, the composer, tool rows, and one fade when a session swaps in. 140–280ms, opacity and transform only, so the compositor owns them. Off, or with reduced motion, everything is instant.
+- **Spacious margins** hold the reading column to 46rem, lined up with the message box, with a typographic pass on the prose itself.
+
+## Snippets and the shelf
+
+An agent can answer with a card instead of a paragraph. You can keep it.
+
+```
+::snippet{title="Build size" value="412 KB" note="gzip, down 9%" source="npm run size"}
+```
+
+`value` is the only required field; `title`, `note`, `source` and `tone="accent"` are optional. Click a card to preview it, copy it, or attach it to the chat. **Pin** one and it joins the Snippets card in the sidebar; drag it, or a status row, onto the shelf above the new-chat wordmark to keep it in front of you.
+
+## New tabs that suggest
+
+An empty tab offers where to go next, and says why each card is there:
+
+- **Pick up where you left off**: the sessions you have worked on lately, ranked by recency and by how much you actually wrote.
+- **Your regulars**: sessions you keep returning to, once you have opened one on three different days ("Usually every ~14 days, last 12 days ago").
+
+It learns only from when you open sessions and send messages, keeps a small record per session on your computer, never shuffles while you look, and leaves out pinned sessions and quick chats (six messages or fewer, three of yours, never returned to on another day). Turn it off in Settings > Zephyr > Chat.
 
 ## Install
 
 1. Download `plugin.js` from this repository.
-2. Create a folder named `zephyr` inside your Hermes plugins folder:
-   ```
-   <HERMES_HOME>/desktop-plugins/zephyr/
-   ```
-3. Put `plugin.js` in that folder. For the Backwater look, also put `assets/backwater.jpg` there (either next to `plugin.js` or in an `assets/` folder). Cloning the whole repository into that folder works too.
-4. Restart Hermes Agent. Zephyr appears in Settings with its own icon.
+2. Put it in `<HERMES_HOME>/desktop-plugins/zephyr/`.
+3. For the Gruvbox look, put `assets/backwater.jpg` beside it. Cloning the repo there works too.
+4. Restart Hermes. Zephyr appears in Settings with its own icon.
 
-To remove Zephyr, delete the `zephyr` folder and restart Hermes.
+Delete the folder and restart to remove.
 
 ## Settings
 
-Open **Settings > Zephyr**.
-
-| Setting | What it does |
-| --- | --- |
-| Background | **Sky** (the live sky), **Built-in** (The Backwater, a painting behind green glass) or **Custom** (your own picture and colours). |
-| Sky | Shows the live sky behind the app when Background is Sky. Off gives a plain dark ground; Built-in and Custom keep their picture. |
-| Zephyr styling | The glass panels, floating sidebar, cards and type. Off leaves Hermes's own chrome and keeps only the background you chose. |
-| Realistic sky | Uses the full WebGL sky. Off, or on a device without WebGL, you get a lighter painted gradient. |
-| Weather | Live weather, or one fixed sky type. |
-| Smoothness | Low, Balanced or High (4, 8 or 16 frames a second). Clouds drift slowly, so Balanced looks the same as High and uses half the power. |
-| Preview a day | Plays the next 24 hours of sky in one minute, then goes back to now. |
-| Time-of-day themes | Keeps Hermes on Zephyr Sky, whose colours move with the sun. Off keeps the theme you picked in Appearance. |
-| Tint the accent | Shifts the accent colour to match the time of day. |
-| Spacious margins | A narrower reading column with wide margins. |
-| Fold finished work | Folds finished replies' steps into one line. |
-| App animations | Short fades and slides on menus, the history list, the composer and folded steps. Off makes every interaction instant. Follows your system's reduced-motion setting. |
-| Status panel in Simple mode | Moves the status bar into the sessions sidebar. |
-| Snippet library | Shows the Snippets card in the sidebar with everything you've pinned. |
-
-## Looks
-
-Zephyr has two kinds of look, and you can switch between them either in **Settings > Zephyr > Background** or in **Settings > Appearance > Theme**:
-
-- **Zephyr Sky**: the live sky. It follows the real sun all day, and Hermes's colours move with it through dawn, day, dusk and night while the theme stays selected.
-- **Zephyr Dawn, Day, Dusk, Night**: hold one sky, whatever the time.
-- **Zephyr Gruvbox**: a painting, The Backwater, behind tinted glass, with gruvbox cream text.
-- **Custom**: your own picture and colours, from the controls in Settings or from `zephyr-theme.json` (below).
-
-### Your own look: `zephyr-theme.json`
-
-The Custom look lives in one file, `<HERMES_HOME>/zephyr-theme.json`. **Settings > Zephyr > Theme file** creates it and shows it in Finder. Edit it in any editor and Hermes follows within two seconds; moving a control in Settings writes it back. Every key is optional, and a missing key keeps its default.
-
-```json
-{
-  "image": "~/Pictures/my-wallpaper.jpg",
-  "fit": "cover",
-  "posX": 46,
-  "posY": 45,
-  "scrim": 0.31,
-  "blur": 18,
-  "saturate": 1.3,
-  "brightness": 0.9,
-  "chrome": 0.74,
-  "sidebar": 0.74,
-  "card": 0.78,
-  "bubble": 0.78,
-  "ground": "#16261e",
-  "deeper": "#0c1612",
-  "cardTint": "#1d3328",
-  "bubbleTint": "#2b4636",
-  "edge": "#4f7360",
-  "accent": "#fe8019",
-  "ink": "#fbf1c7",
-  "ink2": "#ebdbb2"
-}
-```
-
-| Key | What it controls |
-| --- | --- |
-| `image` | The picture: a path (`~/…` works), a URL, or `"uploaded"` for one picked in Settings. |
-| `fit`, `posX`, `posY` | `cover` or `contain`, and which part of the picture stays in view (percent). |
-| `scrim` | How much the picture is darkened behind everything. |
-| `blur`, `saturate`, `brightness` | The frosted glass behind the chat. |
-| `chrome`, `sidebar`, `card`, `bubble` | How solid the chat pane, the pinned sidebar, cards and your messages are (0 to 1). |
-| `ground`, `deeper` | The glass colours: the chat, and the sidebar and darkest surfaces. |
-| `cardTint`, `bubbleTint` | Cards and the message box; your messages and tabs. |
-| `edge` | Hairlines, borders and the text selection. |
-| `accent` | Buttons and toggles. Never used for text. |
-| `ink`, `ink2` | Text, and quieter text. |
-
-## Sidebar
-
-**Ctrl+S** on Windows, **Cmd+S** on macOS, switches the sidebar between two modes, with a short morph between them. The button at the top left of the sidebar does the same.
-
-- **Pinned**: the sidebar sits in the window as it always has.
-- **Floating**: the sidebar stays out of the way until you touch the left edge of the window. It slides in over the chat and tucks away when you move off it, or on Escape.
-
-## Tabs
-
-- Tabs are wide pills. The close button shows on the active tab and on hover.
-- **Ctrl/Cmd+Option+Left/Right** walks the session tabs. It is a contributed keybind, so it can be rebound in Settings > Keybinds.
-- A new tab shows the Hermes wordmark instead of an empty page, with a shelf of sessions under it (see below).
-- Clicking a session in the sidebar opens it in the tab you are in, instead of adding one.
-
-## New tab shelf
-
-An empty tab suggests where to go next, in two rows:
-
-- **Pick up where you left off** is the three sessions you have been working on lately. A session you opened a few times in the last days ranks above one you touched once last week, and a visit where you wrote something counts for more than a glance.
-- **Your regulars** are the few sessions you keep coming back to, even if only once a fortnight. They appear after you have opened a session on three different days, and the ones that are due come first ("Usually every ~14 days, last 12 days ago").
-
-Every card says why it is there. The x on a card removes it (it comes back once you open that session again, or never, for a regular). Rows do not shuffle while you look at them, and pinned sessions and quick chats are left out.
-
-A quick chat is a small errand: six messages or fewer, you spoke three times at most, and you never came back on another day. What the agent did does not matter, so a short chat that ran forty commands is still a quick chat, and a long talk with no tools at all is not.
-
-It learns only from when you open sessions and send messages, and keeps a small record per session on your computer. Turn it off, or clear it, in **Settings > Zephyr > Chat**. The rules are in `recents/engine.js` and are tested against how a real history behaves.
-
-## Snippet cards
-
-<p align="center">
-  <img src="assets/snippets.png" alt="Three snippet cards over the dusk sky" width="100%">
-</p>
-
-An agent shows a snippet card by writing a line like this in its reply:
-
-```
-::snippet{title="Build size" value="412 KB" note="gzip, down 9% from last release"}
-```
-
-| Field | Required | Meaning |
-| --- | --- | --- |
-| `value` | Yes | The main text, shown large. |
-| `title` | No | A small label above the value. |
-| `note` | No | A short line of extra context. |
-| `source` | No | Where the value came from, shown small. |
-| `tone` | No | Set to `accent` to colour the title with the accent colour. |
-
-Click a card to preview it. From the preview you can copy it or attach it to the chat.
+Everything is in **Settings > Zephyr**: Background, Sky, Zephyr styling, Realistic sky, Weather, Smoothness (4, 8 or 16 fps; Balanced looks like High at half the power), Preview a day, Time-of-day themes, Tint the accent, Suggest sessions, Suggestion card material (matte or glass), Spacious margins, Fold finished work, App animations, Status panel, Snippet library and the pin roster.
 
 ## Performance
 
-The sky is built to stay light:
-
-- It draws at 8 frames a second by default.
-- It drops to 1 frame a second when the window isn't focused, and stops when the window is hidden.
-- It respects your system's reduced-motion setting.
-
-If your machine still runs warm, set **Smoothness** to Low or turn off **Realistic sky**.
+The sky caches its cloud field in a texture and re-renders it a few times a minute: 8 fps by default, 1 when the window is unfocused, nothing when it is hidden, plus a few pixels of blur so text stays readable. Reduced motion is respected. If it runs warm, set Smoothness to Low.
 
 ## Privacy
 
-Zephyr doesn't ask for your location. It works out a nearby city from your system time zone, then gets sunrise, sunset and current weather from [Open-Meteo](https://open-meteo.com), a free weather service that needs no account or key. Nothing else leaves your computer. The new tab shelf keeps what it learns on your computer too.
+No location prompt: Zephyr reads a nearby city from your time zone, then asks Open-Meteo for sunrise, sunset and weather. Nothing else leaves your computer, and the suggestions stay on disk.
 
 ## For developers
 
-- Everything lives in `plugin.js`, a plain ES module. The Hermes loader reads only that file and allows imports from `@hermes/plugin-sdk` and `react` only.
-- The file is split into numbered sections (`§1` to `§9`). The contents list at the top says what each one covers. Search for `══ §6` to jump to a section.
-- The sky section (§6) is generated from `sky/`. Edit those files, run `npm run build:sky`, and commit both.
-- The session suggestions are generated from `recents/engine.js` the same way. Edit it, run `npm run build:recents`, and commit both. It is plain functions with no page or Hermes in them, so `tests/recents.test.mjs` runs it directly.
-- Before you open a pull request, run `npm test`, `npm run check` and `npm run rig`, then try the change in the app.
-
-## Where the sky comes from
-
-Zephyr's sky is heavily inspired by, and designed after, the sky on [hark.com](https://hark.com). I'm grateful I came across that idea, because it's what started this project.
-
-No code from hark.com is borrowed or used here. Zephyr's sky was reimplemented independently, from a written description of how the original behaves.
+- `plugin.js` is one plain ES module in numbered sections (§1–§9); search `══ §6` to jump. Imports are limited to `@hermes/plugin-sdk` and `react`.
+- The sky is generated: edit `sky/`, run `npm run build:sky`, commit both. The session rules are `recents/engine.js`, baked in by `npm run build:recents`. The atmosphere table comes from `scripts/bake-atmosphere.mjs` and `docs/rebuild-specification.md`.
+- Before a pull request: `npm test`, `npm run check`, `npm run rig`, then try it in the app.
 
 ## Credits
 
-Weather and sunrise data come from [Open-Meteo](https://open-meteo.com).
+The idea came from [hark.com](https://hark.com); Zephyr's sky is an independent build from a written description, no borrowed code. Weather from [Open-Meteo](https://open-meteo.com). *The Backwater* is by Charles William Wyllie (1859–1923), public domain, scanned full size.
 
-The Backwater is by Charles William Wyllie (1859–1923), exhibited at the Royal Academy in 1903, and is in the public domain. `assets/backwater.jpg` is a full-resolution scan.
-
-## License
-
-Zephyr is released under the [MIT License](LICENSE). The Hark name and the hark.com sky belong to their owners.
+MIT licensed. The Hark name belongs to its owners.

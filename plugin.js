@@ -624,6 +624,24 @@ const polishCss = (gruv = false) => [
   "html body :focus-visible { outline: 1.5px solid rgba(var(--zf-hi), 0.38) !important; outline-offset: 2px; border-color: rgba(var(--zf-hi), 0.28) !important; }",
   "html body :is([data-slot='composer-rich-input'], [data-slot^='composer'] textarea, [data-slot^='composer'] [contenteditable='true'], [data-slot^='composer'] input):is(:focus, :focus-visible) { outline: none !important; box-shadow: none !important; border-color: transparent !important; }",
   "html body [data-slot='composer-surface']:focus-within { box-shadow: inset 0 0 0 1px rgba(var(--zf-hi), 0.16), var(--zf-lift, 0 8px 24px rgba(0,0,0,.3)) !important; }",
+  // The composer's backing div paints `--composer-fill`, which the app mixes out
+  // of --dt-card; under a sky theme in light mode that resolves to near-white, so
+  // the bar read as a lighter material than the cards beside it. Give it the same
+  // glass every other surface wears, in every phase — the night branch below only
+  // ever covered the dark hours.
+  ":is([data-slot='composer-root'], [data-slot='composer-surface'], [class~='group/composer-surface']) {",
+  '  --composer-fill: color-mix(in srgb, var(--zf-tint) 88%, transparent) !important;',
+  '}',
+  ":is([data-slot='composer-surface'], [class~='group/composer-surface']) > div:first-child,",
+  ":is([data-slot='composer-surface'], [class~='group/composer-surface']) [class*='composerInputBacking'] {",
+  '  background: color-mix(in srgb, var(--zf-tint) 88%, transparent) !important;',
+  '}',
+  // The status bar is app chrome at the window's foot; untouched it paints the
+  // theme's opaque surface and cuts a pale band across the sky.
+  "[data-slot='statusbar'] {",
+  '  background: color-mix(in srgb, var(--zf-tint) 74%, transparent) !important;',
+  '  backdrop-filter: var(--zf-frost) !important;',
+  '}',
   // a session opened through the row's own menu: the menu is the mechanism, not
   // something to watch, so it stays invisible while it is driven
   "html[data-zf-ghost-menu='1'] :is([data-radix-popper-content-wrapper], [role='menu']) { opacity: 0 !important; pointer-events: none !important; }",

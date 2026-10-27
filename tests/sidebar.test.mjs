@@ -38,7 +38,7 @@ test('pinned sidebar does not flatten the surfaces inside it', () => {
 test('floating sidebar keeps the solid card and its ring and shadow', () => {
   const body = ruleFor("html[data-zf-arc='1'] [data-zf-arc-col]")
   assert.match(body, /background: var\(--zf-m-solid\)/)
-  assert.match(body, /box-shadow: 0 0 0 1px rgba\(var\(--zf-hi\), 0\.08\)/)
+  assert.match(body, /box-shadow: var\(--zf-lift-float\)/)
   assert.match(body, /border-radius: 16px/)
   assert.ok(css.includes("html[data-zf-arc='1'] [data-zf-arc-col] > div"),
     'floating still flattens its children onto the one card')

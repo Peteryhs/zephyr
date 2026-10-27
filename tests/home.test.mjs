@@ -100,7 +100,10 @@ test('no plugin-drawn close button floats over the right-hand panels', () => {
 })
 
 test('the shelf uses the plugin card radius, not a one-off 18px', () => {
-  assert.match(ruleFor('#zf-home .zf-card-open'), /border-radius: var\(--zf-radius-lg, var\(--zf-r-card, 12px\)\)/)
+  // `--zf-radius` is the card step (12px); the sheet step is reserved for
+  // dialogs and the floating sidebar. Either token is a plugin radius, never a
+  // hard-coded one-off.
+  assert.match(ruleFor('#zf-home .zf-card-open'), /border-radius: var\(--zf-radius(?:-lg)?, var\(--zf-r-card, 12px\)\)/)
   assert.equal(home.includes('border-radius: 18px'), false)
 })
 

@@ -1288,8 +1288,9 @@ const ARCLIKE_CSS = [
   "html[data-zf-arc='1'][data-zf-arc-open='1'] #zf-mode-btn { translate: 0 0; opacity: 1; pointer-events: auto; transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease, background-color 120ms ease, color 120ms ease; }",
   "#zf-mode-btn:hover, #zf-mode-btn:focus-visible { background: rgba(var(--zf-hi), 0.10); color: var(--zf-ink-0, #fbf1c7); outline: none !important; }",
   "#zf-mode-btn:active { transform: scale(0.92); }",
-  // left-edge hot zone, invisible
-  '#zf-rail-hot { position: fixed; left: 0; top: 40px; bottom: 0; width: 8px; z-index: 59; display: none; background: transparent; }',
+  // left-edge hot zone, invisible. An 8px strip was a fiddly target: at 18px the
+  // edge grab reads as deliberate instead of accidental.
+  '#zf-rail-hot { position: fixed; left: 0; top: 40px; bottom: 0; width: 18px; z-index: 59; display: none; background: transparent; }',
   "html[data-zf-arc='1']:not([data-zf-arc-open='1']) #zf-rail-hot { display: block; }",
 
 

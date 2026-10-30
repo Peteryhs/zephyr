@@ -50,3 +50,11 @@ test('npm test runs every test file', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.match(pkg.scripts.test, /tests\/?(\*\.test\.mjs)?$|skin\.test\.mjs/)
 })
+test('the model picker search rounds the Input wrapper, not just the inner field', () => {
+  // The app's Input primitive paints the border and radius on a <span> around
+  // <input role="searchbox">; the generic `input` rule never reaches it.
+  const from = src.indexOf(":is(span, div):has(> input[role='searchbox'])")
+  assert.ok(from >= 0, 'the search-wrapper radius rule is missing')
+  const rule = src.slice(from, src.indexOf('}', from))
+  assert.match(rule, /border-radius: var\(--zf-r-control\) !important/)
+})

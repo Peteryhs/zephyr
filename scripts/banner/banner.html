@@ -1,0 +1,92 @@
+<!doctype html>
+<!--
+  Zephyr README banner: the theme screenshots as a tilted, full-bleed mosaic with the wordmark set into it.
+
+  Render (from the repository root), pointing ?dir= at the folder of screenshots:
+    chrome --headless --hide-scrollbars --force-device-scale-factor=2 --window-size=1280,520 ^
+      --allow-file-access-from-files --virtual-time-budget=3000 --screenshot=banner.png ^
+      "file:///C:/path/to/zephyr/scripts/banner/banner.html?dir=file:///C:/path/to/screenshots"
+  Then save banner.png as assets/banner.jpg at quality 90 (about 560 KB; the PNG is over 3 MB).
+-->
+<meta charset="utf-8">
+<title>Zephyr banner</title>
+<style>
+  :root { --w: 1280px; --h: 520px; --tw: 216px; --th: 135px; --gap: 16px; --slot: 440px; --ink: #14161c; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: var(--w); height: var(--h); overflow: hidden; background: #f7f5f1; }
+  .banner { position: relative; width: var(--w); height: var(--h); overflow: hidden;
+    background: radial-gradient(ellipse 50% 60% at 50% 50%, #ffffff 0%, #f7f5f1 70%, #efebe4 100%); }
+
+  /* the whole mosaic, wordmark included, leans downhill to the right and bleeds off every edge */
+  .grid { position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) rotate(5deg);
+    display: flex; flex-direction: column; align-items: center; gap: var(--gap); }
+  .row { display: flex; gap: var(--gap); }
+  /* rows are staggered so the columns never line up: each row's tile edges sit 90-130px
+     (about half a tile) away from the rows above and below. The middle row is wider
+     because of the wordmark, which the offsets account for. */
+  .row:nth-child(1) { transform: translateX(108px); }
+  .row:nth-child(2) { transform: translateX(-14px); }
+  .row:nth-child(3) { transform: none; }
+  .row:nth-child(4) { transform: translateX(16px); }
+  .row:nth-child(5) { transform: translateX(-104px); }
+
+  .tile { position: relative; width: var(--tw); height: var(--th); flex: none; border-radius: 10px; overflow: hidden;
+    background: #ccc center / cover no-repeat;
+    box-shadow: 0 1px 2px rgba(20,24,34,.12), 0 8px 18px rgba(20,24,34,.16), 0 24px 44px -14px rgba(20,24,34,.30); }
+  .tile::after { content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: linear-gradient(160deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 40%);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.22); }
+
+  .slot { width: var(--slot); height: var(--th); flex: none; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--ink); }
+  .word { display: flex; align-items: center; }
+  .word { display: flex; align-items: center; margin-top: -16px; }
+  .word svg { width: 54px; height: 57px; flex: none; margin: 5px 4px 0 0; }
+  .word span { font: 400 88px/1 "Palatino Linotype", Palatino, Georgia, serif; letter-spacing: -1px; }
+</style>
+<div class="banner">
+  <div class="grid" id="grid"></div>
+</div>
+<template id="brand">
+  <div class="word" aria-label="Zephyr">
+    <svg viewBox="15.2 14.2 33.6 35.6" aria-hidden="true">
+      <defs>
+        <linearGradient id="z" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#3f5f93"/>
+          <stop offset=".55" stop-color="#14161c"/>
+          <stop offset="1" stop-color="#d9733a"/>
+        </linearGradient>
+        <clipPath id="zc"><rect x="15.2" y="14.2" width="33.6" height="35.6"/></clipPath>
+      </defs>
+      <g clip-path="url(#zc)" fill="none" stroke="url(#z)" stroke-width="3.6" stroke-linejoin="miter" stroke-miterlimit="10">
+        <path d="M17 16h30L26.6 48"/><path d="M37.4 16 17 48h30"/>
+      </g>
+    </svg>
+    <span>ephyr</span>
+  </div>
+</template>
+<script>
+  // Three full rows around the wordmark, plus a row bleeding off the top and bottom.
+  // Rows are wider than the banner so tiles run off both sides; looks repeat only far apart.
+  const SHOTS = new URLSearchParams(location.search).get('dir') || '../../screenshots';
+  const order = [
+    ['dracula', 'night', 'kanagawa', 'rose-pine', 'dawn', 'day', 'gruvbox'],
+    ['sunrise', 'everforest', 'catppuccin', 'nord', 'gruvbox', 'tokyo-night', 'dawn'],
+    ['rose-pine', 'dusk', 'day', null, 'kanagawa', 'night', 'everforest'],
+    ['tokyo-night', 'monokai', 'dawn', 'dracula', 'sunrise', 'catppuccin', 'nord'],
+    ['day', 'nord', 'everforest', 'dusk', 'monokai', 'rose-pine', 'kanagawa'],
+  ];
+  const grid = document.getElementById('grid');
+  for (const names of order) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    for (const n of names) {
+      const el = document.createElement('div');
+      if (n === null) { el.className = 'slot'; el.appendChild(document.getElementById('brand').content.cloneNode(true)); }
+      else { el.className = 'tile'; el.style.backgroundImage = `url("${SHOTS}/${n}.jpg")`; }
+      row.appendChild(el);
+    }
+    grid.appendChild(row);
+  }
+</script>

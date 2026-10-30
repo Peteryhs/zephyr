@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/hero.png" alt="Zephyr: a better UI for Hermes Agent, lit by the real sky" width="100%">
+  <img src="assets/banner.jpg" alt="Zephyr: Hermes Agent under different skies and paintings" width="100%">
 </p>
 
 # Zephyr

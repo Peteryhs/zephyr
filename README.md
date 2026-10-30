@@ -2,11 +2,9 @@
   <img src="assets/banner.jpg" alt="Zephyr: Hermes Agent under different skies and paintings" width="100%">
 </p>
 
-# Zephyr
+# 
 
 A better UI for the Hermes Agent desktop app: better backgrounds, a live sky behind the app, and more refined UI everywhere.
-
-One JavaScript file. No build step, no fork, so a Hermes update can't undo it.
 
 <p align="center">
   <img src="assets/app-sky.png" alt="The Zephyr home screen, with the live sky behind it" width="100%">

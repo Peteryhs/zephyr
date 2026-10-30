@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/hero.png" alt="Zephyr: a better UI for Hermes Agent, lit by the real sky" width="100%">
+  <img src="assets/banner.jpg" alt="Zephyr: Hermes Agent under different skies and paintings" width="100%">
 </p>
 
 # Zephyr
@@ -67,6 +67,9 @@ Open **Settings > Zephyr**.
 | Fold finished work | Folds finished replies' steps into one line. |
 | App animations | Short fades and slides on menus, the history list, the composer and folded steps. Off makes every interaction instant. Follows your system's reduced-motion setting. |
 | Status panel in Simple mode | Moves the status bar into the sessions sidebar. |
+| Suggest sessions on new tabs | Shows the [new tab shelf](#new-tab-shelf). |
+| Suggestion card material | Matte (flat, like the sidebar cards) or Glass (translucent, edged and lifted) for the shelf cards. |
+| Forget my session history | Clears what the shelf has learned about which sessions you open. |
 | Snippet library | Shows the Snippets card in the sidebar with everything you've pinned. |
 
 ## Looks
@@ -80,7 +83,7 @@ Zephyr has two kinds of look, and you can switch between them either in **Settin
 
 ### Your own look: `zephyr-theme.json`
 
-The Custom look lives in one file, `<HERMES_HOME>/zephyr-theme.json`. **Settings > Zephyr > Theme file** creates it and shows it in Finder. Edit it in any editor and Hermes follows within two seconds; moving a control in Settings writes it back. Every key is optional, and a missing key keeps its default.
+The Custom look lives in one file, `<HERMES_HOME>/zephyr-theme.json`. **Settings > Zephyr > Theme file** creates it and shows it in Finder or Explorer. Edit it in any editor and Hermes follows within two seconds; moving a control in Settings writes it back. Every key is optional, and a missing key keeps its default.
 
 ```json
 {
@@ -145,7 +148,7 @@ Every card says why it is there. The x on a card removes it (it comes back once 
 
 A quick chat is a small errand: six messages or fewer, you spoke three times at most, and you never came back on another day. What the agent did does not matter, so a short chat that ran forty commands is still a quick chat, and a long talk with no tools at all is not.
 
-It learns only from when you open sessions and send messages, and keeps a small record per session on your computer. Turn it off, or clear it, in **Settings > Zephyr > Chat**. The rules are in `recents/engine.js` and are tested against how a real history behaves.
+It learns only from when you open sessions and send messages, and keeps a small record per session on your computer. Turn it off, or clear it, in **Settings > Zephyr > Chat & motion**. The rules are in `recents/engine.js` and are tested against how a real history behaves.
 
 ## Snippet cards
 

@@ -110,7 +110,7 @@ const makeElement = tag => {
 }
 globalThis.document = {
   hidden: false,
-  documentElement: { style: { setProperty: () => {}, removeProperty: () => {} } },
+  documentElement: { dataset: {}, style: { setProperty: () => {}, removeProperty: () => {} } },
   createElement: tag => makeElement(tag),
   getElementById: id => head.get(id) || body.get(id) || null,
   querySelector: () => null,
@@ -296,16 +296,18 @@ calls.uniforms.length = 0
 ok(typeof SKY_ENGINE.SCENE.tz === 'string' && SKY_ENGINE.SCENE.tz.includes('/'), 'the scene reads the zone from the machine (' + SKY_ENGINE.SCENE.tz + ')')
 sky.setWeather(WEATHER_PRESETS.clear, 0, true)   // a clear sky, so the clock is what is measured
 calls.uniforms.length = 0
-sky.setClock(() => new Date(2026, 5, 21, 4, 30, 0))
+/* setHold pins the instant; setClock only takes a fast (preview) clock now */
+sky.setHold(new Date(2026, 5, 21, 4, 30, 0))
 step(6000)
 const uni2 = Object.fromEntries(calls.uniforms.map(u => [u[0], u.slice(1)]))
 const lum = c => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
 ok(uni2.uC0 && lum(uni2.uC0) < 0.25, 'a 04:30 clock gives a dark zenith (lum ' + (uni2.uC0 ? lum(uni2.uC0).toFixed(3) : '?') + ')')
-sky.setClock(() => new Date(2026, 5, 21, 13, 0, 0))
+sky.setHold(new Date(2026, 5, 21, 13, 0, 0))
 step(7000)
 const uni3 = Object.fromEntries(calls.uniforms.map(u => [u[0], u.slice(1)]))
 ok(uni3.uC0 && uni3.uC0[2] > uni3.uC0[0], 'a 13:00 clock gives a blue zenith')
-sky.setClock(null)
+ok(uni3.uC0 && uni2.uC0 && lum(uni3.uC0) > lum(uni2.uC0) + 0.2, 'and 13:00 is clearly brighter than 04:30')
+sky.setHold(null)
 
 /* ── 4. no WebGL: null, so the CSS time-of-day gradient takes over ─────── */
 webglAvailable = false

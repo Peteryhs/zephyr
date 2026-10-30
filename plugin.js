@@ -1,16 +1,18 @@
 /**
- * Zephyr — light that follows the clock, plus snippet cards you can keep.
+ * Zephyr — a better UI for Hermes Agent, lit by the real sky.
+ * https://github.com/Peteryhs/zephyr · MIT License
  *
  * Loaded as a RUNTIME plugin from <HERMES_HOME>/desktop-plugins/zephyr/plugin.js:
  * plain ESM, imports rewritten to the app's SDK/react shims, registered through
  * the same contribution areas the built-in UI uses. Nothing here forks the app,
  * so an update cannot revert it.
  *
- * Three of Peter's asks, each landed on the cheapest existing mechanism:
- *   1. time-of-day look  -> four contributed themes + a clock that applies one
- *   2. snippet boxes     -> a `::snippet{...}` transcript directive (copy/pin)
- *   3. less chrome       -> icon-free, one-row-per-thing cards; the pin roster
- *                           lives in settings rather than on the surface
+ * Each feature rides the cheapest existing mechanism:
+ *   time-of-day look  -> contributed themes (Zephyr Sky, Dawn, Day, Dusk, Night,
+ *                        Gruvbox) + a clock that keeps Zephyr Sky on the sun
+ *   snippet cards     -> a `::snippet{...}` transcript directive (copy/pin)
+ *   calmer chat       -> CSS over the app's own surfaces, plus small observers
+ *                        for folding finished work, tabs and the status panel
  *
  * The sky: a theme carries colours and type, not scenery, so the sky is the
  * plugin's own: the WebGL sky engine in §6, fed by live weather, blurred and
@@ -459,6 +461,14 @@ const polishCss = (gruv = false) => [
   // One radius per role. Buttons, inputs and rows are controls; cards and code
   // are surfaces; chips are inline.
   "button:not([class*='rounded-full']), input, select, textarea, [role='button']:not([class*='rounded-full']), [role='tab'], [role='option'] {",
+  '  border-radius: var(--zf-r-control) !important;',
+  '}',
+  // Search fields are the exception: the app's Input primitive draws the border,
+  // fill and radius on a <span> wrapping the real <input>, so the rule above
+  // only rounds the invisible inner field. The model picker's search therefore
+  // kept the app's 12px radius on a 32px row and read as a pill beside 8px
+  // controls. Round the wrapper to the same control radius.
+  ":is(span, div):has(> input[role='searchbox']) {",
   '  border-radius: var(--zf-r-control) !important;',
   '}',
   "[data-slot='aui_message'] :is(pre, table),",

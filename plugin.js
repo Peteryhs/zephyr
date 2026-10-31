@@ -3843,6 +3843,15 @@ void main(){
   float auroraGate=uAurora*smoothstep(.18,.42,uNight)*(1.0-uDeck);
   if(auroraGate>.001){
     float X=uv.x*uRes.x/uRes.y;
+    vec3 deep=mix(vec3(.020,.050,.075),vec3(.005,.008,.030),smoothstep(0.0,.9,uv.y));
+    c=mix(c,deep+.25*c*c,.82*auroraGate);
+    c+=vec3(.02,.09,.06)*exp(-uv.y/.12)*auroraGate;
+    vec2 sg=pixel/(3.2*uDet/300.0);
+    vec2 cell=floor(sg),fp=fract(sg)-.5;
+    float sh=hash(cell),star=step(.985,sh)*smoothstep(.32,0.0,length(fp+.3*(vec2(hash(cell+7.1),hash(cell+3.3))-.5)));
+    float twinkle=.6+.4*sin(t*(1.0+3.0*hash(cell+1.7))+6.28*sh);
+    c+=vec3(.85,.90,1.0)*star*twinkle*(.25+.75*fract(sh*91.0))*.75*smoothstep(.25,.6,uv.y)*auroraGate;
+    float haze=0.0;
     vec3 aurora=vec3(0);
     for(int k=0;k<2;k++){
       float fk=float(k);
@@ -3861,13 +3870,17 @@ void main(){
       float foot=1.0+1.1*exp(-max(h,0.0)/.03)*smoothstep(.25,.75,noise(vec2(2.5*X+5.0*fk,.02*t)));
       float pulse=pow(smoothstep(.28,.78,field(vec2(.8*X+4.0*fk-.008*t,3.0*fk))),1.6);
       float rel=max(h,0.0)/tall;
-      vec3 tint=mix(vec3(.10,1.0,.32),vec3(.60,.24,1.0),smoothstep(.45,1.9,rel));
+      vec3 tint=mix(vec3(.10,1.0,.32),vec3(.62,.22,1.0),smoothstep(.45,1.9,rel));
       tint=mix(tint,vec3(.95,.22,.50),.35*smoothstep(1.6,3.0,rel));
       tint=mix(tint,vec3(.80,.20,.65),.40*(1.0-smoothstep(-.025,.0,h)));
+      haze+=exp(-abs(h-.04)/.11)*(.15+pulse)*(1.0-.4*fk);
       aurora+=tint*below*up*rays*foot*(.12+1.2*pulse)*(1.0-.4*fk);
     }
     aurora*=1.0-smoothstep(.86,1.0,uv.y);
-    c=screenRGB(c,min(aurora,vec3(1))*auroraGate*.62);
+    aurora+=vec3(.10,.55,.30)*haze*.22;
+    vec3 add=aurora*auroraGate*.75;
+    c=c+add-c*add*.5;
+    c=c/(1.0+.25*max(c-.7,0.0));
   }
 
   float vignette=length((uv-.5)*vec2(uRes.x/uRes.y,1));

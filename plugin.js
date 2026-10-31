@@ -3846,19 +3846,28 @@ void main(){
     vec3 aurora=vec3(0);
     for(int k=0;k<2;k++){
       float fk=float(k);
-      float base=.50+.14*fk+.10*sin(2.2*X+1.7*fk+.03*t)+.22*(field(vec2(1.1*X+3.1*fk,.012*t+fk))-.5);
+      float m=field(vec2(.55*X+3.1*fk,.010*t+2.0*fk));
+      float base=.40+.20*fk+.32*(m-.5)+.04*sin(3.1*X+2.0*fk+.02*t)+.035*(noise(vec2(7.0*X+fk,.03*t))-.5)+.014*(noise(vec2(21.0*X+4.0*fk,.04*t))-.5);
       float h=uv.y-base;
-      float tall=.10+.14*field(vec2(2.5*X+6.0*fk,.01*t));
-      float band=smoothstep(-.035,.006,h)*exp(-max(h,0.0)/tall)*(1.0+1.2*exp(-abs(h)/.012));
-      float warp=field(vec2(1.4*X+7.0*fk,.015*t));
-      float r1=noise(vec2(55.0*X+10.0*warp,.5*h+.03*t+5.0*fk));
-      float r2=noise(vec2(150.0*X+18.0*warp,.8*h-.02*t+9.0*fk));
-      float rays=.75*pow(r1,2.5)+.5*pow(r2,3.0);
-      float reach=smoothstep(.2,.7,field(vec2(.6*X+4.0*fk-.006*t,fk)));
-      vec3 tint=mix(vec3(.30,1.0,.55),vec3(.70,.35,.95),smoothstep(0.0,.75*tall+.05,h));
-      aurora+=tint*band*(.15+1.6*rays)*reach*(1.0-.45*fk);
+      float warp=field(vec2(1.2*X+7.0*fk,.012*t));
+      float col=24.0*X+14.0*warp+3.0*noise(vec2(4.0*X,fk));
+      float r1=noise(vec2(col,.5*h+.02*t+5.0*fk));
+      float r2=noise(vec2(3.1*col+3.0,.8*h+.03*t+9.0*fk));
+      float len=noise(vec2(.7*col+11.0,.015*t+fk));
+      float tall=(.06+.42*len*len)*(.5+m)*(1.0-.35*fk);
+      float up=exp(-max(h,0.0)/tall);
+      float below=exp(min(h,0.0)/.02);
+      float rays=mix(.45+.5*noise(vec2(3.5*X+8.0*fk,.02*t)),.38+1.5*r1*r1+1.0*pow(r2,3.0),smoothstep(.0,.045,h));
+      float foot=1.0+1.1*exp(-max(h,0.0)/.03)*smoothstep(.25,.75,noise(vec2(2.5*X+5.0*fk,.02*t)));
+      float pulse=pow(smoothstep(.28,.78,field(vec2(.8*X+4.0*fk-.008*t,3.0*fk))),1.6);
+      float rel=max(h,0.0)/tall;
+      vec3 tint=mix(vec3(.10,1.0,.32),vec3(.60,.24,1.0),smoothstep(.45,1.9,rel));
+      tint=mix(tint,vec3(.95,.22,.50),.35*smoothstep(1.6,3.0,rel));
+      tint=mix(tint,vec3(.80,.20,.65),.40*(1.0-smoothstep(-.025,.0,h)));
+      aurora+=tint*below*up*rays*foot*(.12+1.2*pulse)*(1.0-.4*fk);
     }
-    c=screenRGB(c,min(aurora,vec3(1))*auroraGate*.55);
+    aurora*=1.0-smoothstep(.86,1.0,uv.y);
+    c=screenRGB(c,min(aurora,vec3(1))*auroraGate*.62);
   }
 
   float vignette=length((uv-.5)*vec2(uRes.x/uRes.y,1));

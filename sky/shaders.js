@@ -3,7 +3,7 @@ export const VERT=`
 attribute vec2 aPosition;
 void main(){gl_Position=vec4(aPosition,0.0,1.0);}
 `;
-export const UNIFORM_NAMES=['uRes','uDet','uTime','uAlpha','uC0','uC1','uC2','uC3','uGlowPos','uGlowCol','uGlow','uGlowSize','uDensity','uWarp','uGrain','uDrift','uPrecip','uShaft','uFog','uMilk','uDeck','uPuff','uNight','uHaze','uSquash','uTint','uRays','uRayLook','uHalo','uHaloLook','uLut','uLutAmt','uTexV','uCirA','uCirB','uSun','uPolar','uAureole','uWhiten','uPurple','uCrep','uLit','uTintHi','uFloorZ','uFloorH','uDogs','uCorona'];
+export const UNIFORM_NAMES=['uRes','uDet','uTime','uAlpha','uC0','uC1','uC2','uC3','uGlowPos','uGlowCol','uGlow','uGlowSize','uDensity','uWarp','uGrain','uDrift','uPrecip','uShaft','uFog','uMilk','uDeck','uPuff','uNight','uHaze','uSquash','uTint','uRays','uRayLook','uHalo','uHaloLook','uLut','uLutAmt','uTexV','uCirA','uCirB','uSun','uPolar','uAureole','uWhiten','uPurple','uCrep','uLit','uTintHi','uFloorZ','uFloorH','uDogs','uCorona','uAurora'];
 export const FRAG=`
 precision highp float;
 uniform vec2 uRes;
@@ -17,6 +17,7 @@ uniform vec3 uPrecip,uShaft;
 uniform float uFog;
 uniform vec3 uMilk;
 uniform float uDeck,uPuff,uNight,uHaze,uSquash;
+uniform float uAurora;
 uniform vec3 uTint;
 uniform float uRays;
 uniform vec2 uRayLook;
@@ -203,6 +204,27 @@ void main(){
     c=mix(c,rainTint,sat(shaft*fade*.55*uPrecip.x*uShaft.x));
     c=mix(c,snowTint,sat(shaft*fade*.60*uPrecip.y*uShaft.x));
   }
+  float auroraGate=uAurora*smoothstep(.18,.42,uNight)*(1.0-uDeck);
+  if(auroraGate>.001){
+    float X=uv.x*uRes.x/uRes.y;
+    vec3 aurora=vec3(0);
+    for(int k=0;k<2;k++){
+      float fk=float(k);
+      float base=.50+.14*fk+.10*sin(2.2*X+1.7*fk+.03*t)+.22*(field(vec2(1.1*X+3.1*fk,.012*t+fk))-.5);
+      float h=uv.y-base;
+      float tall=.10+.14*field(vec2(2.5*X+6.0*fk,.01*t));
+      float band=smoothstep(-.035,.006,h)*exp(-max(h,0.0)/tall)*(1.0+1.2*exp(-abs(h)/.012));
+      float warp=field(vec2(1.4*X+7.0*fk,.015*t));
+      float r1=noise(vec2(55.0*X+10.0*warp,.5*h+.03*t+5.0*fk));
+      float r2=noise(vec2(150.0*X+18.0*warp,.8*h-.02*t+9.0*fk));
+      float rays=.75*pow(r1,2.5)+.5*pow(r2,3.0);
+      float reach=smoothstep(.2,.7,field(vec2(.6*X+4.0*fk-.006*t,fk)));
+      vec3 tint=mix(vec3(.30,1.0,.55),vec3(.70,.35,.95),smoothstep(0.0,.75*tall+.05,h));
+      aurora+=tint*band*(.15+1.6*rays)*reach*(1.0-.45*fk);
+    }
+    c=screenRGB(c,min(aurora,vec3(1))*auroraGate*.55);
+  }
+
   float vignette=length((uv-.5)*vec2(uRes.x/uRes.y,1));
   c*=1.0-.20*smoothstep(.6,1.3,vignette);
   if(uLutAmt>.001){

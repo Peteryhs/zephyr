@@ -140,13 +140,13 @@ test('independent noon palette stays near observed calibration envelope',()=>{
   const target=[[.0648151342,.5392501673,.9327261996],[.1567239567,.6923873118,.9884869799],[.4823593159,.8709778653,.9785302148],[.8207493325,.9318048326,.9416971304]];
   noon().cols.flat().forEach((v,i)=>near(v,target.flat()[i],.025));
 });
-test('all 47 uniforms are supplied, one triangle drawn, alpha zero preserved',()=>{
+test('all 48 uniforms are supplied, one triangle drawn, alpha zero preserved',()=>{
   const calls=new Map();let draws=0;
   const gl={TRIANGLES:4,uniform1f:(k,v)=>calls.set(k,v),uniform1i:(k,v)=>calls.set(k,v),drawArrays:(mode,start,count)=>{assert.deepEqual([mode,start,count],[4,0,3]);draws++;}};
   for(let n=2;n<=4;n++)gl[`uniform${n}fv`]=(k,v)=>calls.set(k,v);
   const locations=Object.fromEntries(UNIFORM_NAMES.map(k=>[k,k]));
   drawParams(gl,locations,noon(),{width:1920,height:1080,time:40,alpha:0});
-  assert.equal(UNIFORM_NAMES.length,47);assert.equal(calls.size,47);assert.equal(draws,1);assert.equal(calls.get('uAlpha'),0);
+  assert.equal(UNIFORM_NAMES.length,48);assert.equal(calls.size,48);assert.equal(draws,1);assert.equal(calls.get('uAlpha'),0);
 });
 test('fixed snapshots repeat and all weather/hour/season frames remain finite',()=>{
   assert.deepEqual(noon(),noon());

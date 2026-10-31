@@ -134,6 +134,20 @@ const PHASE_ACCENT = { dawn: '#e8a07a', day: '#9dc4e8', dusk: '#e6863f', night: 
 // glass rather than a clear pane — because fg1 on bg0 is a 9.5:1 pair and that
 // is the only way prose stays readable over a picture with real highlights.
 const GRUVBOX_THEME = 'zephyr-gruvbox'
+// Zephyr Aurora: a static night. The night sky with northern lights over deep
+// indigo glass, whatever the time. Every other look keeps the neutral night.
+const AURORA_THEME = 'zephyr-aurora'
+const AURORA_NIGHT = [15, 16, 33]
+const AURORA_ACCENT = '#b4a8ff'
+let AURORA_LOOK = false
+const AURORA_GROUNDS = {
+  background: 'rgba(13, 14, 32, 0.72)', foreground: '#ffffff', card: 'rgba(16, 17, 38, 0.76)', cardForeground: '#ffffff',
+  muted: 'rgba(24, 26, 54, 0.55)', mutedForeground: '#cdd2ee', popover: 'rgba(14, 15, 34, 0.92)', popoverForeground: '#ffffff',
+  primary: AURORA_ACCENT, primaryForeground: '#0f1024', secondary: 'rgba(28, 30, 62, 0.55)', secondaryForeground: '#eef0fb',
+  accent: AURORA_ACCENT, accentForeground: '#0f1024', border: '#262a52', input: 'rgba(18, 20, 44, 0.65)', ring: AURORA_ACCENT,
+  destructive: '#c9564f', destructiveForeground: '#fff5f5',
+  sidebarBackground: 'rgba(10, 11, 26, 0.68)', sidebarBorder: '#20244a', userBubble: 'rgba(22, 24, 52, 0.75)', userBubbleBorder: '#2c3160'
+}
 const GRUVBOX_ACCENT = '#fe8019'
 // Resolved at startup from wherever the plugin is installed (assets/ in a
 // clone, or next to plugin.js); see resolvePluginFiles.
@@ -857,7 +871,7 @@ const zephyrMaterial = sky => {
   // no visible jump at duskEnd: by the time `isNight` is true the tint is
   // already grey.
   const grey = smooth01(clamp01((0.32 - sky.exposure) / 0.12))
-  const tint = blendRgb(blendRgb(blendRgb(ZF_INK, blendRgb(sky.top, hue, 0.35), 0.16 - 0.06 * n), [3, 5, 10], 0.42 * n), ZF_NIGHT, grey)
+  const tint = blendRgb(blendRgb(blendRgb(ZF_INK, blendRgb(sky.top, hue, 0.35), 0.16 - 0.06 * n), [3, 5, 10], 0.42 * n), AURORA_LOOK ? AURORA_NIGHT : ZF_NIGHT, grey)
   const tintHi = blendRgb(tint, [255, 255, 255], 0.05 - 0.01 * n)
   const ink = [
     blendRgb([250, 251, 253], hue, 0.04),
@@ -2225,6 +2239,35 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
       '  --zf-m-sheet: var(--zf-glass-strong);',
       '}'
     ]),
+    // Zephyr Aurora (Ali, 2026-10-31): indigo glass with a little sky showing
+    // through, moonlit edges, and a faint aurora glow round the composer.
+    // Scaled by the night factor; only this theme gets it.
+    ...(gruv || !AURORA_LOOK || zf.night < 0.02 ? [] : (() => {
+      const n = zf.night, a = v => (v * n).toFixed(3), moon = blendRgb([255, 255, 255], [196, 204, 255], n).join(', ')
+      return [
+        'html:root.dark {',
+        `  --zf-glass: color-mix(in srgb, var(--zf-tint) ${glassPct(84 + 2 * n)}, transparent);`,
+        `  --zf-glass-hover: color-mix(in srgb, var(--zf-tint-hi) ${glassPct(88 + 3 * n)}, transparent);`,
+        `  --zf-edge: rgba(${moon}, ${(0.07 + 0.03 * n).toFixed(3)});`,
+        `  --zf-edge-strong: rgba(${moon}, ${(0.11 + 0.04 * n).toFixed(3)});`,
+        `  --theme-neutral-chrome: rgba(${blendRgb([13, 13, 14], [11, 12, 27], n).join(', ')}, ${density});`,
+        `  --theme-neutral-sidebar: rgba(${blendRgb([10, 10, 11], [9, 10, 23], n).join(', ')}, ${sideDensity});`,
+        `  --theme-neutral-card: rgba(${blendRgb([22, 22, 24], [21, 22, 42], n).join(', ')}, ${cardDensity});`,
+        '}',
+        "html body div[data-slot='composer-surface'][data-slot][class] {",
+        `  box-shadow: inset 0 1px 0 rgba(214, 222, 255, ${a(0.10)}), inset 0 0 0 1px rgba(176, 188, 255, ${a(0.10)}),`,
+        `    0 -8px 40px -8px rgba(86, 226, 176, ${a(0.45)}), 0 0 60px -10px rgba(150, 110, 255, ${a(0.40)}), 0 10px 30px rgba(0, 0, 0, ${a(0.30)}) !important;`,
+        '}',
+        "html body :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) {",
+        `  box-shadow: inset 0 1px 0 rgba(214, 222, 255, ${a(0.09)}), inset 0 0 0 1px rgba(176, 188, 255, ${a(0.08)}), 0 8px 24px rgba(4, 6, 20, ${a(0.30)}) !important;`,
+        '  border-color: transparent !important;',
+        '}',
+        "[data-slot='pane-tab'][data-active='true'], [data-slot='pane-tab'][aria-selected='true'] {",
+        `  box-shadow: inset 0 1px 0 rgba(214, 222, 255, ${a(0.10)}), inset 0 0 0 1px rgba(176, 188, 255, ${a(0.09)}) !important;`,
+        '}',
+        ".aui-md { color: color-mix(in srgb, var(--ui-text-primary) 94%, rgb(196, 206, 255)); }",
+      ]
+    })()),
     ...SESSION_TAB_CSS,
     ...(gruv ? gruvboxTextCss() : []),
     ...polishCss(gruv),
@@ -3596,7 +3639,7 @@ const VERT=`
 attribute vec2 aPosition;
 void main(){gl_Position=vec4(aPosition,0.0,1.0);}
 `;
-const UNIFORM_NAMES=['uRes','uDet','uTime','uAlpha','uC0','uC1','uC2','uC3','uGlowPos','uGlowCol','uGlow','uGlowSize','uDensity','uWarp','uGrain','uDrift','uPrecip','uShaft','uFog','uMilk','uDeck','uPuff','uNight','uHaze','uSquash','uTint','uRays','uRayLook','uHalo','uHaloLook','uLut','uLutAmt','uTexV','uCirA','uCirB','uSun','uPolar','uAureole','uWhiten','uPurple','uCrep','uLit','uTintHi','uFloorZ','uFloorH','uDogs','uCorona'];
+const UNIFORM_NAMES=['uRes','uDet','uTime','uAlpha','uC0','uC1','uC2','uC3','uGlowPos','uGlowCol','uGlow','uGlowSize','uDensity','uWarp','uGrain','uDrift','uPrecip','uShaft','uFog','uMilk','uDeck','uPuff','uNight','uHaze','uSquash','uTint','uRays','uRayLook','uHalo','uHaloLook','uLut','uLutAmt','uTexV','uCirA','uCirB','uSun','uPolar','uAureole','uWhiten','uPurple','uCrep','uLit','uTintHi','uFloorZ','uFloorH','uDogs','uCorona','uAurora'];
 const FRAG=`
 precision highp float;
 uniform vec2 uRes;
@@ -3610,6 +3653,7 @@ uniform vec3 uPrecip,uShaft;
 uniform float uFog;
 uniform vec3 uMilk;
 uniform float uDeck,uPuff,uNight,uHaze,uSquash;
+uniform float uAurora;
 uniform vec3 uTint;
 uniform float uRays;
 uniform vec2 uRayLook;
@@ -3796,6 +3840,27 @@ void main(){
     c=mix(c,rainTint,sat(shaft*fade*.55*uPrecip.x*uShaft.x));
     c=mix(c,snowTint,sat(shaft*fade*.60*uPrecip.y*uShaft.x));
   }
+  float auroraGate=uAurora*smoothstep(.18,.42,uNight)*(1.0-uDeck);
+  if(auroraGate>.001){
+    float X=uv.x*uRes.x/uRes.y;
+    vec3 aurora=vec3(0);
+    for(int k=0;k<2;k++){
+      float fk=float(k);
+      float base=.50+.14*fk+.10*sin(2.2*X+1.7*fk+.03*t)+.22*(field(vec2(1.1*X+3.1*fk,.012*t+fk))-.5);
+      float h=uv.y-base;
+      float tall=.10+.14*field(vec2(2.5*X+6.0*fk,.01*t));
+      float band=smoothstep(-.035,.006,h)*exp(-max(h,0.0)/tall)*(1.0+1.2*exp(-abs(h)/.012));
+      float warp=field(vec2(1.4*X+7.0*fk,.015*t));
+      float r1=noise(vec2(55.0*X+10.0*warp,.5*h+.03*t+5.0*fk));
+      float r2=noise(vec2(150.0*X+18.0*warp,.8*h-.02*t+9.0*fk));
+      float rays=.75*pow(r1,2.5)+.5*pow(r2,3.0);
+      float reach=smoothstep(.2,.7,field(vec2(.6*X+4.0*fk-.006*t,fk)));
+      vec3 tint=mix(vec3(.30,1.0,.55),vec3(.70,.35,.95),smoothstep(0.0,.75*tall+.05,h));
+      aurora+=tint*band*(.15+1.6*rays)*reach*(1.0-.45*fk);
+    }
+    c=screenRGB(c,min(aurora,vec3(1))*auroraGate*.55);
+  }
+
   float vignette=length((uv-.5)*vec2(uRes.x/uRes.y,1));
   c*=1.0-.20*smoothstep(.6,1.3,vignette);
   if(uLutAmt>.001){
@@ -3907,6 +3972,8 @@ function zDrawParams(gl, U, f, opts) {
   gl.uniform1f(U.uDeck, f.deck)
   gl.uniform1f(U.uPuff, f.puff)
   gl.uniform1f(U.uNight, f.night)
+  /* the Zephyr Aurora theme's northern lights; 0 (off) for every other look */
+  if (U.uAurora) gl.uniform1f(U.uAurora, o.aurora || 0)
   gl.uniform1f(U.uHaze, f.haze)
   gl.uniform1f(U.uSquash, f.squash)
   gl.uniform3f(U.uTint, f.tint[0], f.tint[1], f.tint[2])
@@ -4376,6 +4443,7 @@ const createSky = (opts = {}) => {
       time: run.slowT,
       driftOff: run.driftOff,
       alpha: 1,
+      aurora: run.aurora || 0,
     })
   }
   /* skyFresh: re-run the sky shader; otherwise only the blur passes re-run */
@@ -4556,6 +4624,13 @@ const createSky = (opts = {}) => {
       if (typeof speed === 'number') want.wind = speed
       run.dirty = true
     },
+    setAurora(on) {
+      const v = on ? 1 : 0
+      if (v === run.aurora) return
+      run.aurora = v
+      run.dirty = true
+      reschedule()
+    },
     setLocation(lat, lng) {
       if (typeof lat === 'number' && typeof lng === 'number') {
         live.lat = lat
@@ -4650,7 +4725,7 @@ const phaseThemeName = phase => `zephyr-${phase}`
 // The live theme: one pick that follows the sun (see registerLive).
 const SKY_THEME = 'zephyr-sky'
 // every theme name Zephyr owns; anything else is the user's own pick
-const isOurTheme = name => name === SKY_THEME || PHASES.some(p => name === phaseThemeName(p)) || (typeof GRUVBOX_THEME !== 'undefined' && name === GRUVBOX_THEME)
+const isOurTheme = name => name === SKY_THEME || PHASES.some(p => name === phaseThemeName(p)) || (typeof GRUVBOX_THEME !== 'undefined' && name === GRUVBOX_THEME) || name === AURORA_THEME
 
 const themeFor = phase => ({
   name: phaseThemeName(phase),
@@ -8452,6 +8527,7 @@ export default {
     const SUNSET_HOLD_OFFSET = 0.3   // hours past the sunset anchor: the ember
     const storedPin = stored(STORE_KEYS.phasePin)
     const pin = atom(PHASES.includes(storedPin) ? storedPin : null)
+    AURORA_LOOK = stored('aurora') === true && pin.get() === 'night'
     const momentFor = (phase, base = new Date()) => {
       const { rise, set } = getSolar(base)
       const h = phase === 'dawn' ? rise - 0.35
@@ -8542,6 +8618,7 @@ export default {
       }
       applyFpsCap()
       applyWeather(true)
+      glSky.setAurora(AURORA_LOOK)
       glSky.start()
       startBlurWatch()
       return glSky
@@ -8627,13 +8704,13 @@ export default {
 
       // A picked phase holds its own theme; otherwise the one live theme,
       // Zephyr Sky, takes this phase's colours and stays selected all day.
-      if (pin.get()) requestTheme(phaseThemeName(pin.get()))
+      if (pin.get()) requestTheme(AURORA_LOOK ? AURORA_THEME : phaseThemeName(pin.get()))
       else {
         registerLive(next)
         requestTheme(SKY_THEME)
       }
 
-      if (tint.get()) setAccentOverride(GROUNDS[pin.get() || next].accent)
+      if (tint.get()) setAccentOverride(AURORA_LOOK ? AURORA_ACCENT : GROUNDS[pin.get() || next].accent)
     }
 
     const tick = () => {
@@ -8724,6 +8801,17 @@ export default {
         colors: GRUVBOX_GROUNDS
       }
     })
+    ctx.register({
+      id: 'theme.aurora',
+      area: THEMES_AREA,
+      order: 39,
+      data: {
+        name: AURORA_THEME,
+        label: 'Zephyr Aurora',
+        description: 'A clear night with northern lights, behind deep indigo glass, whatever the time.',
+        colors: AURORA_GROUNDS
+      }
+    })
 
     // Appearance › Theme: Zephyr Sky follows the sun all day; a phase holds
     // that sky whatever the time; Zephyr Gruvbox shows the painting. Our own
@@ -8738,8 +8826,10 @@ export default {
         }
         if (picked && away) { away = false; ctx.storage.set('away', false) }
         const name = document.documentElement.dataset.hermesTheme || ''
+        const aurora = name === AURORA_THEME
+        if (aurora !== AURORA_LOOK) { AURORA_LOOK = aurora; ctx.storage.set('aurora', aurora); glSky?.setAurora(aurora) }
         if (name === GRUVBOX_THEME) { if (look.get() === 'sunset') switchLook('gruvbox'); return }
-        const phase = PHASES.find(p => name === phaseThemeName(p))
+        const phase = aurora ? 'night' : PHASES.find(p => name === phaseThemeName(p))
         if (!phase && name !== SKY_THEME) return
         const want = phase || null
         if (name === SKY_THEME && !auto.get()) { auto.set(true); persist() }
@@ -8794,6 +8884,7 @@ export default {
             const order = [null, ...PHASES]
             const want = auto.get() ? order[(order.indexOf(pin.get()) + 1) % order.length] : null
             if (!auto.get()) { auto.set(true); persist() }
+            if (AURORA_LOOK) { AURORA_LOOK = false; ctx.storage.set('aurora', false); glSky?.setAurora(false) }
             pin.set(want)
             ctx.storage.set(STORE_KEYS.phasePin, want)
             if (look.get() !== 'sunset') { switchLook('sunset'); return }

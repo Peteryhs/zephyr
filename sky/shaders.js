@@ -220,12 +220,12 @@ void main(){
     for(int k=0;k<2;k++){
       float fk=float(k);
       float m=field(vec2(.55*X+3.1*fk,.010*T+2.0*fk));
-      float base=.40+.20*fk+.32*(m-.5)+.04*sin(3.1*X+2.0*fk+.02*T)+.035*(noise(vec2(7.0*X+fk,.03*T))-.5)+.014*(noise(vec2(21.0*X+4.0*fk,.04*T))-.5);
+      float base=.60+.12*fk+.11*(X/W-.5)+.16*(m-.5)+.04*sin(3.1*X+2.0*fk+.02*T)+.035*(noise(vec2(7.0*X+fk,.03*T))-.5)+.014*(noise(vec2(21.0*X+4.0*fk,.04*T))-.5);
       float h=uv.y-base;
       // rays fan toward a vanishing point above the middle, like a wide-angle photo
-      float Xf=X-(X-.5*W)*.55*max(h,0.0);
+      float Xf=X-(X-.5*W)*.18*max(h,0.0);
       float warp=field(vec2(1.2*Xf+7.0*fk,.012*T));
-      float col=22.0*Xf+14.0*warp+3.0*noise(vec2(4.0*Xf,fk));
+      float col=34.0*Xf+14.0*warp+3.0*noise(vec2(4.0*Xf,fk));
       float r1=noise(vec2(col,.4*h+.02*T+5.0*fk));
       float r2=noise(vec2(3.1*col+3.0,.7*h+.03*T+9.0*fk));
       float len=noise(vec2(.7*col+11.0,.015*T+fk));
@@ -238,16 +238,16 @@ void main(){
       float knot=field(vec2(.9*X+4.0*fk-.008*T,3.0*fk+.004*T));
       float pulse=pow(smoothstep(.25,.80,knot),2.0);
       float rel=max(h,0.0)/tall;
-      vec3 tint=mix(vec3(.10,1.0,.32),vec3(.60,.22,1.0),smoothstep(.45,1.9,rel));
+      vec3 tint=mix(vec3(.14,.96,.58),vec3(.52,.30,1.0),smoothstep(.35,1.5,rel));
       tint=mix(tint,vec3(.95,.22,.50),.35*smoothstep(1.6,3.0,rel));
-      tint=mix(tint,vec3(.85,.20,.60),.45*(1.0-smoothstep(-.03,.0,h)));
+      tint=mix(tint,vec3(.55,.30,.90),.45*(1.0-smoothstep(-.03,.0,h)));
       haze+=exp(-abs(h-.05)/.13)*(.10+pulse)*(1.0-.4*fk);
       aurora+=tint*below*up*rays*foot*(.08+1.35*pulse)*(1.0-.4*fk);
     }
     // high magenta and violet veils, soft and patchy
     float veil=smoothstep(.40,.75,field(vec2(.7*X+.6*uv.y,1.1*uv.y-.006*T)+vec2(13.0,4.0)));
     aurora+=mix(vec3(.45,.12,.55),vec3(.70,.15,.40),smoothstep(.6,.95,uv.y))*veil*smoothstep(.45,.75,uv.y)*.28;
-    aurora+=vec3(.10,.55,.30)*haze*.20;
+    aurora+=vec3(.10,.50,.42)*haze*.20;
     aurora*=1.0-smoothstep(.88,1.0,uv.y);
     vec3 add=aurora*auroraGate*.75;
     c=c+add-c*add*.5;

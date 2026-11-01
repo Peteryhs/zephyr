@@ -733,6 +733,35 @@ const polishCss = (gruv = false) => [
   '}',
 ]
 
+// Adorned fields have one visual owner: the wrapper, never the inner input.
+// SearchField currently has no data-slot; its field-sizing utility identifies
+// the shared component without tying the fix to radio, placeholder or locale.
+const groupedFieldCss = () => {
+  const group = ":is([data-slot='input-group'], [data-slot='command-input-wrapper'], :is(span, div):has(> input[role='searchbox']), :is(span, div):has(> input[class*='field-sizing:content']))"
+  return [
+    // Include the focused states and wrapper class to beat both the global
+    // focus rule and dialog/overlay form styling, including !important fills.
+    'html body ' + group + '[class] > input[class]:not([type=checkbox]):not([type=radio]):not([type=range]):not(:focus),',
+    'html body ' + group + '[class] > input[class]:not([type=checkbox]):not([type=radio]):not([type=range]):is(:focus, :focus-visible) {',
+    '  background: transparent !important;',
+    '  border: 0 !important;',
+    '  border-radius: 0 !important;',
+    '  box-shadow: none !important;',
+    '  outline: none !important;',
+    '}',
+    'html body ' + group + '[class]:has(> input:focus-visible) {',
+    '  border-radius: var(--zf-r-control, 8px) !important;',
+    '  outline: 1.5px solid rgba(var(--zf-hi, 255, 255, 255), 0.38) !important;',
+    '  outline-offset: 2px;',
+    '  box-shadow: none !important;',
+    '}',
+    // Keep the single focus boundary visible in Windows high contrast too.
+    '@media (forced-colors: active) {',
+    '  html body ' + group + '[class]:has(> input:focus-visible) { outline-color: Highlight !important; }',
+    '}',
+  ]
+}
+
 // The prose layer wears the syntax side of gruvbox: headings are Title (bold
 // green), links are Underlined (blue), inline code is Constant (purple) on
 // bg0_hard, quotes are PreProc (aqua), hairlines are LineNr (bg4), selection is
@@ -2572,6 +2601,7 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
     '  box-shadow: 0 0 0 3px color-mix(in srgb, var(--zf-accent) 14%, transparent) !important;',
     '  outline: none !important;',
     '}',
+    ...groupedFieldCss(),
     // Scrollbars everywhere: thin and tinted, never the platform grey slab.
     '* { scrollbar-color: rgba(255, 255, 255, 0.14) transparent; scrollbar-width: thin; }',
     ...ARCLIKE_CSS,

@@ -1,0 +1,102 @@
+{
+  "label": "before",
+  "startup": [
+    {
+      "aurora": false,
+      "ms": 167
+    },
+    {
+      "aurora": false,
+      "ms": 31.899999976158142
+    },
+    {
+      "aurora": false,
+      "ms": 34.30000001192093
+    },
+    {
+      "aurora": false,
+      "ms": 28.5
+    },
+    {
+      "aurora": false,
+      "ms": 23.80000001192093
+    },
+    {
+      "aurora": false,
+      "ms": 23.5
+    },
+    {
+      "aurora": false,
+      "ms": 23
+    },
+    {
+      "aurora": false,
+      "ms": 28.299999982118607
+    },
+    {
+      "aurora": false,
+      "ms": 22.700000017881393
+    },
+    {
+      "aurora": false,
+      "ms": 27.099999994039536
+    },
+    {
+      "aurora": true,
+      "ms": 28.400000005960464
+    },
+    {
+      "aurora": true,
+      "ms": 46.599999994039536
+    },
+    {
+      "aurora": true,
+      "ms": 32.5
+    },
+    {
+      "aurora": true,
+      "ms": 39
+    },
+    {
+      "aurora": true,
+      "ms": 32.400000005960464
+    },
+    {
+      "aurora": true,
+      "ms": 31.700000017881393
+    },
+    {
+      "aurora": true,
+      "ms": 34
+    },
+    {
+      "aurora": true,
+      "ms": 30.5
+    },
+    {
+      "aurora": true,
+      "ms": 29.5
+    },
+    {
+      "aurora": true,
+      "ms": 27.200000017881393
+    }
+  ],
+  "traceSeconds": 2.5,
+  "paint": {
+    "count": 600,
+    "totalMs": 95.332
+  },
+  "raster": {
+    "count": 1200,
+    "totalMs": 51.649
+  },
+  "layout": {
+    "count": 0,
+    "totalMs": 0
+  },
+  "style": {
+    "count": 300,
+    "totalMs": 62.366
+  }
+}

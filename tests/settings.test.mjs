@@ -21,10 +21,10 @@ test('Zephyr styling is its own stored switch', () => {
   assert.match(src, /ctx\.storage\.set\(STORE_KEYS\.chrome, chromeOn\.get\(\)\)/)
 })
 
-test('the sky switch only chooses the sunset backdrop', () => {
+test('the background switch hides scenery for every look', () => {
   const render = slice('const renderSky = now => {', 'const refreshWeather =')
-  assert.match(render, /const backdrop = lookNow !== 'sunset' \|\| sky\.get\(\)/,
-    'the painting and custom picture must survive the Sky switch')
+  assert.match(render, /const backdrop = sky\.get\(\)/,
+    'the shared background switch applies to every look')
   assert.match(render, /paintSky\(now, Boolean\(gl\), \{ backdrop, chrome \}\)/,
     'the sheet needs both switches')
   assert.doesNotMatch(render, /if \(!sky\.get\(\)\)/, 'Sky off must not clear the whole sheet')
@@ -43,10 +43,10 @@ test('the generated sheet can skip the backdrop or the chrome', () => {
 
 test('the settings page shows Look, Sky and Zephyr styling apart', () => {
   const page = slice("ctx.registerSettingsPage?.({", '// ── Arclike')
-  assert.match(page, /const lookSection = section\('cloud', 'Look'/)
-  assert.match(page, /label: 'Sky'/)
+  assert.match(page, /const lookSection = section\('paintcan', 'Appearance'/)
+  assert.match(page, /label: 'Background'/)
   assert.match(page, /label: 'Zephyr styling'/)
-  assert.match(page, /const skySection = skyLook && isSky \? section\('cloud', 'Sky'/)
+  assert.match(page, /const skySection = skyRows.length \? section\('cloud', 'Sky'/)
   assert.match(page, /chromeOn\.set\(on\)/)
 })
 
@@ -54,7 +54,7 @@ test('the long sections fold, and the picture knobs stay under Custom', () => {
   const page = slice("ctx.registerSettingsPage?.({", '// ── Arclike')
   assert.match(page, /const chatSection = section\('comment-discussion', 'Chat & motion',/)
   assert.match(page, /const pinSection = section\('bookmark',/)
-  assert.equal((page.match(/\{ collapse: true \}/g) || []).length, 2, 'Chat and Snippets fold by default')
-  assert.match(page, /const skinSection = lookNow === 'custom'/)
+  assert.equal((page.match(/\{ collapse: true \}/g) || []).length, 3, 'Fine-tune, Chat and Snippets fold by default')
+  assert.match(page, /const skinSection = selectedLook === 'custom'/)
   assert.match(page, /'Colour, glass and fit'/)
 })

@@ -30,7 +30,7 @@ A live sky over your window, from your own clock and weather.
   <img src="assets/sky-weather.png" alt="Clear, cloudy, storm and fog" width="100%">
 </p>
 
-The readout in the status bar ("dynamic · 2:45 PM") is a button: each click holds the next sky, then hands back to the clock.
+The status-bar picker shows your current look, such as “Sky · Live” or “Aurora”. Open it to choose a look or hold a time of day.
 
 ### Gruvbox theme
 
@@ -89,7 +89,11 @@ Delete the folder and restart to remove.
 
 ## Settings
 
-Everything is in **Settings > Zephyr**: Background, Sky, Zephyr styling, Realistic sky, Weather, Smoothness (4, 8 or 16 fps; Balanced looks like High at half the power), Preview a day, Time-of-day themes, Tint the accent, Suggest sessions, Suggestion card material, Spacious margins, Fold finished work, App animations, Status panel, Snippet library and the pin roster.
+Choose **Sky**, **Aurora**, **Gruvbox**, or **Custom** in the appearance gallery under **Settings > Plugins > Zephyr**. Sky can follow the sun or hold Dawn, Sunrise, Day, Sunset, or Night. Aurora holds night, with clear weather by default. Weather choices are remembered separately for each look, and switching to Aurora preserves your Sky time selection.
+
+**Background** hides the scenery while keeping the look’s colours; **Zephyr styling** controls glass, panels and typography. **Fine-tune appearance** contains rendering, smoothness, preview and accent controls. Custom exposes its picture and glass editor. **Use Hermes appearance** restores the last Hermes theme and pauses Zephyr appearance while keeping chat settings and snippets active.
+
+Hermes Appearance contains one stable **Zephyr** entry; the selection stays the same as the sky changes. Suggestion cards, spacious margins, motion, the status panel, snippets and pins remain in Zephyr’s settings.
 
 ## Performance
 

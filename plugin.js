@@ -3860,8 +3860,8 @@ void main(){
   if(auroraGate>.001){
     float X=uv.x*uRes.x/uRes.y,W=uRes.x/uRes.y,y=uv.y;
     // deep navy overhead, a lighter blue toward the horizon
-    vec3 deep=mix(vec3(.055,.15,.31),vec3(.008,.022,.095),smoothstep(0.0,.95,y));
-    c=mix(c,deep+.12*c*c,.9*auroraGate);
+    vec3 deep=mix(vec3(.075,.105,.175),vec3(.012,.018,.048),smoothstep(0.0,.95,y));
+    c=mix(c,deep+.08*c*c,.95*auroraGate);
     vec2 sg=pixel/(3.2*uDet/300.0);
     vec2 cell=floor(sg),fp=fract(sg)-.5;
     float sh=hash(cell),star=step(.982,sh)*smoothstep(.32,0.0,length(fp+.3*(vec2(hash(cell+7.1),hash(cell+3.3))-.5)));

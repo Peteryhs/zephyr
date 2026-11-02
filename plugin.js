@@ -3870,25 +3870,26 @@ void main(){
     // ribbons stream from a vanishing point just below the horizon, like a wide sky photo
     vec2 d=vec2(X,uv.y)-vec2(.62*W,-.85);
     float r=length(d),ang=atan(d.x,d.y),y=uv.y;
-    float streak=.78+.22*noise(vec2(140.0*ang,1.5*y-.012*T))*noise(vec2(320.0*ang+3.0,2.5*y));
+    float streak=.72+.28*noise(vec2(140.0*ang+.6*sin(.15*t),1.5*y-.22*t))*noise(vec2(320.0*ang+3.0,2.5*y-.35*t));
     vec3 aurora=vec3(0);
     for(int k=0;k<5;k++){
       float fk=float(k);
-      float ak=-.62+.25*fk+.08*(field(vec2(.3*fk,.005*T))-.5);
+      float ak=-.62+.25*fk+.16*(field(vec2(.3*fk,.005*t))-.5);
       // each ribbon sways and curls as it climbs
-      float wig=.34*(field(vec2(1.1*y+3.0*fk,.007*T+fk))-.5)+.09*sin(2.6*y+2.0*fk+.015*T)*y;
+      float wig=.34*(field(vec2(1.1*y+3.0*fk,.008*t+fk))-.5)+.09*sin(2.6*y+2.0*fk+.02*t)*y+.035*sin(7.0*y-.30*t+2.3*fk)*smoothstep(.1,.5,y);
       float wk=(k==3?.17:.055+.04*fract(fk*.618+.3));
       float off=(ang-ak-wig)/wk;
       float band=exp(-off*off),soft=exp(-off*off/5.0);
       float lo=.03+.10*fract(fk*.41),hi=.72+.40*fract(fk*.73+.2);
       float env=smoothstep(lo,lo+.30,y+.05*noise(vec2(9.0*ang,fk)))*(1.0-smoothstep(hi,hi+.35,y));
-      float knot=.70+.45*smoothstep(.30,.70,field(vec2(1.3*y+5.0*fk,.009*T+2.0*fk)));
+      float knot=.55+.65*smoothstep(.30,.72,field(vec2(1.6*y-.04*t+5.0*fk,.010*t+2.0*fk)));
+      float breathe=.70+.30*smoothstep(.2,.8,noise(vec2(.025*t+3.7*fk,fk)));
       vec3 green=vec3(.14,1.0,.50),aqua=vec3(.08,.95,.66);
       vec3 top=k==3?vec3(1.0,.16,.48):(k==1?vec3(.42,.30,.95):aqua);
       vec3 tint=mix(green,top,smoothstep(lo+(k==3?.12:.20),lo+(k==3?.30:.50),y));
       if(k==3)tint=mix(tint,vec3(.75,.16,.95),smoothstep(.70,1.0,y));
       float gain=k==1?.50:(k==3?1.35:.95);
-      aurora+=tint*(1.2*band*streak+.20*soft)*env*knot*gain;
+      aurora+=tint*(1.2*band*streak+.20*soft)*env*knot*breathe*gain;
     }
     // the bright green-gold glow low on the horizon, under the brightest ribbons
     float hz=exp(-pow((uv.y-.10)/.06,2.0))*exp(-pow((ang-.18)/.30,2.0));

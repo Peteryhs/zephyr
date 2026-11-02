@@ -5128,11 +5128,26 @@ const HOME_CSS = [
   '#zf-home .zf-card-x { all: unset; position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-size: 15px; line-height: 1; cursor: pointer; color: var(--zf-home-ink-3); opacity: 0; transition: opacity 120ms ease, background 120ms ease; }',
   '#zf-home .zf-card:hover .zf-card-x, #zf-home .zf-card:focus-within .zf-card-x { opacity: 0.7; }',
   '#zf-home .zf-card-x:hover { opacity: 1; background: rgba(var(--zf-home-hi), 0.14); }',
+    // Zephyr Aurora: the home shelf is night glass, lit faintly from above by the lights,
+  // instead of the black matte slabs, whichever card style is picked.
+  "html[data-hermes-theme='zephyr-aurora'] body #zf-home .zf-card-open {",
+  '  background: linear-gradient(180deg, rgba(143, 220, 200, 0.07), rgba(143, 220, 200, 0) 60%), rgba(14, 18, 34, 0.60) !important;',
+  '  box-shadow: inset 0 1px 0 rgba(200, 255, 240, 0.10), 0 0 0 1px rgba(170, 200, 255, 0.10), 0 10px 28px rgba(0, 0, 0, 0.28) !important;',
+  '}',
+  "html[data-hermes-theme='zephyr-aurora'] body #zf-home .zf-card-open:hover {",
+  '  background: linear-gradient(180deg, rgba(143, 220, 200, 0.13), rgba(143, 220, 200, 0.02) 70%), rgba(18, 24, 42, 0.68) !important;',
+  '  box-shadow: inset 0 1px 0 rgba(200, 255, 240, 0.16), 0 0 0 1px rgba(143, 220, 200, 0.30), 0 0 28px -6px rgba(143, 220, 200, 0.35), 0 14px 32px rgba(0, 0, 0, 0.3) !important;',
+  '}',
+  "html[data-hermes-theme='zephyr-aurora'] body #zf-home .zf-card-why { color: #b9d8d0 !important; opacity: 0.8 !important; }",
+  "html[data-hermes-theme='zephyr-aurora'] body #zf-home h3 { color: #d6f3ec !important; }",
   '@media (prefers-reduced-motion: reduce) { #zf-home[data-on="1"] { animation: none; } #zf-home .zf-card-open { transition: none; } }'
 ].join('\n')
 
 const ensureHomeStyle = () => {
-  if (typeof document === 'undefined' || document.getElementById('zephyr-home-style')) return
+  if (typeof document === 'undefined') return
+  // a hot-reloaded plugin finds its old sheet still in place; refresh it
+  const old = document.getElementById('zephyr-home-style')
+  if (old) { if (old.textContent !== HOME_CSS) old.textContent = HOME_CSS; return }
   const el = document.createElement('style')
   el.id = 'zephyr-home-style'
   el.textContent = HOME_CSS

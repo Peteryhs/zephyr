@@ -5578,23 +5578,61 @@ export default {
 
     // ── Aurora stars ───────────────────────────────────────────────────────
     // The sky shader's stars are lost under its blur, so the Aurora theme gets
-    // a crisp starfield of its own: two canvases just above the sky and below
-    // the app, twinkling out of step. Drawn once per window size; the theme
-    // attribute alone decides whether it shows.
+    // a crisp starfield of its own, just above the sky and below the app. The
+    // stars are one still canvas drawn once per window size; the twinkle is two
+    // tileable noise masks drifting across it in different directions, so the
+    // brightness of each star rises and falls with the field passing over it.
+    // The theme attribute alone decides whether it shows.
     if (typeof MutationObserver === 'function') {
       const host = document.createElement('div')
       host.id = 'zephyr-aurora-stars'
       host.setAttribute('aria-hidden', 'true')
       host.style.cssText = 'position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;mix-blend-mode:screen'
-      const layers = [0, 1].map(i => {
+      // tileable value noise, two octaves, as an alpha mask: 0.35 to 1
+      const noiseMask = (n, cells, seedN) => {
+        let sd = seedN
+        const r = () => ((sd = (sd * 16807) % 2147483647) - 1) / 2147483646
+        const lattice = (m) => { const g = []; for (let k = 0; k < m * m; k++) g.push(r()); return g }
+        const oct = [[cells, lattice(cells), 0.65], [cells * 2, lattice(cells * 2), 0.35]]
         const c = document.createElement('canvas')
-        c.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;' +
-          `animation:zephyr-twinkle ${i ? 5.3 : 7.1}s ease-in-out ${i ? -2.6 : 0}s infinite alternate`
-        host.appendChild(c)
-        return c
-      })
+        c.width = c.height = n
+        const g = c.getContext('2d'), img = g.createImageData(n, n)
+        const sm = t => t * t * (3 - 2 * t)
+        for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+          let v = 0
+          for (const [m, L, w] of oct) {
+            const fx = x / n * m, fy = y / n * m
+            const x0 = Math.floor(fx), y0 = Math.floor(fy), tx = sm(fx - x0), ty = sm(fy - y0)
+            const at = (a, b) => L[((b % m) * m) + (a % m)]
+            const top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * tx
+            const bot = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * tx
+            v += (top + (bot - top) * ty) * w
+          }
+          // stretch the contrast so whole patches dim and others shine
+          v = Math.min(1, Math.max(0, (v - 0.28) / 0.44))
+          const k = (y * n + x) * 4
+          img.data[k] = img.data[k + 1] = img.data[k + 2] = 255
+          img.data[k + 3] = Math.round(255 * (0.35 + 0.65 * v * v * (3 - 2 * v)))
+        }
+        g.putImageData(img, 0, 0)
+        return c.toDataURL('image/png')
+      }
+      const maskA = noiseMask(128, 4, 11), maskB = noiseMask(128, 5, 29)
+      const star = document.createElement('canvas')
+      const mask = `url(${maskA}), url(${maskB})`
+      star.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;' +
+        `-webkit-mask-image:${mask};mask-image:${mask};` +
+        '-webkit-mask-size:900px 900px, 620px 620px;mask-size:900px 900px, 620px 620px;' +
+        '-webkit-mask-repeat:repeat;mask-repeat:repeat;' +
+        '-webkit-mask-composite:source-in;mask-composite:intersect;' +
+        'animation:zephyr-twinkle 90s linear infinite'
+      host.appendChild(star)
+      const layers = [star]
       const css = document.createElement('style')
-      css.textContent = '@keyframes zephyr-twinkle { from { opacity: 1 } to { opacity: .35 } }' +
+      // each mask moves exactly one tile, so the loop is seamless
+      css.textContent = '@keyframes zephyr-twinkle {' +
+        ' from { -webkit-mask-position: 0 0, 0 0; mask-position: 0 0, 0 0 }' +
+        ' to { -webkit-mask-position: 900px 900px, -620px 620px; mask-position: 900px 900px, -620px 620px } }' +
         '@media (prefers-reduced-motion: reduce) { #zephyr-aurora-stars canvas { animation: none !important } }'
       host.appendChild(css)
       let seed = 7
@@ -5610,7 +5648,7 @@ export default {
           c.width = w
           c.height = h
           const g = c.getContext('2d')
-          const n = Math.round(window.innerWidth * window.innerHeight / 2400)
+          const n = Math.round(window.innerWidth * window.innerHeight / 1200)
           for (let k = 0; k < n; k++) {
             const x = rnd() * w, yN = rnd(), keep = rnd()
             // thinner toward the horizon, where the air and the glow hide them
@@ -5633,8 +5671,6 @@ export default {
             g.arc(x, y, r, 0, Math.PI * 2)
             g.fill()
           }
-          // the other layer gets its own stars
-          seed = 7919 * (i + 2)
         })
       }
       const sync = () => {

@@ -3870,13 +3870,13 @@ void main(){
     // ribbons stream from a vanishing point just below the horizon, like a wide sky photo
     vec2 d=vec2(X,uv.y)-vec2(.62*W,-.85);
     float r=length(d),ang=atan(d.x,d.y),y=uv.y;
-    float streak=.72+.28*noise(vec2(140.0*ang+.6*sin(.15*t),1.5*y-.22*t))*noise(vec2(320.0*ang+3.0,2.5*y-.35*t));
+    float streak=.74+.26*smoothstep(.15,.85,noise(vec2(64.0*ang+.4*sin(.05*t),1.2*y-.06*t)))*(.6+.4*noise(vec2(130.0*ang+3.0,1.8*y-.09*t)));
     vec3 aurora=vec3(0);
     for(int k=0;k<5;k++){
       float fk=float(k);
       float ak=-.62+.25*fk+.16*(field(vec2(.3*fk,.005*t))-.5);
       // each ribbon sways and curls as it climbs
-      float wig=.34*(field(vec2(1.1*y+3.0*fk,.008*t+fk))-.5)+.09*sin(2.6*y+2.0*fk+.02*t)*y+.035*sin(7.0*y-.30*t+2.3*fk)*smoothstep(.1,.5,y);
+      float wig=.34*(field(vec2(1.1*y+3.0*fk,.008*t+fk))-.5)+.09*sin(2.6*y+2.0*fk+.02*t)*y+.035*sin(6.0*y-.20*t+2.3*fk)*smoothstep(.1,.5,y);
       float wk=(k==3?.17:.055+.04*fract(fk*.618+.3));
       float off=(ang-ak-wig)/wk;
       float band=exp(-off*off),soft=exp(-off*off/5.0);
@@ -4527,10 +4527,12 @@ const createSky = (opts = {}) => {
      for the blur being faded TO, once per change, not on every fade step. */
   const resize = () => {
     const blurK = 1 - 0.5 * clamp((run.blurTo - 4) / 12, 0, 1)
-    const k = quality.res * blurK
+    // the aurora's fine rays need the high-quality canvas whatever the setting,
+    // or they step and crawl when stretched to the window
+    const k = (run.aurora ? Math.max(quality.res, QUALITY.high.res) : quality.res) * blurK
     const cw = window.innerWidth
     const ch = window.innerHeight
-    const s = Math.min(k, quality.maxSide / Math.max(cw, ch))
+    const s = Math.min(k, (run.aurora ? Math.max(quality.maxSide, QUALITY.high.maxSide) : quality.maxSide) / Math.max(cw, ch))
     const w = Math.max(2, Math.round(cw * s))
     const h = Math.max(2, Math.round(ch * s))
     if (canvas.width === w && canvas.height === h) return false
@@ -4544,7 +4546,8 @@ const createSky = (opts = {}) => {
   const fading = () => run.blur !== run.blurTo
   /* the day preview runs smooth; a window you are not using drifts at 1 fps */
   const curFps = () => live.fast ? Math.max(run.fps, 15)
-    : (typeof document.hasFocus === 'function' && !document.hasFocus()) ? Math.min(run.fps, 1) : run.fps
+    : (typeof document.hasFocus === 'function' && !document.hasFocus()) ? Math.min(run.fps, 1)
+    : run.aurora ? Math.max(run.fps, 15) : run.fps     // the lights' motion needs smooth frames
   const stepBlur = t => {
     if (!fading()) return
     const k = clamp((t - run.blurT0) / BLUR_FADE_MS, 0, 1)
@@ -4668,6 +4671,7 @@ const createSky = (opts = {}) => {
       if (v === run.aurora) return
       run.aurora = v
       run.dirty = true
+      resize()
       reschedule()
     },
     setLocation(lat, lng) {
@@ -5542,12 +5546,102 @@ export default {
     // Our own leftovers from an instance that died before registering its
     // disposer: the GL container is a full-screen opaque layer at z-index -1,
     // so a stale one sits on top of the CSS sky.
-    for (const staleId of ['zephyr-gl-sky', 'zephyr-gl-sky-style', 'zephyr-sky-style']) {
+    for (const staleId of ['zephyr-gl-sky', 'zephyr-gl-sky-style', 'zephyr-sky-style', 'zephyr-aurora-stars']) {
       let stale = document.getElementById(staleId)
       while (stale) {
         if (stale.parentNode) stale.parentNode.removeChild(stale)
         stale = document.getElementById(staleId)
       }
+    }
+
+    // ── Aurora stars ───────────────────────────────────────────────────────
+    // The sky shader's stars are lost under its blur, so the Aurora theme gets
+    // a crisp starfield of its own: two canvases just above the sky and below
+    // the app, twinkling out of step. Drawn once per window size; the theme
+    // attribute alone decides whether it shows.
+    if (typeof MutationObserver === 'function') {
+      const host = document.createElement('div')
+      host.id = 'zephyr-aurora-stars'
+      host.setAttribute('aria-hidden', 'true')
+      host.style.cssText = 'position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;mix-blend-mode:screen'
+      const layers = [0, 1].map(i => {
+        const c = document.createElement('canvas')
+        c.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;' +
+          `animation:zephyr-twinkle ${i ? 5.3 : 7.1}s ease-in-out ${i ? -2.6 : 0}s infinite alternate`
+        host.appendChild(c)
+        return c
+      })
+      const css = document.createElement('style')
+      css.textContent = '@keyframes zephyr-twinkle { from { opacity: 1 } to { opacity: .35 } }' +
+        '@media (prefers-reduced-motion: reduce) { #zephyr-aurora-stars canvas { animation: none !important } }'
+      host.appendChild(css)
+      let seed = 7
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+      let drawnFor = ''
+      const draw = () => {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2)
+        const w = Math.round(window.innerWidth * dpr), h = Math.round(window.innerHeight * dpr)
+        if (drawnFor === w + 'x' + h) return
+        drawnFor = w + 'x' + h
+        seed = 7
+        layers.forEach((c, i) => {
+          c.width = w
+          c.height = h
+          const g = c.getContext('2d')
+          const n = Math.round(window.innerWidth * window.innerHeight / 2400)
+          for (let k = 0; k < n; k++) {
+            const x = rnd() * w, yN = rnd(), keep = rnd()
+            // thinner toward the horizon, where the air and the glow hide them
+            if (keep > 0.25 + 0.75 * (1 - yN)) continue
+            const y = yN * h * 0.92
+            const big = rnd() > 0.95
+            const r = (big ? 0.9 + 0.7 * rnd() : 0.45 + 0.5 * rnd()) * dpr
+            const a = big ? 0.85 + 0.15 * rnd() : 0.35 + 0.5 * rnd()
+            const tint = rnd()
+            const col = tint > 0.9 ? '255, 226, 196' : tint > 0.75 ? '196, 214, 255' : '240, 244, 255'
+            if (big) {
+              const halo = g.createRadialGradient(x, y, 0, x, y, r * 4)
+              halo.addColorStop(0, `rgba(${col}, ${a * 0.35})`)
+              halo.addColorStop(1, `rgba(${col}, 0)`)
+              g.fillStyle = halo
+              g.fillRect(x - r * 4, y - r * 4, r * 8, r * 8)
+            }
+            g.fillStyle = `rgba(${col}, ${a})`
+            g.beginPath()
+            g.arc(x, y, r, 0, Math.PI * 2)
+            g.fill()
+          }
+          // the other layer gets its own stars
+          seed = 7919 * (i + 2)
+        })
+      }
+      const sync = () => {
+        const on = document.documentElement.dataset.hermesTheme === AURORA_THEME
+        host.style.display = on ? 'block' : 'none'
+        if (!on) return
+        draw()
+        // stay just above the sky layer, which is re-added when it restarts
+        const sky = document.getElementById('zephyr-gl-sky')
+        if (host.parentNode !== document.body ||
+          (sky && host.compareDocumentPosition(sky) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+          if (sky) sky.after(host)
+          else document.body.appendChild(host)
+        }
+      }
+      document.body.appendChild(host)
+      const watch = new MutationObserver(sync)
+      watch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-hermes-theme'] })
+      watch.observe(document.body, { childList: true })
+      let resizeT = 0
+      const onResize = () => { clearTimeout(resizeT); resizeT = setTimeout(sync, 250) }
+      window.addEventListener('resize', onResize)
+      sync()
+      ctx.onDispose?.(() => {
+        watch.disconnect()
+        window.removeEventListener('resize', onResize)
+        clearTimeout(resizeT)
+        host.remove()
+      })
     }
 
     // ── Tabs: ⌘⌥←/→, and the labels of a collapsed pane ───────────────────

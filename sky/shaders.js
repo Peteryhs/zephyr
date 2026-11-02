@@ -219,13 +219,13 @@ void main(){
     // ribbons stream from a vanishing point just below the horizon, like a wide sky photo
     vec2 d=vec2(X,uv.y)-vec2(.62*W,-.85);
     float r=length(d),ang=atan(d.x,d.y),y=uv.y;
-    float streak=.72+.28*noise(vec2(140.0*ang+.6*sin(.15*t),1.5*y-.22*t))*noise(vec2(320.0*ang+3.0,2.5*y-.35*t));
+    float streak=.74+.26*smoothstep(.15,.85,noise(vec2(64.0*ang+.4*sin(.05*t),1.2*y-.06*t)))*(.6+.4*noise(vec2(130.0*ang+3.0,1.8*y-.09*t)));
     vec3 aurora=vec3(0);
     for(int k=0;k<5;k++){
       float fk=float(k);
       float ak=-.62+.25*fk+.16*(field(vec2(.3*fk,.005*t))-.5);
       // each ribbon sways and curls as it climbs
-      float wig=.34*(field(vec2(1.1*y+3.0*fk,.008*t+fk))-.5)+.09*sin(2.6*y+2.0*fk+.02*t)*y+.035*sin(7.0*y-.30*t+2.3*fk)*smoothstep(.1,.5,y);
+      float wig=.34*(field(vec2(1.1*y+3.0*fk,.008*t+fk))-.5)+.09*sin(2.6*y+2.0*fk+.02*t)*y+.035*sin(6.0*y-.20*t+2.3*fk)*smoothstep(.1,.5,y);
       float wk=(k==3?.17:.055+.04*fract(fk*.618+.3));
       float off=(ang-ak-wig)/wk;
       float band=exp(-off*off),soft=exp(-off*off/5.0);

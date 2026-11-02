@@ -2266,7 +2266,8 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
         '  background: transparent !important; box-shadow: none !important; border-color: transparent !important; backdrop-filter: none !important;',
         '}',
         "html body [data-slot='sidebar-content'] > div:has(input) { border-radius: 0 !important; box-shadow: inset 0 -1px 0 var(--zf-edge) !important; }",
-        "html:root.dark [data-slot='aui_thread-viewport'] {",
+        // only once there is a conversation; the new-session page keeps open sky
+        "html:root.dark [data-slot='aui_thread-viewport']:has([data-role='user'], [data-role='assistant']) {",
         `  background-image: radial-gradient(ellipse min(46vw, 560px) 120% at 50% 62%, rgba(4, 5, 18, ${a(0.62)}) 0%, rgba(4, 5, 18, ${a(0.40)}) 55%, transparent 100%) !important;`,
         '}',
         "html body div[data-slot='composer-surface'][data-slot][class] {",

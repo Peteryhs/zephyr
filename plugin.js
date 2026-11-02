@@ -5588,7 +5588,7 @@ export default {
       host.id = 'zephyr-aurora-stars'
       host.setAttribute('aria-hidden', 'true')
       host.style.cssText = 'position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;mix-blend-mode:screen'
-      // tileable value noise, two octaves, as an alpha mask: 0.35 to 1
+      // tileable value noise, two octaves, as an alpha mask: 0.12 to 1
       const noiseMask = (n, cells, seedN) => {
         let sd = seedN
         const r = () => ((sd = (sd * 16807) % 2147483647) - 1) / 2147483646
@@ -5612,27 +5612,27 @@ export default {
           v = Math.min(1, Math.max(0, (v - 0.28) / 0.44))
           const k = (y * n + x) * 4
           img.data[k] = img.data[k + 1] = img.data[k + 2] = 255
-          img.data[k + 3] = Math.round(255 * (0.35 + 0.65 * v * v * (3 - 2 * v)))
+          img.data[k + 3] = Math.round(255 * (0.12 + 0.88 * v * v * (3 - 2 * v)))
         }
         g.putImageData(img, 0, 0)
         return c.toDataURL('image/png')
       }
-      const maskA = noiseMask(128, 4, 11), maskB = noiseMask(128, 5, 29)
+      const maskA = noiseMask(128, 6, 11), maskB = noiseMask(128, 7, 29)
       const star = document.createElement('canvas')
       const mask = `url(${maskA}), url(${maskB})`
       star.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;' +
         `-webkit-mask-image:${mask};mask-image:${mask};` +
-        '-webkit-mask-size:900px 900px, 620px 620px;mask-size:900px 900px, 620px 620px;' +
+        '-webkit-mask-size:420px 420px, 300px 300px;mask-size:420px 420px, 300px 300px;' +
         '-webkit-mask-repeat:repeat;mask-repeat:repeat;' +
         '-webkit-mask-composite:source-in;mask-composite:intersect;' +
-        'animation:zephyr-twinkle 90s linear infinite'
+        'animation:zephyr-twinkle 24s linear infinite'
       host.appendChild(star)
       const layers = [star]
       const css = document.createElement('style')
       // each mask moves exactly one tile, so the loop is seamless
       css.textContent = '@keyframes zephyr-twinkle {' +
         ' from { -webkit-mask-position: 0 0, 0 0; mask-position: 0 0, 0 0 }' +
-        ' to { -webkit-mask-position: 900px 900px, -620px 620px; mask-position: 900px 900px, -620px 620px } }' +
+        ' to { -webkit-mask-position: 420px 420px, -300px 300px; mask-position: 420px 420px, -300px 300px } }' +
         '@media (prefers-reduced-motion: reduce) { #zephyr-aurora-stars canvas { animation: none !important } }'
       host.appendChild(css)
       let seed = 7

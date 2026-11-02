@@ -3,7 +3,7 @@ export const VERT=`
 attribute vec2 aPosition;
 void main(){gl_Position=vec4(aPosition,0.0,1.0);}
 `;
-export const UNIFORM_NAMES=['uRes','uDet','uTime','uAlpha','uC0','uC1','uC2','uC3','uGlowPos','uGlowCol','uGlow','uGlowSize','uDensity','uWarp','uGrain','uDrift','uPrecip','uShaft','uFog','uMilk','uDeck','uPuff','uNight','uHaze','uSquash','uTint','uRays','uRayLook','uHalo','uHaloLook','uLut','uLutAmt','uTexV','uCirA','uCirB','uSun','uPolar','uAureole','uWhiten','uPurple','uCrep','uLit','uTintHi','uFloorZ','uFloorH','uDogs','uCorona'];
+export const UNIFORM_NAMES=['uRes','uDet','uTime','uAlpha','uC0','uC1','uC2','uC3','uGlowPos','uGlowCol','uGlow','uGlowSize','uDensity','uWarp','uGrain','uDrift','uPrecip','uShaft','uFog','uMilk','uDeck','uPuff','uNight','uHaze','uSquash','uTint','uRays','uRayLook','uHalo','uHaloLook','uLut','uLutAmt','uTexV','uCirA','uCirB','uSun','uPolar','uAureole','uWhiten','uPurple','uCrep','uLit','uTintHi','uFloorZ','uFloorH','uDogs','uCorona','uAurora'];
 export const FRAG=`
 precision highp float;
 uniform vec2 uRes;
@@ -17,6 +17,7 @@ uniform vec3 uPrecip,uShaft;
 uniform float uFog;
 uniform vec3 uMilk;
 uniform float uDeck,uPuff,uNight,uHaze,uSquash;
+uniform float uAurora;
 uniform vec3 uTint;
 uniform float uRays;
 uniform vec2 uRayLook;
@@ -203,6 +204,73 @@ void main(){
     c=mix(c,rainTint,sat(shaft*fade*.55*uPrecip.x*uShaft.x));
     c=mix(c,snowTint,sat(shaft*fade*.60*uPrecip.y*uShaft.x));
   }
+  float auroraGate=uAurora*smoothstep(.18,.42,uNight)*(1.0-uDeck);
+  if(auroraGate>.001){
+    float X=uv.x*uRes.x/uRes.y,W=uRes.x/uRes.y,y=uv.y;
+    // deep navy overhead, a lighter blue toward the horizon
+    vec3 deep=mix(vec3(.075,.105,.175),vec3(.012,.018,.048),smoothstep(0.0,.95,y));
+    c=mix(c,deep+.08*c*c,.95*auroraGate);
+    vec2 sg=pixel/(3.2*uDet/300.0);
+    vec2 cell=floor(sg),fp=fract(sg)-.5;
+    float sh=hash(cell),star=step(.982,sh)*smoothstep(.32,0.0,length(fp+.3*(vec2(hash(cell+7.1),hash(cell+3.3))-.5)));
+    float twinkle=.6+.4*sin(t*(1.0+3.0*hash(cell+1.7))+6.28*sh);
+    c+=vec3(.85,.90,1.0)*star*twinkle*(.25+.75*fract(sh*91.0))*.8*smoothstep(.15,.5,y)*auroraGate;
+    vec3 acc=vec3(0);
+    vec3 green=vec3(.05,1.0,.40),lime=vec3(.55,1.0,.20),teal=vec3(.02,.82,.62),pink=vec3(1.0,.16,.36),coral=vec3(1.0,.38,.36),violet=vec3(.42,.20,1.0);
+    float S=W/1.6;
+    vec2 vp=vec2(.95*S,2.2);
+    float angR=atan(X-vp.x,vp.y-y);
+    for(int k=0;k<5;k++){
+      float fk=float(k);
+      // each ribbon is a curve x=cx(y) that leans, sways and curls as it climbs
+      float x0=S*(k==0?.12:k==1?.50:k==2?.86:k==3?1.12:1.47);
+      float lean=.75*(x0-vp.x)/(.5-vp.y);
+      float lo=k==0?.06:k==1?.24:k==2?.26:k==3?.0:.06;
+      float hi=k==0?1.15:k==1?.90:k==2?1.3:k==3?1.25:1.1;
+      float cx=x0+lean*(y-.5)+(.16+.06*fract(fk*.7))*sin(2.4*y+1.7*fk+.02*t)
+        +.30*(field(vec2(.9*y+3.0*fk,.006*t+fk))-.5)
+        +.022*sin(6.0*y-.20*t+2.3*fk)*smoothstep(.1,.5,y);
+      float w=(k==3?.25:.085+.05*fract(fk*.37))*(.65+.7*y);
+      float sd=k==2||k==4?-1.0:1.0;
+      float d=sd*(X-cx)/w;
+      // a crisp leading edge and a long soft trailing side
+      float prof=(d<0.0?exp(-d*d*2.4):exp(-d*d*.55))+.45*exp(-d*d*7.0);
+      float soft=exp(-d*d*.12);
+      // rays run along the ribbon, so they curve with it
+      float ax=X-cx;
+      float ray=.66+.34*smoothstep(.2,.8,noise(vec2(70.0*angR-.03*t,.8*y+fk)))*(.55+.45*noise(vec2(170.0*angR+3.0-.05*t,1.3*y)));
+      float lo2=lo+.10*(field(vec2(2.0*X+4.0*fk,.008*t))-.5);
+      float h=y-lo2;
+      ray=mix(ray,1.0,smoothstep(.30,.75,h));
+      float env=pow(smoothstep(0.0,.26,h+.04*(noise(vec2(14.0*X,fk))-.5)),1.3)*(.55+.45*exp(-max(h,0.0)/.30))*(1.0-smoothstep(hi-.45,hi+.05,y));
+      float hot=.45+.85*smoothstep(.30,.75,field(vec2(1.5*y-.04*t+5.0*fk,.010*t+2.0*fk)));
+      float breathe=.72+.28*smoothstep(.2,.8,noise(vec2(.025*t+3.7*fk,fk)));
+      vec3 tint;
+      if(k==3){
+        tint=mix(coral,pink,smoothstep(.12,.40,y));
+        tint=mix(tint,green,clamp(.80*smoothstep(.3,1.6,d)+1.0-smoothstep(lo,lo+.26,y),0.0,1.0));
+        tint=mix(tint,vec3(.80,.15,.85),.5*smoothstep(.78,1.1,y));
+      }else if(k==1){
+        tint=mix(teal,violet,smoothstep(lo+.05,lo+.35,y));
+      }else{
+        tint=mix(green,teal,smoothstep(lo+.25,hi,y));
+        if(k==0)tint=mix(tint,violet,.35*smoothstep(.7,1.0,y));
+      }
+      if(k!=3)tint=mix(tint,vec3(.80,.10,.22),.50*smoothstep(.35,.90,h));
+      tint=mix(tint,lime,.40*(1.0-smoothstep(.02,.14,h)));
+      tint=mix(tint,vec3(.72,.18,.85),.35*(1.0-smoothstep(0.0,.07,h)));
+      float gain=k==1?.42:k==3?1.55:k==2?.9:1.0;
+      acc+=1.15*tint*(prof*ray+(k==3?.10:.22)*soft)*env*hot*breathe*gain;
+    }
+    acc*=(.30+.70*smoothstep(0.0,.22,y))*(1.0-.45*smoothstep(.90,1.0,y));
+    c+=vec3(.025,.065,.035)*exp(-pow((y-.07)/.05,2.0))*auroraGate;
+    // soft highlight roll-off: overlaps glow, cores go pale instead of clipping
+    vec3 glow=1.0-exp(-1.7*acc);
+    glow+=vec3(.9,1.0,.95)*.22*smoothstep(1.1,2.4,max(acc.r,max(acc.g,acc.b)));
+    float cover=min(1.0,max(glow.r,max(glow.g,glow.b)))*auroraGate;
+    c=c*(1.0-.75*cover)+glow*auroraGate*.92;
+  }
+
   float vignette=length((uv-.5)*vec2(uRes.x/uRes.y,1));
   c*=1.0-.20*smoothstep(.6,1.3,vignette);
   if(uLutAmt>.001){

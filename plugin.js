@@ -134,6 +134,20 @@ const PHASE_ACCENT = { dawn: '#e8a07a', day: '#9dc4e8', dusk: '#e6863f', night: 
 // glass rather than a clear pane — because fg1 on bg0 is a 9.5:1 pair and that
 // is the only way prose stays readable over a picture with real highlights.
 const GRUVBOX_THEME = 'zephyr-gruvbox'
+// Zephyr Aurora: a static night. The night sky with northern lights over deep
+// indigo glass, whatever the time. Every other look keeps the neutral night.
+const AURORA_THEME = 'zephyr-aurora'
+const AURORA_NIGHT = [15, 16, 33]
+const AURORA_ACCENT = '#8fdcc8'
+let AURORA_LOOK = false
+const AURORA_GROUNDS = {
+  background: 'rgba(13, 14, 32, 0.72)', foreground: '#ffffff', card: 'rgba(16, 17, 38, 0.76)', cardForeground: '#ffffff',
+  muted: 'rgba(24, 26, 54, 0.55)', mutedForeground: '#cdd2ee', popover: 'rgba(14, 15, 34, 0.92)', popoverForeground: '#ffffff',
+  primary: AURORA_ACCENT, primaryForeground: '#0f1024', secondary: 'rgba(28, 30, 62, 0.55)', secondaryForeground: '#eef0fb',
+  accent: AURORA_ACCENT, accentForeground: '#0f1024', border: '#262a52', input: 'rgba(18, 20, 44, 0.65)', ring: AURORA_ACCENT,
+  destructive: '#c9564f', destructiveForeground: '#fff5f5',
+  sidebarBackground: 'rgba(10, 11, 26, 0.68)', sidebarBorder: '#20244a', userBubble: 'rgba(22, 24, 52, 0.75)', userBubbleBorder: '#2c3160'
+}
 const GRUVBOX_ACCENT = '#fe8019'
 // Resolved at startup from wherever the plugin is installed (assets/ in a
 // clone, or next to plugin.js); see resolvePluginFiles.
@@ -886,7 +900,7 @@ const zephyrMaterial = sky => {
   // no visible jump at duskEnd: by the time `isNight` is true the tint is
   // already grey.
   const grey = smooth01(clamp01((0.32 - sky.exposure) / 0.12))
-  const tint = blendRgb(blendRgb(blendRgb(ZF_INK, blendRgb(sky.top, hue, 0.35), 0.16 - 0.06 * n), [3, 5, 10], 0.42 * n), ZF_NIGHT, grey)
+  const tint = blendRgb(blendRgb(blendRgb(ZF_INK, blendRgb(sky.top, hue, 0.35), 0.16 - 0.06 * n), [3, 5, 10], 0.42 * n), AURORA_LOOK ? AURORA_NIGHT : ZF_NIGHT, grey)
   const tintHi = blendRgb(tint, [255, 255, 255], 0.05 - 0.01 * n)
   const ink = [
     blendRgb([250, 251, 253], hue, 0.04),
@@ -1223,7 +1237,8 @@ const horizonTiltAt = (date = new Date()) => {
 // to their new boxes on Cmd+S. Emitted only when the platform has view
 // transitions, because the rules do nothing otherwise.
 const MORPH_CSS = [
-  "::view-transition-group(zf-side), ::view-transition-group(zf-main) { animation-duration: 300ms; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }",
+  "::view-transition-group(zf-side), ::view-transition-group(zf-main), ::view-transition-group(zf-home) { animation-duration: 300ms; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }",
+  "::view-transition-old(zf-home), ::view-transition-new(zf-home) { animation-duration: 300ms; }",
   "::view-transition-old(zf-main), ::view-transition-new(zf-main) { width: 100%; height: 100%; object-fit: none; object-position: center top; animation-duration: 300ms; }",
   "::view-transition-old(zf-side), ::view-transition-new(zf-side) { animation-duration: 220ms; }",
   "::view-transition-old(root), ::view-transition-new(root) { animation: none; }"
@@ -2254,6 +2269,45 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
       '  --zf-m-sheet: var(--zf-glass-strong);',
       '}'
     ]),
+    // Zephyr Aurora (Ali, 2026-10-31): indigo glass with a little sky showing
+    // through, moonlit edges, and a faint aurora glow round the composer.
+    // Scaled by the night factor; only this theme gets it.
+    ...(gruv || !AURORA_LOOK || zf.night < 0.02 ? [] : (() => {
+      const n = zf.night, a = v => (v * n).toFixed(3), moon = blendRgb([255, 255, 255], [196, 204, 255], n).join(', ')
+      return [
+        'html:root.dark {',
+        `  --zf-glass: color-mix(in srgb, var(--zf-tint) ${glassPct(84 + 2 * n)}, transparent);`,
+        `  --zf-glass-hover: color-mix(in srgb, var(--zf-tint-hi) ${glassPct(88 + 3 * n)}, transparent);`,
+        `  --zf-edge: rgba(${moon}, ${(0.07 + 0.03 * n).toFixed(3)});`,
+        `  --zf-edge-strong: rgba(${moon}, ${(0.11 + 0.04 * n).toFixed(3)});`,
+        `  --theme-neutral-chrome: rgba(${blendRgb([13, 13, 14], [11, 12, 27], n).join(', ')}, ${density});`,
+        `  --theme-neutral-sidebar: rgba(${blendRgb([10, 10, 11], [9, 10, 23], n).join(', ')}, ${sideDensity});`,
+        `  --theme-neutral-card: rgba(${blendRgb([22, 22, 24], [21, 22, 42], n).join(', ')}, ${cardDensity});`,
+        // one accent, taken from the lights, whether or not the accent tint is on
+        `  --zf-accent: ${AURORA_ACCENT};`,
+        // the sidebar's cards are lighter glass, so the column is not a wall
+        `  --zf-side-card: color-mix(in srgb, var(--zf-tint) ${glassPct(84 - 18 * n)}, transparent);`,
+        '}',
+        // The sky frames the reading column instead of running under it: a soft
+        // dark pool behind the text, the lights left bright at the edges and top.
+        // Search, status and snippets retain the standard sidebar material.
+        // only once there is a conversation; the new-session page keeps open sky
+        "html:root.dark [data-slot='aui_thread-viewport']:has([data-role='user'], [data-role='assistant']) {",
+        // Fade before both viewport edges, rather than clipping a nonzero
+        // scrim at the titlebar and creating a hard horizontal seam.
+        `  background-image: radial-gradient(ellipse min(46vw, 560px) 48% at 50% 50%, rgba(4, 5, 18, ${a(0.62)}) 0%, rgba(4, 5, 18, ${a(0.40)}) 55%, transparent 100%) !important;`,
+        '}',
+        "html body div[data-slot='composer-surface'][data-slot][class] {",
+        `  box-shadow: inset 0 1px 0 rgba(214, 222, 255, ${a(0.10)}), inset 0 0 0 1px rgba(176, 188, 255, ${a(0.10)}),`,
+        `    0 -8px 40px -8px rgba(86, 226, 176, ${a(0.45)}), 0 0 60px -10px rgba(150, 110, 255, ${a(0.40)}), 0 10px 30px rgba(0, 0, 0, ${a(0.30)}) !important;`,
+        '}',
+        "html body :is(.composer-human-message, [class*='composer-human-message']):not(.composer-human-message-container) {",
+        `  box-shadow: inset 0 1px 0 rgba(214, 222, 255, ${a(0.09)}), inset 0 0 0 1px rgba(176, 188, 255, ${a(0.08)}), 0 8px 24px rgba(4, 6, 20, ${a(0.30)}) !important;`,
+        '  border-color: transparent !important;',
+        '}',
+        ".aui-md { color: color-mix(in srgb, var(--ui-text-primary) 94%, rgb(196, 206, 255)); }",
+      ]
+    })()),
     ...SESSION_TAB_CSS,
     ...(gruv ? gruvboxTextCss() : []),
     ...polishCss(gruv),
@@ -3626,7 +3680,7 @@ const VERT=`
 attribute vec2 aPosition;
 void main(){gl_Position=vec4(aPosition,0.0,1.0);}
 `;
-const UNIFORM_NAMES=['uRes','uDet','uTime','uAlpha','uC0','uC1','uC2','uC3','uGlowPos','uGlowCol','uGlow','uGlowSize','uDensity','uWarp','uGrain','uDrift','uPrecip','uShaft','uFog','uMilk','uDeck','uPuff','uNight','uHaze','uSquash','uTint','uRays','uRayLook','uHalo','uHaloLook','uLut','uLutAmt','uTexV','uCirA','uCirB','uSun','uPolar','uAureole','uWhiten','uPurple','uCrep','uLit','uTintHi','uFloorZ','uFloorH','uDogs','uCorona'];
+const UNIFORM_NAMES=['uRes','uDet','uTime','uAlpha','uC0','uC1','uC2','uC3','uGlowPos','uGlowCol','uGlow','uGlowSize','uDensity','uWarp','uGrain','uDrift','uPrecip','uShaft','uFog','uMilk','uDeck','uPuff','uNight','uHaze','uSquash','uTint','uRays','uRayLook','uHalo','uHaloLook','uLut','uLutAmt','uTexV','uCirA','uCirB','uSun','uPolar','uAureole','uWhiten','uPurple','uCrep','uLit','uTintHi','uFloorZ','uFloorH','uDogs','uCorona','uAurora'];
 const FRAG=`
 precision highp float;
 uniform vec2 uRes;
@@ -3640,6 +3694,7 @@ uniform vec3 uPrecip,uShaft;
 uniform float uFog;
 uniform vec3 uMilk;
 uniform float uDeck,uPuff,uNight,uHaze,uSquash;
+uniform float uAurora;
 uniform vec3 uTint;
 uniform float uRays;
 uniform vec2 uRayLook;
@@ -3826,6 +3881,73 @@ void main(){
     c=mix(c,rainTint,sat(shaft*fade*.55*uPrecip.x*uShaft.x));
     c=mix(c,snowTint,sat(shaft*fade*.60*uPrecip.y*uShaft.x));
   }
+  float auroraGate=uAurora*smoothstep(.18,.42,uNight)*(1.0-uDeck);
+  if(auroraGate>.001){
+    float X=uv.x*uRes.x/uRes.y,W=uRes.x/uRes.y,y=uv.y;
+    // deep navy overhead, a lighter blue toward the horizon
+    vec3 deep=mix(vec3(.075,.105,.175),vec3(.012,.018,.048),smoothstep(0.0,.95,y));
+    c=mix(c,deep+.08*c*c,.95*auroraGate);
+    vec2 sg=pixel/(3.2*uDet/300.0);
+    vec2 cell=floor(sg),fp=fract(sg)-.5;
+    float sh=hash(cell),star=step(.982,sh)*smoothstep(.32,0.0,length(fp+.3*(vec2(hash(cell+7.1),hash(cell+3.3))-.5)));
+    float twinkle=.6+.4*sin(t*(1.0+3.0*hash(cell+1.7))+6.28*sh);
+    c+=vec3(.85,.90,1.0)*star*twinkle*(.25+.75*fract(sh*91.0))*.8*smoothstep(.15,.5,y)*auroraGate;
+    vec3 acc=vec3(0);
+    vec3 green=vec3(.05,1.0,.40),lime=vec3(.55,1.0,.20),teal=vec3(.02,.82,.62),pink=vec3(1.0,.16,.36),coral=vec3(1.0,.38,.36),violet=vec3(.42,.20,1.0);
+    float S=W/1.6;
+    vec2 vp=vec2(.95*S,2.2);
+    float angR=atan(X-vp.x,vp.y-y);
+    for(int k=0;k<5;k++){
+      float fk=float(k);
+      // each ribbon is a curve x=cx(y) that leans, sways and curls as it climbs
+      float x0=S*(k==0?.12:k==1?.50:k==2?.86:k==3?1.12:1.47);
+      float lean=.75*(x0-vp.x)/(.5-vp.y);
+      float lo=k==0?.06:k==1?.24:k==2?.26:k==3?.0:.06;
+      float hi=k==0?1.15:k==1?.90:k==2?1.3:k==3?1.25:1.1;
+      float cx=x0+lean*(y-.5)+(.16+.06*fract(fk*.7))*sin(2.4*y+1.7*fk+.02*t)
+        +.30*(field(vec2(.9*y+3.0*fk,.006*t+fk))-.5)
+        +.022*sin(6.0*y-.20*t+2.3*fk)*smoothstep(.1,.5,y);
+      float w=(k==3?.25:.085+.05*fract(fk*.37))*(.65+.7*y);
+      float sd=k==2||k==4?-1.0:1.0;
+      float d=sd*(X-cx)/w;
+      // a crisp leading edge and a long soft trailing side
+      float prof=(d<0.0?exp(-d*d*2.4):exp(-d*d*.55))+.45*exp(-d*d*7.0);
+      float soft=exp(-d*d*.12);
+      // rays run along the ribbon, so they curve with it
+      float ax=X-cx;
+      float ray=.66+.34*smoothstep(.2,.8,noise(vec2(70.0*angR-.03*t,.8*y+fk)))*(.55+.45*noise(vec2(170.0*angR+3.0-.05*t,1.3*y)));
+      float lo2=lo+.10*(field(vec2(2.0*X+4.0*fk,.008*t))-.5);
+      float h=y-lo2;
+      ray=mix(ray,1.0,smoothstep(.30,.75,h));
+      float env=pow(smoothstep(0.0,.26,h+.04*(noise(vec2(14.0*X,fk))-.5)),1.3)*(.55+.45*exp(-max(h,0.0)/.30))*(1.0-smoothstep(hi-.45,hi+.05,y));
+      float hot=.45+.85*smoothstep(.30,.75,field(vec2(1.5*y-.04*t+5.0*fk,.010*t+2.0*fk)));
+      float breathe=.72+.28*smoothstep(.2,.8,noise(vec2(.025*t+3.7*fk,fk)));
+      vec3 tint;
+      if(k==3){
+        tint=mix(coral,pink,smoothstep(.12,.40,y));
+        tint=mix(tint,green,clamp(.80*smoothstep(.3,1.6,d)+1.0-smoothstep(lo,lo+.26,y),0.0,1.0));
+        tint=mix(tint,vec3(.80,.15,.85),.5*smoothstep(.78,1.1,y));
+      }else if(k==1){
+        tint=mix(teal,violet,smoothstep(lo+.05,lo+.35,y));
+      }else{
+        tint=mix(green,teal,smoothstep(lo+.25,hi,y));
+        if(k==0)tint=mix(tint,violet,.35*smoothstep(.7,1.0,y));
+      }
+      if(k!=3)tint=mix(tint,vec3(.80,.10,.22),.50*smoothstep(.35,.90,h));
+      tint=mix(tint,lime,.40*(1.0-smoothstep(.02,.14,h)));
+      tint=mix(tint,vec3(.72,.18,.85),.35*(1.0-smoothstep(0.0,.07,h)));
+      float gain=k==1?.42:k==3?1.55:k==2?.9:1.0;
+      acc+=1.15*tint*(prof*ray+(k==3?.10:.22)*soft)*env*hot*breathe*gain;
+    }
+    acc*=(.30+.70*smoothstep(0.0,.22,y))*(1.0-.45*smoothstep(.90,1.0,y));
+    c+=vec3(.025,.065,.035)*exp(-pow((y-.07)/.05,2.0))*auroraGate;
+    // soft highlight roll-off: overlaps glow, cores go pale instead of clipping
+    vec3 glow=1.0-exp(-1.7*acc);
+    glow+=vec3(.9,1.0,.95)*.22*smoothstep(1.1,2.4,max(acc.r,max(acc.g,acc.b)));
+    float cover=min(1.0,max(glow.r,max(glow.g,glow.b)))*auroraGate;
+    c=c*(1.0-.75*cover)+glow*auroraGate*.92;
+  }
+
   float vignette=length((uv-.5)*vec2(uRes.x/uRes.y,1));
   c*=1.0-.20*smoothstep(.6,1.3,vignette);
   if(uLutAmt>.001){
@@ -3937,6 +4059,8 @@ function zDrawParams(gl, U, f, opts) {
   gl.uniform1f(U.uDeck, f.deck)
   gl.uniform1f(U.uPuff, f.puff)
   gl.uniform1f(U.uNight, f.night)
+  /* the Zephyr Aurora theme's northern lights; 0 (off) for every other look */
+  if (U.uAurora) gl.uniform1f(U.uAurora, o.aurora || 0)
   gl.uniform1f(U.uHaze, f.haze)
   gl.uniform1f(U.uSquash, f.squash)
   gl.uniform3f(U.uTint, f.tint[0], f.tint[1], f.tint[2])
@@ -4406,6 +4530,7 @@ const createSky = (opts = {}) => {
       time: run.slowT,
       driftOff: run.driftOff,
       alpha: 1,
+      aurora: run.aurora || 0,
     })
   }
   /* skyFresh: re-run the sky shader; otherwise only the blur passes re-run */
@@ -4450,6 +4575,8 @@ const createSky = (opts = {}) => {
      for the blur being faded TO, once per change, not on every fade step. */
   const resize = () => {
     const blurK = 1 - 0.5 * clamp((run.blurTo - 4) / 12, 0, 1)
+    // Honour the selected quality for Aurora too. Crisp stars have their own
+    // layer; the blurred curtains do not need a forced High canvas.
     const k = quality.res * blurK
     const cw = window.innerWidth
     const ch = window.innerHeight
@@ -4466,8 +4593,10 @@ const createSky = (opts = {}) => {
 
   const fading = () => run.blur !== run.blurTo
   /* the day preview runs smooth; a window you are not using drifts at 1 fps */
-  const curFps = () => live.fast ? Math.max(run.fps, 15)
-    : (typeof document.hasFocus === 'function' && !document.hasFocus()) ? Math.min(run.fps, 1) : run.fps
+  // Reduced motion is a hard cap, including Aurora and the day preview.
+  const curFps = () => run.fps < 1 ? run.fps : live.fast ? Math.max(run.fps, 15)
+    : (typeof document.hasFocus === 'function' && !document.hasFocus()) ? Math.min(run.fps, 1)
+    : run.fps
   const stepBlur = t => {
     if (!fading()) return
     const k = clamp((t - run.blurT0) / BLUR_FADE_MS, 0, 1)
@@ -4586,6 +4715,14 @@ const createSky = (opts = {}) => {
       if (typeof speed === 'number') want.wind = speed
       run.dirty = true
     },
+    setAurora(on) {
+      const v = on ? 1 : 0
+      if (v === run.aurora) return
+      run.aurora = v
+      run.dirty = true
+      resize()
+      reschedule()
+    },
     setLocation(lat, lng) {
       if (typeof lat === 'number' && typeof lng === 'number') {
         live.lat = lat
@@ -4677,17 +4814,16 @@ const clearSky = () => {
 }
 
 const phaseThemeName = phase => `zephyr-${phase}`
-// The live theme: one pick that follows the sun (see registerLive).
+// One stable host entry; look and time-of-day choices live in Zephyr settings.
 const SKY_THEME = 'zephyr-sky'
+const APPEARANCE_LOOKS = [
+  { id: 'sky', label: 'Sky', description: 'Follows the sun', preview: 'linear-gradient(165deg, #2473a0, #8ec7d4 65%, #e3cd9d)' },
+  { id: 'aurora', label: 'Aurora', description: 'Northern lights', preview: 'linear-gradient(117deg, #10192c 15%, #458f7b 26%, #8dc8a3 29%, #353454 39%, #10192c 60%)' },
+  { id: 'gruvbox', label: 'Gruvbox', description: 'Painting & warm glass', preview: 'linear-gradient(165deg, #767b52 35%, #aa9a6d 36%, #aa9a6d 56%, #4d593c 57%, #353a2e)' },
+  { id: 'custom', label: 'Custom', description: 'Your picture & colours', preview: 'var(--ui-widget-surface-background)' }
+]
 // every theme name Zephyr owns; anything else is the user's own pick
-const isOurTheme = name => name === SKY_THEME || PHASES.some(p => name === phaseThemeName(p)) || (typeof GRUVBOX_THEME !== 'undefined' && name === GRUVBOX_THEME)
-
-const themeFor = phase => ({
-  name: phaseThemeName(phase),
-  label: `Zephyr ${phase[0].toUpperCase()}${phase.slice(1)}`,
-  description: `Holds the ${phase} sky whatever the time. Pick Zephyr Sky to follow the sun.`,
-  colors: GROUNDS[phase]
-})
+const isOurTheme = name => name === SKY_THEME || PHASES.some(p => name === phaseThemeName(p)) || (typeof GRUVBOX_THEME !== 'undefined' && name === GRUVBOX_THEME) || name === AURORA_THEME
 
 const PHASE_BLURB = {
   dawn: 'before sunrise',
@@ -5021,11 +5157,14 @@ const HOME_CSS = [
   '#zf-home .zf-card-x { all: unset; position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-size: 15px; line-height: 1; cursor: pointer; color: var(--zf-home-ink-3); opacity: 0; transition: opacity 120ms ease, background 120ms ease; }',
   '#zf-home .zf-card:hover .zf-card-x, #zf-home .zf-card:focus-within .zf-card-x { opacity: 0.7; }',
   '#zf-home .zf-card-x:hover { opacity: 1; background: rgba(var(--zf-home-hi), 0.14); }',
-  '@media (prefers-reduced-motion: reduce) { #zf-home[data-on="1"] { animation: none; } #zf-home .zf-card-open { transition: none; } }'
+    '@media (prefers-reduced-motion: reduce) { #zf-home[data-on="1"] { animation: none; } #zf-home .zf-card-open { transition: none; } }'
 ].join('\n')
 
 const ensureHomeStyle = () => {
-  if (typeof document === 'undefined' || document.getElementById('zephyr-home-style')) return
+  if (typeof document === 'undefined') return
+  // a hot-reloaded plugin finds its old sheet still in place; refresh it
+  const old = document.getElementById('zephyr-home-style')
+  if (old) { if (old.textContent !== HOME_CSS) old.textContent = HOME_CSS; return }
   const el = document.createElement('style')
   el.id = 'zephyr-home-style'
   el.textContent = HOME_CSS
@@ -5137,35 +5276,15 @@ const CHIP_ROW_STYLE = { display: 'inline-flex', alignItems: 'center', gap: '6px
 
 const DOT_STYLE = { display: 'block', width: '6px', height: '6px', borderRadius: '999px' }
 
-function PhaseChip({ phase, auto, pins, held, clock, onCycle }) {
-  const pinCount = useValue(pins).length
-  const isAuto = useValue(auto)
-  const current = useValue(phase)
-  const hold = useValue(held)
-  const now = useValue(clock)
-  const shown = hold || current
-  const label = `${isAuto ? (hold ? `${hold} - held` : `dynamic - ${now}`) : `${current} - paused`}${pinCount ? ` · ${pinCount} pinned` : ''}`
-
-  return jsx(Tip, {
-    label: !isAuto
-      ? 'Zephyr: the sky is off the clock. Click to follow the sun again.'
-      : hold
-        ? `Zephyr: holding the ${hold} sky. Click for the next one (Dawn, Sunrise, Day, Dusk, Night, then the live sky).`
-        : `Zephyr: the sky follows the sun (${PHASE_BLURB[current]}). Click to try Dawn, Sunrise, Day, Dusk and Night.`,
-    children: jsx('button', {
-      onClick: onCycle,
-      style: CHIP_STYLE,
-      type: 'button',
-      children: jsxs('span', {
-        style: CHIP_ROW_STYLE,
-        children: [
-          // The dot IS the sky on show, not a lamp: its colour is the phase's accent.
-          jsx('span', { 'aria-hidden': true, style: Object.assign({}, DOT_STYLE, { background: GROUNDS[shown].accent }) }),
-          jsx('span', { children: label })
-        ]
-      })
-    })
-  })
+function PhaseChip({ appearance, held, onSelect }) {
+  const selected = useValue(appearance)
+  const phase = useValue(held)
+  const value = selected === 'sky' ? 'sky:' + (phase || 'live') : selected
+  const choices = [['sky:live', 'Sky · Live'], ...PHASES.map(p => ['sky:' + p, 'Sky · ' + (p === 'dusk' ? 'Sunset' : p[0].toUpperCase() + p.slice(1))]), ['aurora', 'Aurora'], ['gruvbox', 'Gruvbox'], ['custom', 'Custom'], ['hermes', 'Hermes appearance']]
+  return jsxs(Select, { value, onValueChange: onSelect, children: [
+    jsx(SelectTrigger, { 'aria-label': 'Zephyr appearance', className: 'h-7 w-auto text-xs', children: jsx(SelectValue, {}) }),
+    jsx(SelectContent, { children: choices.map(([id, label]) => jsx(SelectItem, { value: id, children: label }, id)) })
+  ] })
 }
 
 /* ── recents/engine.js ──────────────────────────────────────── generated by scripts/build-recents.mjs, edit recents/engine.js instead */
@@ -5458,12 +5577,113 @@ export default {
     // Our own leftovers from an instance that died before registering its
     // disposer: the GL container is a full-screen opaque layer at z-index -1,
     // so a stale one sits on top of the CSS sky.
-    for (const staleId of ['zephyr-gl-sky', 'zephyr-gl-sky-style', 'zephyr-sky-style']) {
+    for (const staleId of ['zephyr-gl-sky', 'zephyr-gl-sky-style', 'zephyr-sky-style', 'zephyr-aurora-stars']) {
       let stale = document.getElementById(staleId)
       while (stale) {
         if (stale.parentNode) stale.parentNode.removeChild(stale)
         stale = document.getElementById(staleId)
       }
+    }
+
+    let syncAuroraStars = () => {}
+    // ── Aurora stars ───────────────────────────────────────────────────────
+    // The sky shader's stars are lost under its blur, so the Aurora theme gets
+    // a crisp starfield of its own, just above the sky and below the app. The
+    // stars are drawn only on activation or resize. Two static brightness
+    // patterns crossfade on the compositor, so stars twinkle without repainting
+    // a full-window noise mask on every display refresh.
+    // The Aurora theme and the Sky switch decide whether it shows.
+    if (typeof MutationObserver === 'function') {
+      const host = document.createElement('div')
+      host.id = 'zephyr-aurora-stars'
+      host.setAttribute('aria-hidden', 'true')
+      host.style.cssText = 'position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;mix-blend-mode:screen'
+      // Build only on first use. Opacity is composited; moving CSS masks
+      // repainted the full starfield at display refresh even on Low quality.
+      let layers = null
+      const css = document.createElement('style')
+      css.textContent = '@keyframes zephyr-twinkle { from { opacity: 0 } to { opacity: 1 } }' +
+        '#zephyr-aurora-stars canvas { position:absolute;inset:0;width:100%;height:100%;will-change:opacity;animation:zephyr-twinkle 12s ease-in-out infinite alternate }' +
+        '#zephyr-aurora-stars canvas:nth-of-type(2) { animation-direction:alternate-reverse }' +
+        '@media (prefers-reduced-motion: reduce) { #zephyr-aurora-stars canvas { animation:none !important;opacity:.5 } }'
+      host.appendChild(css)
+      let seed = 7
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+      let drawnFor = ''
+      const draw = () => {
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
+        const w = Math.round(window.innerWidth * dpr), h = Math.round(window.innerHeight * dpr)
+        if (drawnFor === w + 'x' + h) return
+        drawnFor = w + 'x' + h
+        if (!layers) { layers = [document.createElement('canvas'), document.createElement('canvas')]; layers.forEach(c => host.appendChild(c)) }
+        layers.forEach((c, i) => {
+          seed = 7 // the same star positions on both layers; only brightness differs
+          c.width = w
+          c.height = h
+          const g = c.getContext('2d')
+          const n = Math.round(window.innerWidth * window.innerHeight / 1200)
+          for (let k = 0; k < n; k++) {
+            const x = rnd() * w, yN = rnd(), keep = rnd()
+            // thinner toward the horizon, where the air and the glow hide them
+            if (keep > 0.25 + 0.75 * (1 - yN)) continue
+            const y = yN * h * 0.92
+            const big = rnd() > 0.95
+            const r = (big ? 0.9 + 0.7 * rnd() : 0.45 + 0.5 * rnd()) * dpr
+            const baseAlpha = big ? 0.85 + 0.15 * rnd() : 0.35 + 0.5 * rnd()
+            const shimmer = Math.sin((k + 1) * (i ? 78.233 : 12.9898)) * 43758.5453
+            const a = baseAlpha * (0.12 + 0.36 * (shimmer - Math.floor(shimmer)))
+            const tint = rnd()
+            const col = tint > 0.9 ? '255, 226, 196' : tint > 0.75 ? '196, 214, 255' : '240, 244, 255'
+            if (big) {
+              const halo = g.createRadialGradient(x, y, 0, x, y, r * 4)
+              halo.addColorStop(0, `rgba(${col}, ${a * 0.35})`)
+              halo.addColorStop(1, `rgba(${col}, 0)`)
+              g.fillStyle = halo
+              g.fillRect(x - r * 4, y - r * 4, r * 8, r * 8)
+            }
+            g.fillStyle = `rgba(${col}, ${a})`
+            g.beginPath()
+            g.arc(x, y, r, 0, Math.PI * 2)
+            g.fill()
+          }
+        })
+      }
+      const sync = () => {
+        const on = (document.documentElement.dataset.hermesTheme === AURORA_THEME || (document.documentElement.dataset.hermesTheme === SKY_THEME && stored('aurora') === true)) && stored('away') !== true && stored(STORE_KEYS.sky) !== false
+        host.style.display = on ? 'block' : 'none'
+        if (layers) layers.forEach(c => { c.style.animationPlayState = !on || document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus()) ? 'paused' : 'running' })
+        if (!on || document.hidden) return
+        draw()
+        layers.forEach(c => { c.style.animationPlayState = document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus()) ? 'paused' : 'running' })
+        // stay just above the sky layer, which is re-added when it restarts
+        const sky = document.getElementById('zephyr-gl-sky')
+        if (host.parentNode !== document.body ||
+          (sky && host.compareDocumentPosition(sky) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+          if (sky) sky.after(host)
+          else document.body.appendChild(host)
+        }
+      }
+      document.body.appendChild(host)
+      syncAuroraStars = sync
+      const watch = new MutationObserver(sync)
+      watch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-hermes-theme'] })
+      watch.observe(document.body, { childList: true })
+      let resizeT = 0
+      const onResize = () => { clearTimeout(resizeT); resizeT = setTimeout(sync, 250) }
+      window.addEventListener('resize', onResize)
+      window.addEventListener('focus', sync)
+      window.addEventListener('blur', sync)
+      document.addEventListener('visibilitychange', sync)
+      sync()
+      ctx.onDispose?.(() => {
+        watch.disconnect()
+        window.removeEventListener('resize', onResize)
+        window.removeEventListener('focus', sync)
+        window.removeEventListener('blur', sync)
+        document.removeEventListener('visibilitychange', sync)
+        clearTimeout(resizeT)
+        host.remove()
+      })
     }
 
     // ── Tabs: ⌘⌥←/→, and the labels of a collapsed pane ───────────────────
@@ -5635,9 +5855,11 @@ export default {
     let away = false
     if (typeof document !== 'undefined') {
       const now = document.documentElement.dataset.hermesTheme || ''
-      away = stored('away') === true && Boolean(now) && !isOurTheme(now)
+      away = (stored('away') === true || stored(STORE_KEYS.auto) === false) && Boolean(now) && !isOurTheme(now)
     }
-    const wake = () => { if (!away) return; away = false; ctx.storage.set('away', false) }
+    const appearance = atom(away ? 'hermes' : stored('aurora') === true ? 'aurora' : stored(STORE_KEYS.look) === 'gruvbox' ? 'gruvbox' : stored(STORE_KEYS.look) === 'custom' ? 'custom' : 'sky')
+    const appearanceAssets = atom(0)
+    const wake = () => { away = false; ctx.storage.set('away', false) }
     const tint = atom(stored(STORE_KEYS.tint) === true)
     // Three independent switches. `sky` is only the live sky backdrop; the
     // painting and a custom picture are backgrounds of their own. `chrome` is
@@ -8481,7 +8703,11 @@ export default {
     // Day in Appearance at midnight shows the midday sky. null = the real sun.
     const SUNSET_HOLD_OFFSET = 0.3   // hours past the sunset anchor: the ember
     const storedPin = stored(STORE_KEYS.phasePin)
-    const pin = atom(PHASES.includes(storedPin) ? storedPin : null)
+    const rememberedPhase = stored('skyPhase') !== undefined ? stored('skyPhase') : (stored('aurora') === true ? null : storedPin)
+    const pin = atom(PHASES.includes(rememberedPhase) ? rememberedPhase : null)
+    // Keep the remembered look even while Hermes owns appearance, so picking
+    // the stable Zephyr entry after a restart resumes that same look.
+    AURORA_LOOK = stored('aurora') === true && look.get() === 'sunset'
     const momentFor = (phase, base = new Date()) => {
       const { rise, set } = getSolar(base)
       const h = phase === 'dawn' ? rise - 0.35
@@ -8495,7 +8721,7 @@ export default {
       return d
     }
     let liveFor = null   // the phase whose colours Zephyr Sky currently carries
-    const heldMoment = () => (pin.get() ? momentFor(pin.get()) : null)
+    const heldMoment = () => (AURORA_LOOK ? momentFor('night') : pin.get() ? momentFor(pin.get()) : null)
     const nowAt = () => heldMoment() || new Date()
     // the status chip's "dynamic - 2:45 PM": the real time, refreshed within seconds
     const clockText = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
@@ -8572,6 +8798,7 @@ export default {
       }
       applyFpsCap()
       applyWeather(true)
+      glSky.setAurora(AURORA_LOOK)
       glSky.start()
       startBlurWatch()
       return glSky
@@ -8606,14 +8833,13 @@ export default {
       glSky = null
     }
 
-    // The sky is only the sunset look's ground. The painting and a custom
-    // picture are backgrounds in their own right, so the Sky switch does not
-    // take them away; `chromeOn` controls the glass and layout sheet alone.
+    // Background and styling are independent across all four looks.
     const surfaceOn = () => chromeOn.get() || sky.get() || look.get() !== 'sunset'
     const renderSky = now => {
+      syncAuroraStars()
       if (away) { dropGl(); clearSky(); return }
       const lookNow = look.get()
-      const backdrop = lookNow !== 'sunset' || sky.get()
+      const backdrop = sky.get()
       const chrome = chromeOn.get()
       if (!backdrop && !chrome) {
         dropGl()
@@ -8647,23 +8873,10 @@ export default {
       renderSky(now)
       if (away) return
 
-      if (look.get() !== 'sunset') {
-        requestTheme(GRUVBOX_THEME)
-        if (tint.get()) setAccentOverride(GRUVBOX_ACCENT)
-        return
-      }
+      registerLive(next)
+      requestTheme(SKY_THEME)
+      if (tint.get()) setAccentOverride(AURORA_LOOK ? AURORA_ACCENT : look.get() !== 'sunset' ? GRUVBOX_ACCENT : GROUNDS[pin.get() || next].accent)
 
-      if (!auto.get()) return
-
-      // A picked phase holds its own theme; otherwise the one live theme,
-      // Zephyr Sky, takes this phase's colours and stays selected all day.
-      if (pin.get()) requestTheme(phaseThemeName(pin.get()))
-      else {
-        registerLive(next)
-        requestTheme(SKY_THEME)
-      }
-
-      if (tint.get()) setAccentOverride(GROUNDS[pin.get() || next].accent)
     }
 
     const tick = () => {
@@ -8723,60 +8936,38 @@ export default {
     // colours whenever the phase turns, so the app repaints in place and the
     // pick in Appearance never changes. The four phases below hold one sky.
     function registerLive(ph) {
-      if (liveFor === ph) return
-      liveFor = ph
-      ctx.register({
-        id: 'theme.sky',
-        area: THEMES_AREA,
-        order: 38,
-        data: {
-          name: SKY_THEME,
-          label: 'Zephyr Sky',
-          description: 'The live sky: follows the real sun through dawn, day, dusk and night.',
-          colors: GROUNDS[ph]
-        }
-      })
+      const key = AURORA_LOOK ? 'aurora' : look.get() !== 'sunset' ? look.get() : ph
+      if (liveFor === key) return
+      liveFor = key
+      ctx.register({ id: 'theme.sky', area: THEMES_AREA, order: 38, data: {
+        name: SKY_THEME, label: 'Zephyr',
+        description: 'Choose Sky, Aurora, Gruvbox or Custom in Settings → Zephyr.',
+        colors: AURORA_LOOK ? AURORA_GROUNDS : look.get() !== 'sunset' ? GRUVBOX_GROUNDS : GROUNDS[ph]
+      } })
     }
     registerLive(phaseAt(nowAt()))
-    for (const name of PHASES) {
-      ctx.register({ id: `theme.${name}`, area: THEMES_AREA, order: 40, data: themeFor(name) })
-    }
 
-    // The gruvbox skin: same theme contract as the phases, its own ground.
-    ctx.register({
-      id: 'theme.gruvbox',
-      area: THEMES_AREA,
-      order: 39,
-      data: {
-        name: GRUVBOX_THEME,
-        label: 'Zephyr Gruvbox',
-        description: 'The Backwater, a painting, behind green glass with gruvbox cream text.',
-        colors: GRUVBOX_GROUNDS
-      }
-    })
-
-    // Appearance › Theme: Zephyr Sky follows the sun all day; a phase holds
-    // that sky whatever the time; Zephyr Gruvbox shows the painting. Our own
-    // requestTheme calls land here too and are no-ops by construction.
+    // One stable host theme. Legacy names are accepted during migration but
+    // are no longer published as separate choices in Hermes Appearance.
     let themeObs = null
     if (typeof MutationObserver === 'function' && typeof document !== 'undefined') {
       const onTheme = () => {
         const picked = document.documentElement.dataset.hermesTheme || ''
-        if (picked && !isOurTheme(picked)) {
-          if (!away) { away = true; ctx.storage.set('away', true); dropGl(); clearSky() }
+        if (!picked) return
+        if (!isOurTheme(picked)) {
+          ctx.storage.set('hermesTheme', picked)
+          if (!away) { away = true; ctx.storage.set('away', true); dropGl(); clearSky(); setAccentOverride(null) }
+          appearance.set('hermes')
+          syncAuroraStars()
           return
         }
-        if (picked && away) { away = false; ctx.storage.set('away', false) }
-        const name = document.documentElement.dataset.hermesTheme || ''
-        if (name === GRUVBOX_THEME) { if (look.get() === 'sunset') switchLook('gruvbox'); return }
-        const phase = PHASES.find(p => name === phaseThemeName(p))
-        if (!phase && name !== SKY_THEME) return
-        const want = phase || null
-        if (name === SKY_THEME && !auto.get()) { auto.set(true); persist() }
-        if (want !== pin.get()) { pin.set(want); ctx.storage.set(STORE_KEYS.phasePin, want) }
-        if (look.get() !== 'sunset') { switchLook('sunset'); return }
-        apply(nowAt())
-        renderSky(nowAt())
+        if (picked === SKY_THEME) {
+          if (away) { wake(); appearance.set(AURORA_LOOK ? 'aurora' : look.get() === 'sunset' ? 'sky' : look.get()); apply(nowAt()) }
+          return
+        }
+        const legacyPhase = PHASES.find(p => picked === phaseThemeName(p))
+        if (legacyPhase) { pin.set(legacyPhase); ctx.storage.set('skyPhase', legacyPhase) }
+        selectAppearance(picked === AURORA_THEME ? 'aurora' : picked === GRUVBOX_THEME ? 'gruvbox' : 'sky')
       }
       themeObs = new MutationObserver(onTheme)
       themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-hermes-theme'] })
@@ -8814,20 +9005,10 @@ export default {
       order: 96,
       render: () =>
         jsx(PhaseChip, {
-          auto,
-          phase,
-          pins,
-          held: pin,
-          clock,
-          onCycle: () => {
-            // follow the sun -> Dawn -> Day -> Dusk -> Night -> follow the sun
-            const order = [null, ...PHASES]
-            const want = auto.get() ? order[(order.indexOf(pin.get()) + 1) % order.length] : null
-            if (!auto.get()) { auto.set(true); persist() }
-            pin.set(want)
-            ctx.storage.set(STORE_KEYS.phasePin, want)
-            if (look.get() !== 'sunset') { switchLook('sunset'); return }
-            apply(nowAt())
+          appearance, held: pin,
+          onSelect: value => {
+            if (value.startsWith('sky:')) { setSkyPhase(value.slice(4)); selectAppearance('sky') }
+            else selectAppearance(value)
           }
         })
     })
@@ -8836,7 +9017,7 @@ export default {
     // Look is the short, front page: background, the sky switch and Zephyr
     // styling. Sky detail, picture knobs and the rest only appear when they
     // apply, and the long Chat/Snippets sections stay folded until asked for.
-    const PHASE_TITLE = { dawn: 'Dawn', sunrise: 'Sunrise', day: 'Day', dusk: 'Dusk', night: 'Night' }
+    const PHASE_TITLE = { dawn: 'Dawn', sunrise: 'Sunrise', day: 'Day', dusk: 'Sunset', night: 'Night' }
     const QUALITY_FPS = { low: 4, balanced: 8, high: 16 }
     // `collapse` keeps the long, occasional sections (chat, snippets) to one
     // line until they are opened. Native <details>/<summary> needs no state and
@@ -8887,26 +9068,56 @@ export default {
     // the built-in look always paints the shipped defaults
     setSkin(look.get() === 'custom' ? customSkin : { ...SKIN_DEFAULTS })
     ensurePictureStyle(SKIN.image)
-    const skin = atom({ ...(look.get() === 'custom' ? customSkin : SKIN_DEFAULTS) })
-    const switchLook = next => {
-      if (next === look.get()) return
-      look.set(next)
-      persist()
-      setLookMode(next === 'sunset' ? 'sunset' : 'gruvbox')
-      // built-in always paints the shipped defaults; custom paints yours
+    const skin = atom({ ...customSkin })
+    const lookWeather = (() => { const v = stored('lookWeather'); return v && typeof v === 'object' && !Array.isArray(v) ? { ...v } : {} })()
+    const selectAppearance = next => {
+      if (!['sky', 'aurora', 'gruvbox', 'custom', 'hermes'].includes(next)) return
+      const previous = appearance.get()
+      if (previous !== 'hermes') lookWeather[previous] = weatherMode.get()
+      ctx.storage.set('lookWeather', lookWeather)
+      if (next === 'hermes') {
+        away = true
+        ctx.storage.set('away', true)
+        appearance.set('hermes')
+        dropGl(); clearSky(); setAccentOverride(null); syncAuroraStars()
+        requestTheme(stored('hermesTheme') && !isOurTheme(stored('hermesTheme')) ? stored('hermesTheme') : 'nous')
+        return
+      }
+      if (typeof document !== 'undefined') {
+        const current = document.documentElement.dataset.hermesTheme
+        if (current && !isOurTheme(current)) ctx.storage.set('hermesTheme', current)
+      }
+      wake()
+      auto.set(true)
+      AURORA_LOOK = next === 'aurora'
+      ctx.storage.set('aurora', AURORA_LOOK)
+      glSky?.setAurora(AURORA_LOOK)
+      look.set(next === 'sky' || next === 'aurora' ? 'sunset' : next)
+      appearance.set(next)
+      const savedWeather = lookWeather[next]
+      weatherMode.set(Object.hasOwn(WEATHER_LABEL, savedWeather) ? savedWeather : next === 'aurora' ? 'clear' : 'live')
+      setLookMode(look.get() === 'sunset' ? 'sunset' : 'gruvbox')
       setSkin(next === 'custom' ? { ...skin.get() } : { ...SKIN_DEFAULTS })
       ensurePictureStyle(SKIN.image)
+      persist()
+      applyWeather(true)
       apply(nowAt())
-      renderSky(nowAt())
     }
+    const switchLook = next => selectAppearance(next === 'sunset' ? 'sky' : next)
+    const setSkyPhase = value => {
+      const next = PHASES.includes(value) ? value : null
+      pin.set(next)
+      ctx.storage.set('skyPhase', next)
+      ctx.storage.set(STORE_KEYS.phasePin, next)
+      if (appearance.get() === 'sky') apply(nowAt())
+    }
+
     const pushSkin = patch => {
       const next = { ...skin.get(), ...patch }
       // Touching a knob means "I want my own version": switch onto Custom so the
       // change is actually on screen, rather than silently stored for later.
       if (look.get() !== 'custom') {
-        look.set('custom')
-        persist()
-        setLookMode('gruvbox')
+        selectAppearance('custom')
       }
       for (const key of Object.keys(next)) if (next[key] === undefined) next[key] = SKIN_DEFAULTS[key]
       skin.set(next)
@@ -8986,6 +9197,7 @@ export default {
       const next = { ...SKIN_DEFAULTS, ...(patch.image ? {} : { image: skin.get().image }), ...patch }
       if (!switchTo && look.get() !== 'custom') {
         // startup: seed Custom quietly, without changing what is on screen
+        skin.set(next)
         ctx.storage.set(STORE_KEYS.skin, next)
         return
       }
@@ -9024,6 +9236,7 @@ export default {
         if (!SKIN.image || SKIN.image === was || SKIN.image === 'data:,') setSkin({ ...SKIN, image: url })
         if (!skin.get().image || skin.get().image === was || skin.get().image === 'data:,') skin.set({ ...skin.get(), image: url })
         ensurePictureStyle(SKIN.image)
+        appearanceAssets.set(appearanceAssets.get() + 1)
         apply(nowAt())
       } else {
         console.warn('[zephyr] could not find', BACKWATER_FILE, 'under', root)
@@ -9126,6 +9339,7 @@ export default {
         let saveTimer = 0
         let dead = false
         let shown = false
+        let anchorPane = null, anchorTagline = null
         let token = 0
         const unbind = []
         const keyOf = s => s._lineage_root_id || s.id
@@ -9256,8 +9470,10 @@ export default {
 
         return {
           // called on every page pass with the empty pane's box, or null
-          sync(rect, tagline) {
+          sync(rect, tagline, pane) {
             if (dead) return
+            anchorPane = pane
+            anchorTagline = tagline
             if (!rect || !homeOn.get()) { if (shown) hide(); return }
             place(rect, tagline)
             if (shown) return
@@ -9265,6 +9481,11 @@ export default {
             const mine = ++token
             if (sessions.length) draw()
             refresh().then(() => { if (shown && mine === token && !el.querySelector('.zf-card')) draw() })
+          },
+          // Re-measure directly during a view-transition update: hit testing
+          // in syncPage can see the transition snapshot rather than the pane.
+          layout() {
+            if (!dead && shown && anchorPane?.isConnected) place(anchorPane.getBoundingClientRect(), anchorTagline)
           },
           poke() { if (shown && !homeOn.get()) hide() },
           reset() { records = {}; flush(); if (shown) draw() },
@@ -9294,7 +9515,7 @@ export default {
             const intro = v.querySelector("[data-slot='aui_intro']")
             const introShown = Boolean(intro && intro.getClientRects().length)
             const hasMsg = Boolean(v.querySelector("[data-slot*='message']"))
-            shown.push({ r, intro, introShown, empty: introShown || !hasMsg })
+            shown.push({ r, v, intro, introShown, empty: introShown || !hasMsg })
           } else if (!hits.length && !v.closest('[data-pane-hidden]')) rootOnly = true
         }
         // nothing but the transition layer: say nothing yet, keep the old state, look again shortly
@@ -9341,7 +9562,7 @@ export default {
         } else if (root.dataset.zfLanding) {
           delete root.dataset.zfLanding
         }
-        home.sync(empties.length ? empties[0].r : null, [...document.querySelectorAll("[data-slot='aui_intro'] p, #zf-landing p")].filter(e => !/wordmark/.test(String(e.className)) && e.getClientRects().length).pop())
+        home.sync(empties.length ? empties[0].r : null, [...document.querySelectorAll("[data-slot='aui_intro'] p, #zf-landing p")].filter(e => !/wordmark/.test(String(e.className)) && e.getClientRects().length).pop(), empties[0]?.v)
       }
       let pageQueued = false
       // The sheet matched 13 things with :has(). Scrolling mounts rows, and each
@@ -9409,6 +9630,16 @@ export default {
         }
       }
       attachPageObs()
+      // Sidebar docking and split resizing change pane geometry without a
+      // window resize or a mutation in the sidebar content.
+      const pageSizeObs = typeof ResizeObserver === 'function' ? new ResizeObserver(schedulePage) : null
+      const attachPageSizeObs = () => {
+        if (pageDead) return
+        pageSizeObs?.disconnect()
+        document.querySelectorAll("[data-slot='aui_thread-viewport']").forEach(el => pageSizeObs?.observe(el))
+      }
+      attachPageSizeObs()
+      rescanHooks.push(attachPageSizeObs)
       rescanHooks.push(() => { attachPageObs(); schedulePage() })
       window.addEventListener('resize', schedulePage)
       markStrips()
@@ -9423,6 +9654,7 @@ export default {
         document.querySelectorAll('[data-zf-strip]').forEach(el => { el.removeAttribute('data-zf-strip'); el.removeAttribute('data-zf-switch') })
         for (const a of ['data-zf-intro', 'data-zf-msgs', 'data-zf-settings', 'data-zf-setbox', 'data-zf-sbbtn', 'data-zf-nav']) document.querySelectorAll('[' + a + ']').forEach(el => el.removeAttribute(a))
         pageObs.disconnect()
+        pageSizeObs?.disconnect()
         window.removeEventListener('resize', schedulePage)
         delete root.dataset.zfChat
         delete root.dataset.zfLanding
@@ -9586,7 +9818,10 @@ export default {
       title: 'Zephyr',
       icon: 'zephyr',
       render: function ZephyrSettings() {
-        const isAuto = useValue(auto)
+        useValue(appearanceAssets)
+        useValue(skin)
+        const selectedLook = useValue(appearance)
+        const heldPhase = useValue(pin)
         const isTint = useValue(tint)
         const isSky = useValue(sky)
         const isChrome = useValue(chromeOn)
@@ -9607,7 +9842,7 @@ export default {
         const skyLook = lookNow === 'sunset'
         const realistic = skyLook && isSky && isGl && !glFailed
 
-        const status = lookNow === 'gruvbox'
+        const status = selectedLook === 'hermes' ? 'Hermes appearance · Zephyr appearance paused' : selectedLook === 'aurora' ? 'Aurora · always night' : lookNow === 'gruvbox'
           ? ['Gruvbox', 'The Backwater, Wyllie', '4096 × 2428 at full size', isChrome ? 'Zephyr styling' : 'Hermes styling'].join('  ·  ')
           : lookNow === 'custom'
             ? ['Custom picture', isChrome ? 'Zephyr styling' : 'Hermes styling'].join('  ·  ')
@@ -9657,37 +9892,42 @@ export default {
           ]
         })
 
-        const lookSection = section('cloud', 'Look', [
-          jsx(ListRow, {
-            title: 'Background',
-            description: lookNow === 'sunset'
-              ? 'The live sky where you are, driven by the real sun and your weather.'
-              : lookNow === 'gruvbox'
-                ? 'The Backwater (Charles W. Wyllie, 1903) behind green glass with gruvbox cream text. Also in Appearance › Theme as Zephyr Gruvbox.'
-                : 'Your own picture with your own glass. Choose the image and tune it under Picture & glass below.',
-            action: jsx(SegmentedControl, {
-              value: lookNow,
-              options: [
-                { id: 'sunset', label: 'Sky' },
-                { id: 'gruvbox', label: 'Built-in' },
-                { id: 'custom', label: 'Custom' }
-              ],
-              onChange: next => switchLook(next)
-            })
+        const lookSection = section('paintcan', 'Appearance', [
+          jsx('div', {
+            role: 'group', 'aria-label': 'Zephyr looks',
+            style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', margin: '1rem 0' },
+            children: APPEARANCE_LOOKS.map(item => jsx(Button, {
+              variant: selectedLook === item.id ? 'secondary' : 'outline',
+              'aria-pressed': selectedLook === item.id, 'aria-label': item.label,
+              style: { height: 'auto', minWidth: 0, padding: '0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem', whiteSpace: 'normal', textAlign: 'left', ...(selectedLook === item.id ? { outline: '2px solid var(--ui-accent)', outlineOffset: '2px' } : {}) },
+              onClick: () => selectAppearance(item.id),
+              children: [
+                jsx('span', { 'aria-hidden': true, style: { display: 'block', height: '4rem', borderRadius: 'var(--zf-r-control, 8px)', background: item.id === 'gruvbox' ? `center / cover url("${BACKWATER_URL}")` : item.id === 'custom' && skin.get().image ? `center / cover url("${String(skin.get().image).replace(/"/g, '%22')}")` : item.preview } }),
+                jsxs('span', { style: { display: 'flex', justifyContent: 'space-between' }, children: [item.label, selectedLook === item.id ? jsx(Codicon, { name: 'check', size: '1rem' }) : null] }),
+                jsx('span', { className: 'text-xs text-muted-foreground', children: item.description })
+              ]
+            }, item.id))
           }),
-          skyLook
-            ? jsx(ToggleRow, {
-                checked: isSky,
-                description: 'Show the live sky behind the app. Off gives a plain dark ground and leaves Zephyr styling on; Built-in and Custom keep their own picture.',
-                label: 'Sky',
-                onChange: on => {
-                  sky.set(on)
-                  persist()
-                  renderSky(nowAt())
-                }
-              })
-            : null,
-          jsx(ToggleRow, {
+          selectedLook === 'hermes' ? jsx('p', { className: 'text-sm text-muted-foreground', children: 'Hermes appearance is active. Choose a look above to resume Zephyr styling.' }) : null,
+          selectedLook === 'sky' ? jsx(ListRow, {
+            title: 'Time of day', description: 'Follow the sun or keep a favourite moment.',
+            action: jsxs(Select, { value: heldPhase ? 'held' : 'live', onValueChange: v => setSkyPhase(v === 'held' ? 'night' : null), children: [
+              jsx(SelectTrigger, { className: 'w-full @2xl:w-56', children: jsx(SelectValue, {}) }),
+              jsx(SelectContent, { children: [jsx(SelectItem, { value: 'live', children: 'Follow the sun' }), jsx(SelectItem, { value: 'held', children: 'Hold a time' })] })
+            ] })
+          }) : null,
+          selectedLook === 'sky' && heldPhase ? jsx(ListRow, {
+            title: 'Hold at', action: jsxs(Select, { value: heldPhase, onValueChange: setSkyPhase, children: [
+              jsx(SelectTrigger, { className: 'w-full @2xl:w-56', children: jsx(SelectValue, {}) }),
+              jsx(SelectContent, { children: PHASES.map(p => jsx(SelectItem, { value: p, children: PHASE_TITLE[p] }, p)) })
+            ] })
+          }) : null,
+          selectedLook === 'aurora' ? jsx(ListRow, { title: 'Always night', description: 'Northern lights over indigo glass. Clear weather shows the lights best.' }) : null,
+          selectedLook !== 'hermes' ? jsx(ToggleRow, {
+            checked: isSky, label: 'Background', description: 'Show the scenery behind the app. Off keeps the colours and Zephyr styling.',
+            onChange: on => { sky.set(on); persist(); renderSky(nowAt()) }
+          }) : null,
+          selectedLook !== 'hermes' ? jsx(ToggleRow, {
             checked: isChrome,
             description: 'Zephyr’s glass panels, floating sidebar, cards and type. Off keeps Hermes’s own chrome and only the background you chose.',
             label: 'Zephyr styling',
@@ -9696,10 +9936,11 @@ export default {
               persist()
               renderSky(nowAt())
             }
-          })
+          }) : null,
+          jsx(ListRow, { description: 'Use your last Hermes theme and pause Zephyr appearance.', action: jsx(Button, { size: 'sm', variant: 'outline', disabled: selectedLook === 'hermes', onClick: () => selectAppearance('hermes'), children: 'Use Hermes appearance' }) })
         ])
 
-        const skySection = skyLook && isSky ? section('cloud', 'Sky', [
+        const skyRows = selectedLook !== 'hermes' && skyLook && isSky ? [
           jsx(ToggleRow, {
             checked: isGl && !glFailed,
             disabled: glFailed,
@@ -9756,7 +9997,7 @@ export default {
                 })
               })
             : null,
-          realistic
+          realistic && selectedLook === 'sky' && !heldPhase
             ? jsx(ListRow, {
                 title: 'Preview a day',
                 description: 'Watch the next 24 hours of sky in one minute, then it returns to now.',
@@ -9779,9 +10020,10 @@ export default {
                 })
               })
             : null
-        ]) : null
+        ] : []
+        const skySection = skyRows.length ? section('cloud', 'Sky', skyRows.filter(row => row?.props.title === 'Weather')) : null
 
-        const skinSection = lookNow === 'custom'
+        const skinSection = selectedLook === 'custom'
           ? section('paintcan', 'Picture & glass', [
             jsx(SkinPicture, {}),
             jsx('details', {
@@ -9797,29 +10039,19 @@ export default {
           ])
           : null
 
-        const lightSection = section('symbol-color', 'Light', [
-          jsx(ToggleRow, {
-            checked: isAuto,
-            description: 'On by default. Keeps Hermes on Zephyr Sky, whose colours move through dawn, day, dusk and night with the sun. Off keeps whatever theme you pick in Appearance.',
-            label: 'Time-of-day themes',
-            onChange: on => {
-              auto.set(on)
-              persist()
-              if (on) apply(nowAt())
-              else setAccentOverride(null)
-            }
-          }),
+        const lightSection = selectedLook !== 'hermes' ? section('symbol-color', 'Fine-tune appearance', [
+          ...skyRows.filter(row => row && row.props.title !== 'Weather'),
           jsx(ToggleRow, {
             checked: isTint,
-            description: 'Shift the accent colour (links, buttons, selection) to match the time of day, even on other themes.',
+            description: 'Use this look’s accent for links, buttons and selection.',
             label: 'Tint the accent',
             onChange: on => {
               tint.set(on)
               persist()
-              setAccentOverride(on ? PHASE_ACCENT[phase.get()] : null)
+              if (on) apply(nowAt()); else setAccentOverride(null)
             }
           })
-        ])
+        ], { collapse: true }) : null
 
         const chatSection = section('comment-discussion', 'Chat & motion', [
           jsx(ToggleRow, {
@@ -10023,22 +10255,26 @@ export default {
       // Cmd+S / the mode button morph between pinned and floating: the column
       // and the main pane are captured and glide to their new boxes.
       const morph = fn => {
-        if (document.hidden || !document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) { fn(); return }
+        const update = () => { fn(); layoutShelf(); homeApi.layout?.() }
+        if (document.hidden || !document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) { update(); return }
         const col = column()
         const split = col && col.parentElement
         const main = split && Array.from(split.children).filter(c => c !== col && c.getClientRects().length).sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0]
         if (col) col.style.viewTransitionName = 'zf-side'
         if (main) main.style.viewTransitionName = 'zf-main'
+        const home = document.getElementById('zf-home')
+        if (home) home.style.viewTransitionName = 'zf-home'
         root.dataset.zfMorph = '1'
         // The toggle must not wait on the animation: a view transition holds its callback until a
         // frame is presented, which can take seconds under load, and a second press then undoes the first.
         let ran = false
-        const once = () => { if (!ran) { ran = true; fn() } }
+        const once = () => { if (!ran) { ran = true; update() } }
         const t = document.startViewTransition(once)
         setTimeout(once, 400)
         t.finished.finally(() => {
           if (col) col.style.viewTransitionName = ''
           if (main) main.style.viewTransitionName = ''
+          if (home) home.style.viewTransitionName = ''
           delete root.dataset.zfMorph
           window.dispatchEvent(new Event('zf-morph-end'))
         })
@@ -10145,7 +10381,7 @@ export default {
         if (!document.querySelector("[data-slot='sidebar']")) return
         event.preventDefault()
         event.stopImmediatePropagation()
-        setArc(!arc)
+        morph(() => setArc(!arc))
       }
       window.addEventListener('click', onToggleClick, true)
 

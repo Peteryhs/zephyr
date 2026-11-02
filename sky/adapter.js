@@ -92,6 +92,8 @@ function zDrawParams(gl, U, f, opts) {
   gl.uniform1f(U.uDeck, f.deck)
   gl.uniform1f(U.uPuff, f.puff)
   gl.uniform1f(U.uNight, f.night)
+  /* the Zephyr Aurora theme's northern lights; 0 (off) for every other look */
+  if (U.uAurora) gl.uniform1f(U.uAurora, o.aurora || 0)
   gl.uniform1f(U.uHaze, f.haze)
   gl.uniform1f(U.uSquash, f.squash)
   gl.uniform3f(U.uTint, f.tint[0], f.tint[1], f.tint[2])

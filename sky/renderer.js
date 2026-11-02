@@ -11,7 +11,7 @@ export function drawParams(gl,locations,frame,{width,height,time=0,alpha=1,detai
     uHalo:frame.halo,uHaloLook:[t.halo.radius,t.halo.dispersion,t.halo.softness],uLutAmt:t.lutAmount,uTexV:frame.grade.textureVibrancy,
     uCirA:[t.cirrus.angle*Math.PI/180,t.cirrus.variance*Math.PI/180,t.cirrus.fiber,t.cirrus.opacity],uCirB:[t.cirrus.bias,t.cirrus.evolution,t.cirrus.breakDepth,t.cirrus.grain],
     uSun:frame.sun,uPolar:frame.polar,uAureole:frame.aureole,uWhiten:frame.whiten,uPurple:frame.purple,uCrep:[frame.crep,t.purity.scale],uLit:frame.lit,uTintHi:frame.tintHi,
-    uFloorZ:frame.floorZ,uFloorH:frame.floorH,uDogs:frame.dogs,uCorona:frame.corona
+    uFloorZ:frame.floorZ,uFloorH:frame.floorH,uDogs:frame.dogs,uCorona:frame.corona,uAurora:0
   };
   for(const [name,value] of Object.entries(values)) {
     const location=locations[name]; if(location==null)continue;

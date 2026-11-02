@@ -222,7 +222,7 @@ uniformNames = new Set(SKY_ENGINE.UNIFORM_NAMES.concat([
 
 /* ── 1. the engine is intact and the scene defaults are sane ─── */
 ok(typeof SKY_ENGINE.FRAG === 'string' && SKY_ENGINE.FRAG.length > 5000, 'the fragment shader is present (' + SKY_ENGINE.FRAG.length + ' chars)')
-ok(SKY_ENGINE.UNIFORM_NAMES.length === 48, 'the uniform list is complete (' + SKY_ENGINE.UNIFORM_NAMES.length + ')')
+ok(SKY_ENGINE.UNIFORM_NAMES.length === 49, 'the uniform list is complete (' + SKY_ENGINE.UNIFORM_NAMES.length + ')')
 SKY_ENGINE.applyScene({ hourly: false, hour: 12 })
 const noon = SKY_ENGINE.frameAt()
 ok(noon.cols[0][2] > noon.cols[0][0], 'noon zenith is blue inside the plugin (b > r)')

@@ -207,51 +207,45 @@ void main(){
   float auroraGate=uAurora*smoothstep(.18,.42,uNight)*(1.0-uDeck);
   if(auroraGate>.001){
     float X=uv.x*uRes.x/uRes.y,W=uRes.x/uRes.y,T=.35*t;
-    vec3 deep=mix(vec3(.020,.050,.075),vec3(.005,.008,.030),smoothstep(0.0,.9,uv.y));
-    c=mix(c,deep+.25*c*c,.82*auroraGate);
-    c+=vec3(.02,.09,.06)*exp(-uv.y/.12)*auroraGate;
+    // deep blue night: navy overhead, a brighter blue toward the horizon
+    vec3 deep=mix(vec3(.07,.20,.42),vec3(.02,.05,.17),smoothstep(0.0,1.0,uv.y));
+    deep=mix(deep,vec3(.03,.06,.20),.5*smoothstep(.3,1.0,1.0-uv.x)*uv.y);
+    c=mix(c,deep+.15*c*c,.88*auroraGate);
     vec2 sg=pixel/(3.2*uDet/300.0);
     vec2 cell=floor(sg),fp=fract(sg)-.5;
-    float sh=hash(cell),star=step(.985,sh)*smoothstep(.32,0.0,length(fp+.3*(vec2(hash(cell+7.1),hash(cell+3.3))-.5)));
+    float sh=hash(cell),star=step(.982,sh)*smoothstep(.32,0.0,length(fp+.3*(vec2(hash(cell+7.1),hash(cell+3.3))-.5)));
     float twinkle=.6+.4*sin(t*(1.0+3.0*hash(cell+1.7))+6.28*sh);
-    c+=vec3(.85,.90,1.0)*star*twinkle*(.25+.75*fract(sh*91.0))*.75*smoothstep(.25,.6,uv.y)*auroraGate;
+    c+=vec3(.85,.90,1.0)*star*twinkle*(.25+.75*fract(sh*91.0))*.8*smoothstep(.15,.5,uv.y)*auroraGate;
+    // ribbons stream from a vanishing point just below the horizon, like a wide sky photo
+    vec2 d=vec2(X,uv.y)-vec2(.62*W,-.85);
+    float r=length(d),ang=atan(d.x,d.y),y=uv.y;
+    float streak=.78+.22*noise(vec2(140.0*ang,1.5*y-.012*T))*noise(vec2(320.0*ang+3.0,2.5*y));
     vec3 aurora=vec3(0);
-    float haze=0.0;
-    for(int k=0;k<2;k++){
+    for(int k=0;k<5;k++){
       float fk=float(k);
-      float m=field(vec2(.55*X+3.1*fk,.010*T+2.0*fk));
-      float base=.60+.12*fk+.11*(X/W-.5)+.16*(m-.5)+.04*sin(3.1*X+2.0*fk+.02*T)+.035*(noise(vec2(7.0*X+fk,.03*T))-.5)+.014*(noise(vec2(21.0*X+4.0*fk,.04*T))-.5);
-      float h=uv.y-base;
-      // rays fan toward a vanishing point above the middle, like a wide-angle photo
-      float Xf=X-(X-.5*W)*.18*max(h,0.0);
-      float warp=field(vec2(1.2*Xf+7.0*fk,.012*T));
-      float col=34.0*Xf+14.0*warp+3.0*noise(vec2(4.0*Xf,fk));
-      float r1=noise(vec2(col,.4*h+.02*T+5.0*fk));
-      float r2=noise(vec2(3.1*col+3.0,.7*h+.03*T+9.0*fk));
-      float len=noise(vec2(.7*col+11.0,.015*T+fk));
-      float tall=(.07+.45*len*len)*(.5+m)*(1.0-.35*fk);
-      float up=exp(-max(h,0.0)/tall);
-      float below=exp(min(h,0.0)/.03);
-      float rays=mix(.45+.5*noise(vec2(3.5*X+8.0*fk,.02*T)),.32+1.2*r1*r1+.7*pow(r2,3.0),smoothstep(.0,.05,h));
-      float foot=1.0+.55*exp(-max(h,0.0)/.035);
-      // bright folded knots and dark gaps along the curtain
-      float knot=field(vec2(.9*X+4.0*fk-.008*T,3.0*fk+.004*T));
-      float pulse=pow(smoothstep(.25,.80,knot),2.0);
-      float rel=max(h,0.0)/tall;
-      vec3 tint=mix(vec3(.14,.96,.58),vec3(.52,.30,1.0),smoothstep(.35,1.5,rel));
-      tint=mix(tint,vec3(.95,.22,.50),.35*smoothstep(1.6,3.0,rel));
-      tint=mix(tint,vec3(.55,.30,.90),.45*(1.0-smoothstep(-.03,.0,h)));
-      haze+=exp(-abs(h-.05)/.13)*(.10+pulse)*(1.0-.4*fk);
-      aurora+=tint*below*up*rays*foot*(.08+1.35*pulse)*(1.0-.4*fk);
+      float ak=-.62+.25*fk+.08*(field(vec2(.3*fk,.005*T))-.5);
+      // each ribbon sways and curls as it climbs
+      float wig=.34*(field(vec2(1.1*y+3.0*fk,.007*T+fk))-.5)+.09*sin(2.6*y+2.0*fk+.015*T)*y;
+      float wk=(k==3?.17:.055+.04*fract(fk*.618+.3));
+      float off=(ang-ak-wig)/wk;
+      float band=exp(-off*off),soft=exp(-off*off/5.0);
+      float lo=.03+.10*fract(fk*.41),hi=.72+.40*fract(fk*.73+.2);
+      float env=smoothstep(lo,lo+.30,y+.05*noise(vec2(9.0*ang,fk)))*(1.0-smoothstep(hi,hi+.35,y));
+      float knot=.70+.45*smoothstep(.30,.70,field(vec2(1.3*y+5.0*fk,.009*T+2.0*fk)));
+      vec3 green=vec3(.14,1.0,.50),aqua=vec3(.08,.95,.66);
+      vec3 top=k==3?vec3(1.0,.16,.48):(k==1?vec3(.42,.30,.95):aqua);
+      vec3 tint=mix(green,top,smoothstep(lo+(k==3?.12:.20),lo+(k==3?.30:.50),y));
+      if(k==3)tint=mix(tint,vec3(.75,.16,.95),smoothstep(.70,1.0,y));
+      float gain=k==1?.50:(k==3?1.35:.95);
+      aurora+=tint*(1.2*band*streak+.20*soft)*env*knot*gain;
     }
-    // high magenta and violet veils, soft and patchy
-    float veil=smoothstep(.40,.75,field(vec2(.7*X+.6*uv.y,1.1*uv.y-.006*T)+vec2(13.0,4.0)));
-    aurora+=mix(vec3(.45,.12,.55),vec3(.70,.15,.40),smoothstep(.6,.95,uv.y))*veil*smoothstep(.45,.75,uv.y)*.28;
-    aurora+=vec3(.10,.50,.42)*haze*.20;
-    aurora*=1.0-smoothstep(.88,1.0,uv.y);
-    vec3 add=aurora*auroraGate*.75;
-    c=c+add-c*add*.5;
-    c=c/(1.0+.25*max(c-.7,0.0));
+    // the bright green-gold glow low on the horizon, under the brightest ribbons
+    float hz=exp(-pow((uv.y-.10)/.06,2.0))*exp(-pow((ang-.18)/.30,2.0));
+    aurora+=vec3(.55,1.0,.35)*hz*.55;
+    aurora*=1.0-.6*smoothstep(.9,1.0,uv.y);
+    vec3 add=aurora*auroraGate*.85;
+    c=c+add-c*add*.6;
+    c=c/(1.0+.22*max(c-.75,0.0));
   }
 
   float vignette=length((uv-.5)*vec2(uRes.x/uRes.y,1));

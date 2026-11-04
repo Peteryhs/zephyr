@@ -3893,20 +3893,23 @@ void main(){
     float twinkle=.6+.4*sin(t*(1.0+3.0*hash(cell+1.7))+6.28*sh);
     c+=vec3(.85,.90,1.0)*star*twinkle*(.25+.75*fract(sh*91.0))*.8*smoothstep(.15,.5,y)*auroraGate;
     vec3 acc=vec3(0);
-    vec3 green=vec3(.05,1.0,.40),lime=vec3(.55,1.0,.20),teal=vec3(.02,.82,.62),pink=vec3(1.0,.16,.36),coral=vec3(1.0,.38,.36),violet=vec3(.42,.20,1.0);
+    vec3 green=vec3(.05,1.0,.40),lime=vec3(.55,1.0,.20),teal=vec3(.02,.82,.62),pink=vec3(1.0,.16,.36),coral=vec3(1.0,.38,.36),violet=vec3(.42,.20,1.0),auCyan=vec3(.05,.80,1.0),auBlue=vec3(.14,.38,1.0);
     float S=W/1.6;
+    // a slow substorm cycle: the whole display swells and quiets over a couple of minutes
+    float storm=sat(.55+.30*sin(.021*t)+.15*sin(.053*t+2.0));
     vec2 vp=vec2(.95*S,2.2);
     float angR=atan(X-vp.x,vp.y-y);
     for(int k=0;k<5;k++){
       float fk=float(k);
       // each ribbon is a curve x=cx(y) that leans, sways and curls as it climbs
-      float x0=S*(k==0?.12:k==1?.50:k==2?.86:k==3?1.12:1.47);
+      float x0=S*(k==0?.12:k==1?.50:k==2?.86:k==3?1.12:1.47)+.06*S*sin(.007*t+2.1*fk);
       float lean=.75*(x0-vp.x)/(.5-vp.y);
       float lo=k==0?.06:k==1?.24:k==2?.26:k==3?.0:.06;
       float hi=k==0?1.15:k==1?.90:k==2?1.3:k==3?1.25:1.1;
-      float cx=x0+lean*(y-.5)+(.16+.06*fract(fk*.7))*sin(2.4*y+1.7*fk+.02*t)
-        +.30*(field(vec2(.9*y+3.0*fk,.006*t+fk))-.5)
-        +.022*sin(6.0*y-.20*t+2.3*fk)*smoothstep(.1,.5,y);
+      float cx=x0+lean*(y-.5)+(.16+.06*fract(fk*.7))*sin(2.4*y+1.7*fk+.045*t)
+        +.30*(field(vec2(.9*y+3.0*fk,.010*t+fk))-.5)
+        // folds that travel up the curtain, deeper when the display is active
+        +(.020+.022*storm)*sin(6.0*y-.34*t+2.3*fk)*smoothstep(.1,.5,y);
       float w=(k==3?.25:.085+.05*fract(fk*.37))*(.65+.7*y);
       float sd=k==2||k==4?-1.0:1.0;
       float d=sd*(X-cx)/w;
@@ -3915,13 +3918,17 @@ void main(){
       float soft=exp(-d*d*.12);
       // rays run along the ribbon, so they curve with it
       float ax=X-cx;
-      float ray=.66+.34*smoothstep(.2,.8,noise(vec2(70.0*angR-.03*t,.8*y+fk)))*(.55+.45*noise(vec2(170.0*angR+3.0-.05*t,1.3*y)));
+      // two ray sets sliding opposite ways along the curtain, so the rays shimmer
+      float ray=.62+.38*smoothstep(.2,.8,noise(vec2(70.0*angR-.09*t,.8*y+fk-.02*t)))*(.50+.50*noise(vec2(170.0*angR+3.0+.13*t,1.3*y)));
       float lo2=lo+.10*(field(vec2(2.0*X+4.0*fk,.008*t))-.5);
       float h=y-lo2;
       ray=mix(ray,1.0,smoothstep(.30,.75,h));
       float env=pow(smoothstep(0.0,.26,h+.04*(noise(vec2(14.0*X,fk))-.5)),1.3)*(.55+.45*exp(-max(h,0.0)/.30))*(1.0-smoothstep(hi-.45,hi+.05,y));
       float hot=.45+.85*smoothstep(.30,.75,field(vec2(1.5*y-.04*t+5.0*fk,.010*t+2.0*fk)));
-      float breathe=.72+.28*smoothstep(.2,.8,noise(vec2(.025*t+3.7*fk,fk)));
+      float breathe=.72+.28*smoothstep(.2,.8,noise(vec2(.05*t+3.7*fk,fk)));
+      // bright knots that climb each curtain, a little faster on each one
+      float surge=sat(.5+.5*sin(4.2*y+.9*X-(.16+.05*fk)*t+2.7*fk));surge*=surge*surge;
+      hot*=.78+.55*surge*(.4+.6*storm);
       vec3 tint;
       if(k==3){
         tint=mix(coral,pink,smoothstep(.12,.40,y));
@@ -3933,11 +3940,18 @@ void main(){
         tint=mix(green,teal,smoothstep(lo+.25,hi,y));
         if(k==0)tint=mix(tint,violet,.35*smoothstep(.7,1.0,y));
       }
+      // each curtain wanders through its own palette over a couple of minutes:
+      // green, cyan, deep blue and back, with the hue climbing a little up the curtain
+      float hueA=fract(.0035*t+.27*fk+.10*y);
+      vec3 shade=hueA<.34?mix(green,auCyan,hueA*2.94):hueA<.67?mix(auCyan,auBlue,(hueA-.34)*3.03):mix(auBlue,green,(hueA-.67)*3.03);
+      float drift2=smoothstep(.15,.85,noise(vec2(.006*t+1.3*fk,4.0+fk)));
+      tint=mix(tint,shade,(k==3?.30:.45+.40*drift2));
       if(k!=3)tint=mix(tint,vec3(.80,.10,.22),.50*smoothstep(.35,.90,h));
+
       tint=mix(tint,lime,.40*(1.0-smoothstep(.02,.14,h)));
       tint=mix(tint,vec3(.72,.18,.85),.35*(1.0-smoothstep(0.0,.07,h)));
       float gain=k==1?.42:k==3?1.55:k==2?.9:1.0;
-      acc+=1.15*tint*(prof*ray+(k==3?.10:.22)*soft)*env*hot*breathe*gain;
+      acc+=1.15*tint*(prof*ray+(k==3?.10:.22)*soft)*env*hot*breathe*gain*(.82+.30*storm);
     }
     acc*=(.30+.70*smoothstep(0.0,.22,y))*(1.0-.45*smoothstep(.90,1.0,y));
     c+=vec3(.025,.065,.035)*exp(-pow((y-.07)/.05,2.0))*auroraGate;
@@ -3946,6 +3960,25 @@ void main(){
     glow+=vec3(.9,1.0,.95)*.22*smoothstep(1.1,2.4,max(acc.r,max(acc.g,acc.b)));
     float cover=min(1.0,max(glow.r,max(glow.g,glow.b)))*auroraGate;
     c=c*(1.0-.75*cover)+glow*auroraGate*.92;
+    // the land: rolling hills that catch a little of the light, and a spruce line in front
+    float edgeW=1.4/uRes.y;
+    float ridge=.055+.120*noise(vec2(2.1*X+2.0,7.0))+.045*noise(vec2(4.7*X,2.0))+.010*noise(vec2(13.0*X,4.0));
+    float gnd=.032+.020*noise(vec2(1.9*X,11.0));
+    float trees=gnd,cw=1.0/40.0,ci=floor(X/cw);
+    float stand=.35+.65*smoothstep(.22,.60,noise(vec2(1.1*X+.5,5.0)));
+    for(int j=-1;j<=1;j++){
+      float id=ci+float(j);
+      float th=(.035+.085*pow(hash(vec2(id,3.7)),1.4))*stand*step(.12,hash(vec2(id,9.1)));
+      float tx=(id+.5+.7*(hash(vec2(id,1.3))-.5))*cw;
+      float u=abs(X-tx)/(.24*th+.0015);
+      // a spruce: a narrow cone with a few drooping tiers
+      float tier=.10*th*abs(fract(7.0*(y-gnd)/max(th,.001))-.5);
+      trees=max(trees,gnd+th*(1.0-u)-tier);
+    }
+    float onRidge=1.0-smoothstep(ridge-edgeW,ridge+edgeW,y),onTrees=1.0-smoothstep(trees-edgeW,trees+edgeW,y);
+    vec3 hill=vec3(.020,.027,.046)+.20*glow*vec3(.30,.50,.46)*smoothstep(ridge-.06,ridge,y);
+    c=mix(c,hill,onRidge*auroraGate*.90);
+    c=mix(c,vec3(.004,.006,.011),onTrees*auroraGate);
   }
 
   float vignette=length((uv-.5)*vec2(uRes.x/uRes.y,1));
@@ -5605,8 +5638,41 @@ export default {
       css.textContent = '@keyframes zephyr-twinkle { from { opacity: 0 } to { opacity: 1 } }' +
         '#zephyr-aurora-stars canvas { position:absolute;inset:0;width:100%;height:100%;will-change:opacity;animation:zephyr-twinkle 12s ease-in-out infinite alternate }' +
         '#zephyr-aurora-stars canvas:nth-of-type(2) { animation-direction:alternate-reverse }' +
-        '@media (prefers-reduced-motion: reduce) { #zephyr-aurora-stars canvas { animation:none !important;opacity:.5 } }'
+        '@media (prefers-reduced-motion: reduce) { #zephyr-aurora-stars canvas { animation:none !important;opacity:.5 } }' +
+        // a shooting star: one small composited bar, moved by transform and opacity only
+        '#zephyr-aurora-stars .zf-meteor { position:absolute;left:calc(-1 * var(--len, 160px));top:0;width:var(--len, 160px);height:1.6px;border-radius:2px;opacity:0;pointer-events:none;transform-origin:100% 50%;' +
+        'background:linear-gradient(90deg, rgba(190,215,255,0), rgba(205,230,255,.55) 70%, rgba(255,255,255,.95));box-shadow:0 0 6px 1px rgba(170,215,255,.35) }' +
+        '#zephyr-aurora-stars .zf-meteor.go { animation:zf-meteor var(--dur, 900ms) cubic-bezier(.25,.1,.6,1) forwards }' +
+        '@keyframes zf-meteor { 0% { opacity:0; transform:translate(var(--x0),var(--y0)) rotate(var(--a)) scaleX(.15) } 15% { opacity:1 } 65% { opacity:.85 } 100% { opacity:0; transform:translate(var(--x1),var(--y1)) rotate(var(--a)) scaleX(1) } }' +
+        '@media (prefers-reduced-motion: reduce) { #zephyr-aurora-stars .zf-meteor { display:none } }'
       host.appendChild(css)
+      const meteor = document.createElement('div')
+      meteor.className = 'zf-meteor'
+      host.appendChild(meteor)
+      let meteorT = 0
+      // every 25-70 s, while the lights are showing and the window is in use
+      const fly = () => {
+        meteorT = 0
+        const calm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+        const seen = host.style.display !== 'none' && !document.hidden && (typeof document.hasFocus !== 'function' || document.hasFocus())
+        if (seen && !calm) {
+          const W = window.innerWidth, H = window.innerHeight
+          const deg = (Math.random() < 0.5 ? 18 + 32 * Math.random() : 130 + 32 * Math.random())
+          const rad = deg * Math.PI / 180, dist = (0.18 + 0.16 * Math.random()) * Math.max(W, H)
+          const x0 = W * (0.12 + 0.76 * Math.random()), y0 = H * (0.04 + 0.30 * Math.random())
+          const st = meteor.style
+          st.setProperty('--a', deg.toFixed(1) + 'deg')
+          st.setProperty('--len', Math.round(90 + 110 * Math.random()) + 'px')
+          st.setProperty('--dur', Math.round(650 + 550 * Math.random()) + 'ms')
+          st.setProperty('--x0', Math.round(x0) + 'px'); st.setProperty('--y0', Math.round(y0) + 'px')
+          st.setProperty('--x1', Math.round(x0 + Math.cos(rad) * dist) + 'px'); st.setProperty('--y1', Math.round(y0 + Math.sin(rad) * dist) + 'px')
+          meteor.classList.remove('go')
+          void meteor.offsetWidth // restart the animation
+          meteor.classList.add('go')
+        }
+        meteorT = setTimeout(fly, 25000 + 45000 * Math.random())
+      }
+      meteorT = setTimeout(fly, 8000 + 12000 * Math.random())
       let seed = 7
       const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
       let drawnFor = ''
@@ -5626,7 +5692,7 @@ export default {
             const x = rnd() * w, yN = rnd(), keep = rnd()
             // thinner toward the horizon, where the air and the glow hide them
             if (keep > 0.25 + 0.75 * (1 - yN)) continue
-            const y = yN * h * 0.92
+            const y = yN * h * 0.80
             const big = rnd() > 0.95
             const r = (big ? 0.9 + 0.7 * rnd() : 0.45 + 0.5 * rnd()) * dpr
             const baseAlpha = big ? 0.85 + 0.15 * rnd() : 0.35 + 0.5 * rnd()
@@ -5682,6 +5748,7 @@ export default {
         window.removeEventListener('blur', sync)
         document.removeEventListener('visibilitychange', sync)
         clearTimeout(resizeT)
+        clearTimeout(meteorT)
         host.remove()
       })
     }
@@ -9396,9 +9463,7 @@ export default {
           for (const s of sessions) byRow[s.id] = records[keyOf(s)]
           const focused = host.state.focusedStoredSessionId.get()
           const exclude = new Set(focused ? sessions.filter(s => s.id === focused || (s._lineage_ids || []).includes(focused)).map(s => s.id) : [])
-          const pick = RECENTS.pickUp(sessions, byRow, now, { exclude })
-          const reg = RECENTS.regulars(sessions, byRow, now, { exclude: new Set([...exclude, ...pick.map(x => x.id)]) })
-          return { pick, reg }
+          return RECENTS.pickUp(sessions, byRow, now, { exclude })
         }
 
         // ── drawing ──
@@ -9445,11 +9510,10 @@ export default {
           return sec
         }
         const draw = () => {
-          const { pick, reg } = choose()
+          const pick = choose()
           const ensure = item => records[keyOf(item.session)] || (records[keyOf(item.session)] = RECENTS.emptyRecord(keyOf(item.session)))
           const parts = [
             row('Pick up where you left off', pick, 'Not this one', item => { ensure(item).dismissed = Date.now(); queueSave() }),
-            row('Your regulars', reg, 'Not a regular', item => { ensure(item).never = true; queueSave() }),
           ].filter(Boolean)
           el.replaceChildren(...parts)
           el.dataset.on = parts.length ? '1' : ''

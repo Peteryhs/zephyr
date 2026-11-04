@@ -71,10 +71,7 @@ An agent can answer with a card instead of a paragraph. You can keep it.
 
 ## New tabs that suggest
 
-An empty tab offers where to go next, and says why each card is there:
-
-- **Pick up where you left off**: the sessions you have worked on lately, ranked by recency and by how much you wrote.
-- **Your regulars**: sessions you keep returning to, once you have opened one on three different days.
+An empty tab offers where to go next, and says why each card is there. **Pick up where you left off** shows the sessions you have worked on lately, ranked by recency and by how much you wrote.
 
 It learns only from when you open sessions and send messages, keeps a small record per session on your computer, never shuffles while you look, and leaves out pinned sessions and quick chats (six messages or fewer, three of yours, never returned to on another day). Turn it off in Settings > Zephyr > Chat.
 

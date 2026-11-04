@@ -30,9 +30,10 @@ test('the sidebar carries no plugin-owned Recommended group', () => {
   }
 })
 
-test('the shelf is the only caller that draws the picks', () => {
+test('the shelf is the only caller that draws the picks, and shows no regulars row', () => {
   const calls = src.match(/RECENTS\.(pickUp|regulars)\(/g) || []
-  assert.deepEqual(calls.sort(), ['RECENTS.pickUp(', 'RECENTS.regulars('])
+  assert.deepEqual(calls, ['RECENTS.pickUp('])
+  assert.equal(src.includes("'Your regulars'"), false, 'the regulars row is gone from the shelf')
 })
 
 test('the shelf lives in an always-on sheet, not in the sky sheet', () => {

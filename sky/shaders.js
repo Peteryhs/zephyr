@@ -216,20 +216,23 @@ void main(){
     float twinkle=.6+.4*sin(t*(1.0+3.0*hash(cell+1.7))+6.28*sh);
     c+=vec3(.85,.90,1.0)*star*twinkle*(.25+.75*fract(sh*91.0))*.8*smoothstep(.15,.5,y)*auroraGate;
     vec3 acc=vec3(0);
-    vec3 green=vec3(.05,1.0,.40),lime=vec3(.55,1.0,.20),teal=vec3(.02,.82,.62),pink=vec3(1.0,.16,.36),coral=vec3(1.0,.38,.36),violet=vec3(.42,.20,1.0);
+    vec3 green=vec3(.05,1.0,.40),lime=vec3(.55,1.0,.20),teal=vec3(.02,.82,.62),pink=vec3(1.0,.16,.36),coral=vec3(1.0,.38,.36),violet=vec3(.42,.20,1.0),auCyan=vec3(.05,.80,1.0),auBlue=vec3(.14,.38,1.0);
     float S=W/1.6;
+    // a slow substorm cycle: the whole display swells and quiets over a couple of minutes
+    float storm=sat(.55+.30*sin(.021*t)+.15*sin(.053*t+2.0));
     vec2 vp=vec2(.95*S,2.2);
     float angR=atan(X-vp.x,vp.y-y);
     for(int k=0;k<5;k++){
       float fk=float(k);
       // each ribbon is a curve x=cx(y) that leans, sways and curls as it climbs
-      float x0=S*(k==0?.12:k==1?.50:k==2?.86:k==3?1.12:1.47);
+      float x0=S*(k==0?.12:k==1?.50:k==2?.86:k==3?1.12:1.47)+.06*S*sin(.007*t+2.1*fk);
       float lean=.75*(x0-vp.x)/(.5-vp.y);
       float lo=k==0?.06:k==1?.24:k==2?.26:k==3?.0:.06;
       float hi=k==0?1.15:k==1?.90:k==2?1.3:k==3?1.25:1.1;
-      float cx=x0+lean*(y-.5)+(.16+.06*fract(fk*.7))*sin(2.4*y+1.7*fk+.02*t)
-        +.30*(field(vec2(.9*y+3.0*fk,.006*t+fk))-.5)
-        +.022*sin(6.0*y-.20*t+2.3*fk)*smoothstep(.1,.5,y);
+      float cx=x0+lean*(y-.5)+(.16+.06*fract(fk*.7))*sin(2.4*y+1.7*fk+.045*t)
+        +.30*(field(vec2(.9*y+3.0*fk,.010*t+fk))-.5)
+        // folds that travel up the curtain, deeper when the display is active
+        +(.020+.022*storm)*sin(6.0*y-.34*t+2.3*fk)*smoothstep(.1,.5,y);
       float w=(k==3?.25:.085+.05*fract(fk*.37))*(.65+.7*y);
       float sd=k==2||k==4?-1.0:1.0;
       float d=sd*(X-cx)/w;
@@ -238,13 +241,17 @@ void main(){
       float soft=exp(-d*d*.12);
       // rays run along the ribbon, so they curve with it
       float ax=X-cx;
-      float ray=.66+.34*smoothstep(.2,.8,noise(vec2(70.0*angR-.03*t,.8*y+fk)))*(.55+.45*noise(vec2(170.0*angR+3.0-.05*t,1.3*y)));
+      // two ray sets sliding opposite ways along the curtain, so the rays shimmer
+      float ray=.62+.38*smoothstep(.2,.8,noise(vec2(70.0*angR-.09*t,.8*y+fk-.02*t)))*(.50+.50*noise(vec2(170.0*angR+3.0+.13*t,1.3*y)));
       float lo2=lo+.10*(field(vec2(2.0*X+4.0*fk,.008*t))-.5);
       float h=y-lo2;
       ray=mix(ray,1.0,smoothstep(.30,.75,h));
       float env=pow(smoothstep(0.0,.26,h+.04*(noise(vec2(14.0*X,fk))-.5)),1.3)*(.55+.45*exp(-max(h,0.0)/.30))*(1.0-smoothstep(hi-.45,hi+.05,y));
       float hot=.45+.85*smoothstep(.30,.75,field(vec2(1.5*y-.04*t+5.0*fk,.010*t+2.0*fk)));
-      float breathe=.72+.28*smoothstep(.2,.8,noise(vec2(.025*t+3.7*fk,fk)));
+      float breathe=.72+.28*smoothstep(.2,.8,noise(vec2(.05*t+3.7*fk,fk)));
+      // bright knots that climb each curtain, a little faster on each one
+      float surge=sat(.5+.5*sin(4.2*y+.9*X-(.16+.05*fk)*t+2.7*fk));surge*=surge*surge;
+      hot*=.78+.55*surge*(.4+.6*storm);
       vec3 tint;
       if(k==3){
         tint=mix(coral,pink,smoothstep(.12,.40,y));
@@ -256,11 +263,18 @@ void main(){
         tint=mix(green,teal,smoothstep(lo+.25,hi,y));
         if(k==0)tint=mix(tint,violet,.35*smoothstep(.7,1.0,y));
       }
+      // each curtain wanders through its own palette over a couple of minutes:
+      // green, cyan, deep blue and back, with the hue climbing a little up the curtain
+      float hueA=fract(.0035*t+.27*fk+.10*y);
+      vec3 shade=hueA<.34?mix(green,auCyan,hueA*2.94):hueA<.67?mix(auCyan,auBlue,(hueA-.34)*3.03):mix(auBlue,green,(hueA-.67)*3.03);
+      float drift2=smoothstep(.15,.85,noise(vec2(.006*t+1.3*fk,4.0+fk)));
+      tint=mix(tint,shade,(k==3?.30:.45+.40*drift2));
       if(k!=3)tint=mix(tint,vec3(.80,.10,.22),.50*smoothstep(.35,.90,h));
+
       tint=mix(tint,lime,.40*(1.0-smoothstep(.02,.14,h)));
       tint=mix(tint,vec3(.72,.18,.85),.35*(1.0-smoothstep(0.0,.07,h)));
       float gain=k==1?.42:k==3?1.55:k==2?.9:1.0;
-      acc+=1.15*tint*(prof*ray+(k==3?.10:.22)*soft)*env*hot*breathe*gain;
+      acc+=1.15*tint*(prof*ray+(k==3?.10:.22)*soft)*env*hot*breathe*gain*(.82+.30*storm);
     }
     acc*=(.30+.70*smoothstep(0.0,.22,y))*(1.0-.45*smoothstep(.90,1.0,y));
     c+=vec3(.025,.065,.035)*exp(-pow((y-.07)/.05,2.0))*auroraGate;
@@ -269,6 +283,25 @@ void main(){
     glow+=vec3(.9,1.0,.95)*.22*smoothstep(1.1,2.4,max(acc.r,max(acc.g,acc.b)));
     float cover=min(1.0,max(glow.r,max(glow.g,glow.b)))*auroraGate;
     c=c*(1.0-.75*cover)+glow*auroraGate*.92;
+    // the land: rolling hills that catch a little of the light, and a spruce line in front
+    float edgeW=1.4/uRes.y;
+    float ridge=.055+.120*noise(vec2(2.1*X+2.0,7.0))+.045*noise(vec2(4.7*X,2.0))+.010*noise(vec2(13.0*X,4.0));
+    float gnd=.032+.020*noise(vec2(1.9*X,11.0));
+    float trees=gnd,cw=1.0/40.0,ci=floor(X/cw);
+    float stand=.35+.65*smoothstep(.22,.60,noise(vec2(1.1*X+.5,5.0)));
+    for(int j=-1;j<=1;j++){
+      float id=ci+float(j);
+      float th=(.035+.085*pow(hash(vec2(id,3.7)),1.4))*stand*step(.12,hash(vec2(id,9.1)));
+      float tx=(id+.5+.7*(hash(vec2(id,1.3))-.5))*cw;
+      float u=abs(X-tx)/(.24*th+.0015);
+      // a spruce: a narrow cone with a few drooping tiers
+      float tier=.10*th*abs(fract(7.0*(y-gnd)/max(th,.001))-.5);
+      trees=max(trees,gnd+th*(1.0-u)-tier);
+    }
+    float onRidge=1.0-smoothstep(ridge-edgeW,ridge+edgeW,y),onTrees=1.0-smoothstep(trees-edgeW,trees+edgeW,y);
+    vec3 hill=vec3(.020,.027,.046)+.20*glow*vec3(.30,.50,.46)*smoothstep(ridge-.06,ridge,y);
+    c=mix(c,hill,onRidge*auroraGate*.90);
+    c=mix(c,vec3(.004,.006,.011),onTrees*auroraGate);
   }
 
   float vignette=length((uv-.5)*vec2(uRes.x/uRes.y,1));

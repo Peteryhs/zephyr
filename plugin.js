@@ -1304,6 +1304,19 @@ const ARCLIKE_CSS = [
   "html[data-zf-arc='1'][data-zf-arc-open='1'] body :is(#zephyr-snips, #zephyr-statusdock-head) {",
   '  translate: 0 0; opacity: 1; pointer-events: auto;',
   '}',
+  // The open status card's body is the app's real footer, pinned under the
+  // head. It belongs to the same card, so it rides the same slide: left
+  // behind, it stayed on screen over the chat after the sidebar tucked away.
+  // Its transition list is the dock's (!important); the translate leg there
+  // reads these two tokens.
+  "html[data-zf-arc='1'] body footer[data-slot='statusbar'][data-zephyr-dock-side] {",
+  '  left: var(--zf-rail-x, 20px) !important; width: var(--zf-rail-w, 252px) !important; z-index: 61 !important;',
+  '  --zf-arc-dur: 300ms; --zf-arc-ease: cubic-bezier(0.22, 1, 0.36, 1);',
+  '}',
+  "html[data-zf-arc='1']:not([data-zf-arc-open='1']) body footer[data-slot='statusbar'][data-zephyr-dock-side] {",
+  '  translate: calc(-100% - 28px) 0; opacity: 0 !important; pointer-events: none !important;',
+  '  --zf-arc-dur: 150ms; --zf-arc-ease: cubic-bezier(0.4, 0, 1, 1);',
+  '}',
   // the tucked state has to leave too, at the closing speed
   "html[data-zf-arc='1']:not([data-zf-arc-open='1']) body #zephyr-snips {",
   '  transition: translate 150ms cubic-bezier(0.4, 0, 1, 1), opacity 110ms ease,',
@@ -5077,7 +5090,7 @@ const SNIPPET_CSS = [
   '#zephyr-snips .zf-lib-count { color: var(--zf-ink-3, var(--ui-text-tertiary)); letter-spacing: 0.04em; }',
   '#zephyr-snips .zf-lib-chev { margin-left: auto; transition: transform var(--zf-sd-dur, 280ms) var(--zf-sd-ease, ease); transform: rotate(-90deg); }',
   '#zephyr-snips[data-open] .zf-lib-chev { transform: none; }',
-  '#zephyr-snips .zf-lib-rows { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.1rem; padding: 0 0.3rem 0.35rem; overflow: hidden auto; scrollbar-width: none;',
+  '#zephyr-snips .zf-lib-rows { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.1rem; padding: 0 4px 0.35rem; overflow: hidden auto; scrollbar-width: none;',
   '  opacity: 0; transition: opacity 180ms ease; }',
   '#zephyr-snips[data-open] .zf-lib-rows { opacity: 1; transition: opacity 200ms ease 60ms; }',
   '#zephyr-snips .zf-lib-row { flex: none; display: flex; align-items: center; gap: 0.5rem; min-height: var(--zf-sd-rowh, 1.75rem); padding: 0 0.5rem; box-sizing: border-box;',
@@ -5539,47 +5552,23 @@ return { DAY, HALF_LIFE_DAYS, VISIT_GAP_MS, QUICK_MAX_MESSAGES, QUICK_MAX_TURNS,
 
 
 // ── The Zephyr mark ─────────────────────────────────────────────────────────
-// The double-struck ℤ (the integers) in white over a golden-hour sky. Two cuts of one drawing: a
-// one-colour glyph for the Settings rail (it rides the codicon slot as a CSS
-// mask, so it takes the rail's own colour and hover states like every core
-// icon), and the full-colour badge for the top of the settings page.
+// The double-struck ℤ (the integers). Two cuts of one drawing: a one-colour
+// glyph for the Settings rail (it rides the codicon slot as a CSS mask, so it
+// takes the rail's own colour and hover states like every core icon), and the
+// bare stroked mark for the top of the settings page.
 const ZEPHYR_GLYPH_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
   + '<path fill="#000" d="M5 3.6h15.59v1.8H5zM3.41 18.6H19v1.8H3.41zM18.41 3.6h2.18l-9.4 16.8H9.01zM12.81 3.6h2.18l-9.4 16.8H3.41z"/>'
   + '</svg>'
-const ZEPHYR_BADGE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%" style="display:block" aria-hidden="true">'
-  + '<defs>'
-  // one rounded card clips everything: the sun and haze used to spill past
-  // the corners (r 22 at 47,47 reaches 69), which read as a bleed on the rim
-  + '<clipPath id="zfb-card"><rect width="64" height="64" rx="15.5"/></clipPath>'
-  + '<linearGradient id="zfb-sky" x1="0" y1="0" x2="0" y2="1">'
-  + '<stop offset="0" stop-color="#5b7fb4"/><stop offset=".38" stop-color="#b9a585"/>'
-  + '<stop offset=".7" stop-color="#f1b468"/><stop offset="1" stop-color="#e8823f"/>'
-  + '</linearGradient>'
-  + '<radialGradient id="zfb-sun" cx=".5" cy=".5" r=".5">'
-  + '<stop offset="0" stop-color="#fff6de"/><stop offset=".35" stop-color="#ffdc96" stop-opacity=".9"/><stop offset="1" stop-color="#ffb35c" stop-opacity="0"/>'
-  + '</radialGradient>'
-  + '<linearGradient id="zfb-haze" x1="0" y1="0" x2="0" y2="1">'
-  + '<stop offset="0" stop-color="#ffcf8a" stop-opacity="0"/><stop offset="1" stop-color="#ffcf8a" stop-opacity=".45"/>'
-  + '</linearGradient>'
-  + '<linearGradient id="zfb-sheen" x1="0" y1="0" x2="0" y2="1">'
-  + '<stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/>'
-  + '</linearGradient>'
-  + '<filter id="zfb-shadow" x="-20%" y="-20%" width="140%" height="140%">'
-  + '<feDropShadow dx="0" dy="1.2" stdDeviation="1.4" flood-color="#7a3a12" flood-opacity=".45"/>'
-  + '</filter>'
-  + '</defs>'
-  + '<g clip-path="url(#zfb-card)">'
-  + '<rect width="64" height="64" fill="url(#zfb-sky)"/>'
-  + '<circle cx="47" cy="47" r="22" fill="url(#zfb-sun)"/>'
-  + '<rect y="40" width="64" height="24" fill="url(#zfb-haze)"/>'
-  + '<clipPath id="zfb-zc"><rect x="15.2" y="14.2" width="33.6" height="35.6"/></clipPath>'
-  + '<g filter="url(#zfb-shadow)"><g clip-path="url(#zfb-zc)" fill="none" stroke="#fff" stroke-width="3.6" stroke-linejoin="miter" stroke-miterlimit="10">'
+// the badge's own Z (the two stroked diagonals, clipped square) without its
+// sky card: bare, in currentColor, for the top of the settings page
+const ZEPHYR_MARK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="14 13 36 38" width="100%" height="100%" style="display:block" aria-hidden="true">'
+  + '<clipPath id="zfm-zc"><rect x="15.2" y="14.2" width="33.6" height="35.6"/></clipPath>'
+  + '<g clip-path="url(#zfm-zc)" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linejoin="miter" stroke-miterlimit="10">'
   + '<path d="M17 16h30L26.6 48"/><path d="M37.4 16 17 48h30"/>'
-  + '</g></g>'
-  + '<rect width="64" height="64" fill="url(#zfb-sheen)"/>'
-  + '<rect x=".75" y=".75" width="62.5" height="62.5" rx="14.75" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width="1.5"/>'
-  + '</g>'
-  + '</svg>'
+  + '</g></svg>'
+const GITHUB_MARK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="100%" height="100%" style="display:block" fill="currentColor" aria-hidden="true">'
+  + '<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>'
+const AUTHORS = [{ name: 'Peter', github: 'Peteryhs' }, { name: 'Ali', github: 'anaqvi02' }]
 const ZEPHYR_ICON_CSS = [
   '.codicon.codicon-zephyr::before {',
   "  content: ''; display: inline-block; width: 1em; height: 1em; vertical-align: -0.125em;",
@@ -6131,7 +6120,7 @@ export default {
     const MODE_KEY = 'hermes.desktop.interfaceMode.v1'
     const IS_MAC = typeof navigator !== 'undefined' &&
       /mac/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '')
-    const dock = { mode: '', revealed: false, pressed: false, tries: 0, lastTry: 0, tab: null, head: null, style: null, open: stored(STORE_KEYS.statusDockOpen) === true,
+    const dock = { mode: '', revealed: false, pressed: false, tries: 0, lastTry: 0, head: null, style: null,
       side: null, room: null, sideOpen: false, manual: null, lastAuto: null, sideKey: '', ro: null, roWatched: [], popObs: null }
     const interfaceMode = () => {
       try {
@@ -6175,21 +6164,6 @@ export default {
       `footer[data-slot='statusbar'][${DOCK_ATTR}] > div > *:hover { background: var(--zf-hover, color-mix(in srgb, var(--ui-text-primary) 8%, transparent)) !important; color: var(--zf-ink-0, var(--ui-text-primary)); }`,
       `footer[data-slot='statusbar'][${DOCK_ATTR}] > div > * > * { height: auto !important; }`,
       `footer[data-slot='statusbar'][${DOCK_ATTR}] :is(.truncate) { white-space: nowrap; }`,
-      // the tab on the left edge: a slim pill that opens and closes the panel
-      '#zephyr-statusdock-tab {',
-      '  position: fixed; z-index: 46; left: 0; top: 50%; transform: translateY(-50%);',
-      '  width: 1.25rem; height: 4.75rem; padding: 0.45rem 0 0.4rem; border: 0; cursor: pointer;',
-      '  display: flex; flex-direction: column; align-items: center; justify-content: space-between; color: var(--zf-ink-2, var(--ui-text-secondary));',
-      '  background: var(--zf-glass, color-mix(in srgb, var(--ui-bg-secondary) 86%, transparent));',
-      '  border-radius: 0 0.6rem 0.6rem 0; box-shadow: var(--zf-lift, inset 0 0 0 1px rgba(255,255,255,.07));',
-      '  opacity: 0.9; transition: opacity var(--zf-t-2, 150ms) var(--zf-ease, ease), width var(--zf-t-2, 150ms) var(--zf-ease, ease), left var(--zf-t-3, 220ms) var(--zf-ease, ease), color var(--zf-t-2, 150ms) var(--zf-ease, ease);',
-      '}',
-      '#zephyr-statusdock-tab:hover, #zephyr-statusdock-tab:focus-visible { opacity: 1; width: 1.5rem; color: var(--zf-ink-0, var(--ui-text-primary)); outline: none; }',
-      '#zephyr-statusdock-tab svg { width: 0.8rem; height: 0.8rem; flex: none; }',
-      '#zephyr-statusdock-tab .zf-tab-chev { width: 0.65rem; height: 0.65rem; transition: transform var(--zf-t-3, 220ms) var(--zf-ease, ease); }',
-      "#zephyr-statusdock-tab[aria-expanded='true'] { left: 15.75rem; opacity: 0.85; border-radius: 0.6rem; }",
-      "#zephyr-statusdock-tab[aria-expanded='true'] .zf-tab-chev { transform: rotate(180deg); }",
-      '#zephyr-statusdock-tab[hidden] { display: none; }',
       // ── in the sessions sidebar: a card between the sessions and the rail ──
       // The card itself is our header button (it paints the glass and takes
       // the click); the real footer floats over its lower part when open.
@@ -6197,14 +6171,16 @@ export default {
       '  left: var(--zf-sd-x) !important; top: var(--zf-sd-y) !important; width: var(--zf-sd-w) !important;',
       '  max-height: var(--zf-sd-max) !important; transform: none !important;',
       '  background: transparent !important; box-shadow: none !important; border-radius: 0 0 var(--zf-radius, 12px) var(--zf-radius, 12px);',
-      '  box-sizing: border-box !important; padding: 0 0.3rem 0.35rem !important; z-index: 41;',
+      // the same 4px gutter as the sessions card's rows
+      '  box-sizing: border-box !important; padding: 0 4px 0.35rem !important; z-index: 41;',
       '  overflow: hidden auto !important; scrollbar-width: none;',
       '  clip-path: inset(0 0 100% 0);',
-      '  transition: clip-path var(--zf-sd-dur) var(--zf-sd-ease), opacity var(--zf-t-2, 200ms) var(--zf-ease, ease) 40ms, visibility 0s linear var(--zf-sd-dur) !important;',
+      // translate: the floating sidebar's slide (see ARCLIKE_CSS), 0ms otherwise
+      '  transition: clip-path var(--zf-sd-dur) var(--zf-sd-ease), opacity var(--zf-t-2, 200ms) var(--zf-ease, ease) 40ms, visibility 0s linear var(--zf-sd-dur), translate var(--zf-arc-dur, 0ms) var(--zf-arc-ease, ease) !important;',
       '}',
       `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}]::-webkit-scrollbar { display: none; }`,
       // opening unrolls the rows from under the header, top to bottom
-      `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}][${DOCK_OPEN_ATTR}] { transform: none !important; clip-path: inset(0 0 0 0); transition: clip-path var(--zf-sd-dur) var(--zf-sd-ease), opacity var(--zf-t-2, 180ms) var(--zf-ease, ease), visibility 0s !important; }`,
+      `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}][${DOCK_OPEN_ATTR}] { transform: none !important; clip-path: inset(0 0 0 0); transition: clip-path var(--zf-sd-dur) var(--zf-sd-ease), opacity var(--zf-t-2, 180ms) var(--zf-ease, ease), visibility 0s, translate var(--zf-arc-dur, 0ms) var(--zf-arc-ease, ease) !important; }`,
       `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}] > div > * { transition: transform var(--zf-sd-dur) var(--zf-sd-ease), opacity var(--zf-t-2, 200ms) var(--zf-ease, ease), background-color var(--zf-t-2, 120ms) var(--zf-ease, ease); }`,
       `footer[data-slot='statusbar'][${DOCK_SIDE_ATTR}]:not([${DOCK_OPEN_ATTR}]) > div > * { transform: translateY(-0.4rem); opacity: 0; }`,
       ':root { --zf-sd-dur: 280ms; --zf-sd-ease: cubic-bezier(.32,.72,0,1); }',
@@ -6267,38 +6243,19 @@ export default {
       '@media (prefers-reduced-motion: reduce) {',
       ':root { --zf-sd-dur: 0ms; }',
       '  #zephyr-statusdock-head, #zephyr-statusdock-head .zf-sd-chev { transition: none !important; }',
-      `  footer[data-slot='statusbar'][${DOCK_ATTR}], #zephyr-statusdock-tab, #zephyr-statusdock-tab svg { transition: none !important; }`,
+      `  footer[data-slot='statusbar'][${DOCK_ATTR}] { transition: none !important; }`,
       '}'
     ].join('\n')
 
-    const setDockOpen = open => {
-      dock.open = Boolean(open)
-      ctx.storage.set(STORE_KEYS.statusDockOpen, dock.open)
-      const bar = document.querySelector("footer[data-slot='statusbar']")
-      if (bar && bar.hasAttribute(DOCK_ATTR) && !dock.side) bar.toggleAttribute(DOCK_OPEN_ATTR, dock.open)
-      if (dock.tab) {
-        dock.tab.setAttribute('aria-expanded', String(dock.open))
-        dock.tab.title = dock.open ? 'Hide status panel' : 'Show status panel'
-      }
-    }
+    // The status panel only exists inside the sessions sidebar. With no
+    // sidebar on screen the lifted bar stays hidden (no edge tab, no
+    // free-floating panel), and it comes back with the sidebar.
     const ensureDockChrome = () => {
       if (!dock.style) {
         dock.style = document.createElement('style')
         dock.style.id = 'zephyr-statusdock-style'
         dock.style.textContent = DOCK_CSS
         document.head.appendChild(dock.style)
-      }
-      if (!dock.tab) {
-        const tab = document.createElement('button')
-        tab.id = 'zephyr-statusdock-tab'
-        tab.type = 'button'
-        tab.setAttribute('aria-label', 'Status panel')
-        // a little equaliser (model, context, radio live in there) over a chevron
-        tab.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6v4M8 3.5v9M12 5.5v5"/></svg>'
-          + '<svg class="zf-tab-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>'
-        tab.addEventListener('click', () => setDockOpen(!dock.open))
-        document.body.appendChild(tab)
-        dock.tab = tab
       }
     }
     const unside = () => {
@@ -6326,7 +6283,6 @@ export default {
     const undock = () => {
       unside()
       document.querySelectorAll(`[${DOCK_ATTR}]`).forEach(el => { el.removeAttribute(DOCK_ATTR); el.removeAttribute(DOCK_OPEN_ATTR) })
-      if (dock.tab) dock.tab.hidden = true
     }
 
     // ── In the sessions sidebar ────────────────────────────────────────────
@@ -7455,6 +7411,9 @@ export default {
       if (dock.head) return dock.head
       const head = document.createElement('div')
       head.id = 'zephyr-statusdock-head'
+      // a zf- class opts the card out of the global control radius (8px), so
+      // it keeps the 12px of every other sidebar card
+      head.className = 'zf-sd-card'
       head.setAttribute('role', 'button')
       head.tabIndex = 0
       head.innerHTML = '<span class="zf-sd-row">'
@@ -7666,7 +7625,6 @@ export default {
       }
       ensureDockChrome()
       if (!bar) {
-        if (!dock.tab.hidden) dock.tab.hidden = true
         if (dock.side) unside()
         // once it was up, its going away is the user hiding it (⌘⇧S or the
         // bar's own menu): respect that until the mode changes again
@@ -7684,21 +7642,9 @@ export default {
       dock.revealed = true
       watchDockPops()
       if (!bar.hasAttribute(DOCK_ATTR)) bar.setAttribute(DOCK_ATTR, '')
-      if (layoutSideDock()) {
-        if (!dock.tab.hidden) dock.tab.hidden = true
-        return
-      }
-      if (dock.tab.hidden) dock.tab.hidden = false
-      bar.toggleAttribute(DOCK_OPEN_ATTR, dock.open)
-      put(dock.tab, 'aria-expanded', String(dock.open))
-      const dockTitle = dock.open ? 'Hide status panel' : 'Show status panel'
-      if (dock.tab.title !== dockTitle) dock.tab.title = dockTitle
+      // no sidebar on screen: the bar stays lifted but hidden until it returns
+      if (!layoutSideDock() && bar.hasAttribute(DOCK_OPEN_ATTR)) bar.removeAttribute(DOCK_OPEN_ATTR)
     }
-    const onDockKey = event => {
-      if (event.key === 'Escape' && dock.open && !dock.side && document.querySelector(`[${DOCK_OPEN_ATTR}]`) &&
-          !document.querySelector("[data-slot$='-content'][data-state='open']")) setDockOpen(false)
-    }
-    if (typeof document !== 'undefined') document.addEventListener('keydown', onDockKey)
     // Maintenance passes that measure layout (the dock, the snippet library,
     // the status stack's fillets, the live work tiles) pause while the user
     // scrolls: a forced layout landing mid-gesture is exactly the hitch they
@@ -9917,27 +9863,36 @@ export default {
               !isChrome ? 'Hermes styling' : null
             ].filter(Boolean).join('  ·  ')
 
-        const repoLink = jsxs('a', {
-          className: 'mt-1 inline-flex items-center gap-1 text-[0.75rem] text-(--ui-text-tertiary) underline-offset-2 hover:text-(--ui-text-secondary) hover:underline',
-          href: REPO_URL,
-          target: '_blank',
-          rel: 'noreferrer noopener',
+        // the repo (GitHub mark) and its authors, each linked to their GitHub
+        const linkCls = 'text-(--ui-text-secondary) underline-offset-2 hover:text-foreground hover:underline'
+        const extLink = (key, href, children, extra = '') => jsxs('a', { className: `${linkCls} ${extra}`, href, target: '_blank', rel: 'noreferrer noopener', children }, key)
+        const credits = jsxs('div', {
+          className: 'mt-1 flex flex-wrap items-center text-(--ui-text-tertiary)',
+          style: { columnGap: '0.375rem', fontSize: '0.75rem' },
           children: [
-            jsx(Codicon, { name: 'link-external', size: '0.8rem' }),
-            jsx('span', { children: 'github.com/Peteryhs/zephyr' })
+            extLink('repo', REPO_URL, [
+              // sized inline: the host's sheet only carries the Tailwind classes it uses itself
+              jsx('span', { 'aria-hidden': true, style: { display: 'inline-block', width: '0.85rem', height: '0.85rem', flex: 'none' }, dangerouslySetInnerHTML: { __html: GITHUB_MARK_SVG } }),
+              jsx('span', { children: 'Peteryhs/zephyr' })
+            ], 'inline-flex items-center gap-1'),
+            jsx('span', { 'aria-hidden': true, children: '·' }, 'dot'),
+            jsx('span', { children: 'by' }, 'by'),
+            ...AUTHORS.flatMap((a, i) => [
+              i ? jsx('span', { children: 'and' }, `and-${i}`) : null,
+              extLink(a.github, `https://github.com/${a.github}`, a.name)
+            ]).filter(Boolean)
           ]
         })
-
 
         const header = jsxs('div', {
           className: 'mb-6 flex items-start gap-4 rounded-[0.9rem] p-4',
           style: { background: 'var(--zf-glass-sunk, var(--ui-bg-tertiary))', boxShadow: 'var(--zf-lift, none)' },
           children: [
+            // the bare mark, in the page's own ink: no card, no shadow
             jsx('div', {
-              className: 'size-14 shrink-0 rounded-[0.85rem]',
-              // tight and dark, so the shadow grounds the badge instead of haloing it
-              style: { boxShadow: '0 3px 8px rgba(0, 0, 0, 0.32)', isolation: 'isolate' },
-              dangerouslySetInnerHTML: { __html: ZEPHYR_BADGE_SVG }
+              className: 'shrink-0 text-foreground',
+              style: { width: '2.5rem', height: '2.5rem', flex: 'none', marginTop: '0.15rem' },
+              dangerouslySetInnerHTML: { __html: ZEPHYR_MARK_SVG }
             }),
             jsxs('div', {
               className: 'min-w-0',
@@ -9945,12 +9900,12 @@ export default {
                 jsx('div', { className: 'text-[1.05rem] font-semibold text-foreground', children: 'Zephyr' }),
                 jsx('p', {
                   className: 'mt-1 text-[0.8125rem] leading-5 text-(--ui-text-secondary)',
-                  children: 'Hermes, lit by the sky outside. Zephyr follows the sun where you are through dawn, day, '
-                    + 'dusk and night, paints a live sky behind the app that follows your weather, and tints every '
-                    + 'panel with it. Agents can also show copyable ::snippet cards, which you can pin.'
+                  children: 'A better UI for Hermes. Zephyr puts a live sky behind the app that follows your sun and '
+                    + 'weather, or a painting or picture of your own, and tints every panel to match. It also adds a '
+                    + 'floating sidebar, wide tabs, folded work steps and snippet cards you can pin.'
                 }),
                 jsx('p', { className: 'mt-2 text-[0.75rem] text-(--ui-text-tertiary)', children: `Now: ${status}` }),
-                repoLink
+                credits
               ]
             })
           ]
@@ -10184,7 +10139,7 @@ export default {
           }),
           jsx(ToggleRow, {
             checked: isStatusDock,
-            description: 'In Simple mode, the status bar (model, context, agents, radio) becomes a card at the foot of the sessions sidebar. It opens when there is room for at least six sessions, and a click on its header opens or closes it. With the sidebar hidden it sits behind a tab on the left edge. Advanced mode keeps the bar at the bottom.',
+            description: 'In Simple mode, the status bar (model, context, agents, radio) becomes a card at the foot of the sessions sidebar. It opens when there is room for at least six sessions, and a click on its header opens or closes it. It hides with the sidebar and comes back with it. Advanced mode keeps the bar at the bottom.',
             label: 'Status panel in Simple mode',
             onChange: on => {
               statusDock.set(on)
@@ -10502,7 +10457,7 @@ export default {
       clearInterval(flareTimer)
       clearInterval(dockTimer)
       iconStyle?.remove()
-      if (typeof document !== 'undefined') { document.removeEventListener('keydown', onDockKey); document.removeEventListener('pointerdown', onRowPointerDown, true); endPinDrag(); undock(); dock.ro?.disconnect(); dock.popObs?.disconnect(); document.querySelectorAll(`[${DOCK_POP_ATTR}]`).forEach(el => el.removeAttribute(DOCK_POP_ATTR)); dock.tab?.remove(); dock.head?.remove(); dock.style?.remove(); document.getElementById('zephyr-snippet-style')?.remove(); document.getElementById('zephyr-motion-style')?.remove(); closePreview(); unlib(); lib.el?.remove(); SHELF_SLOTS.forEach(sl => shelfEls[sl]?.remove()); shelf$.ro?.disconnect(); try { pinsUnsub?.() } catch {}; document.documentElement.removeAttribute('data-zf-dragging') }
+      if (typeof document !== 'undefined') { document.removeEventListener('pointerdown', onRowPointerDown, true); endPinDrag(); undock(); dock.ro?.disconnect(); dock.popObs?.disconnect(); document.querySelectorAll(`[${DOCK_POP_ATTR}]`).forEach(el => el.removeAttribute(DOCK_POP_ATTR)); document.getElementById('zephyr-statusdock-tab')?.remove(); dock.head?.remove(); dock.style?.remove(); document.getElementById('zephyr-snippet-style')?.remove(); document.getElementById('zephyr-motion-style')?.remove(); closePreview(); unlib(); lib.el?.remove(); SHELF_SLOTS.forEach(sl => shelfEls[sl]?.remove()); shelf$.ro?.disconnect(); try { pinsUnsub?.() } catch {}; document.documentElement.removeAttribute('data-zf-dragging') }
       clearInterval(liveTimer)
       colObs?.disconnect()
       if (typeof document !== 'undefined') unfitColumn()

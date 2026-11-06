@@ -5578,12 +5578,28 @@ const ZEPHYR_ICON_CSS = [
   '}'
 ].join('\n')
 
+const TRANSPARENT_HERMES_WINDOWS = new Set(['overlay', 'hud', 'quick', 'wake'])
+
+function isTransparentHermesWindow(search = typeof location !== 'undefined' ? location.search : '') {
+  try {
+    return TRANSPARENT_HERMES_WINDOWS.has(new URLSearchParams(search || '').get('win'))
+  } catch {
+    return false
+  }
+}
+
 export default {
   id: 'zephyr',
   name: 'Zephyr',
   description: 'Lights Hermes with the real sky: time-of-day themes, a live weather sky, sky-tinted glass, snippet cards and calmer chat.',
 
   register(ctx) {
+    // Hermes's transparent helper windows (the popped-out pet, the HUD, quick
+    // entry, the wake indicator) load every plugin too. They must show the
+    // desktop behind them, so Zephyr paints nothing there: no sky, no glass.
+    // Keep this list in step with TRANSPARENT_WINDOWS in Hermes's main.tsx.
+    if (isTransparentHermesWindow()) return
+
     const stored = key => ctx.storage.get(key, undefined)
 
     // the rail glyph (see "The Zephyr mark")

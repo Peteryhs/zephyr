@@ -5635,15 +5635,23 @@ export default {
       const host = document.createElement('div')
       host.id = 'zephyr-aurora-stars'
       host.setAttribute('aria-hidden', 'true')
-      host.style.cssText = 'position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;mix-blend-mode:screen'
+      // No mix-blend-mode: a blended full-window layer needs its own render
+      // surface every composite, and faint stars over a near-black sky read the
+      // same with plain alpha.
+      host.style.cssText = 'position:fixed;inset:0;z-index:-1;pointer-events:none;display:none'
       // Build only on first use. Opacity is composited; moving CSS masks
       // repainted the full starfield at display refresh even on Low quality.
       let layers = null
       const css = document.createElement('style')
-      css.textContent = '@keyframes zephyr-twinkle { from { opacity: 0 } to { opacity: 1 } }' +
-        '#zephyr-aurora-stars canvas { position:absolute;inset:0;width:100%;height:100%;will-change:opacity;animation:zephyr-twinkle 12s ease-in-out infinite alternate }' +
-        '#zephyr-aurora-stars canvas:nth-of-type(2) { animation-direction:alternate-reverse }' +
-        '@media (prefers-reduced-motion: reduce) { #zephyr-aurora-stars canvas { animation:none !important;opacity:.5 } }' +
+      // The twinkle is NOT a CSS animation. An infinite animation, even an
+      // opacity-only one, keeps the compositor producing a frame on every
+      // display refresh (120 Hz on ProMotion), and because every app surface
+      // above the stars is translucent, each of those frames re-composites the
+      // whole window and re-runs every backdrop blur. It measured as most of
+      // Aurora's GPU load. The crossfade is 12 s long, so stepping it a few
+      // times a second from a timer is indistinguishable and lets the window
+      // go idle between steps.
+      css.textContent = '#zephyr-aurora-stars canvas { position:absolute;inset:0;width:100%;height:100%;will-change:opacity }' +
         // a shooting star: one small composited bar, moved by transform and opacity only
         '#zephyr-aurora-stars .zf-meteor { position:absolute;left:calc(-1 * var(--len, 160px));top:0;width:var(--len, 160px);height:1.6px;border-radius:2px;opacity:0;pointer-events:none;transform-origin:100% 50%;' +
         'background:linear-gradient(90deg, rgba(190,215,255,0), rgba(205,230,255,.55) 70%, rgba(255,255,255,.95));box-shadow:0 0 6px 1px rgba(170,215,255,.35) }' +
@@ -5719,13 +5727,31 @@ export default {
           }
         })
       }
+      // 5 steps a second: the largest per-step change on a 12 s ease is under
+      // 2% opacity on stars that are already faint.
+      const TWINKLE_MS = 12000, TWINKLE_STEP_MS = 200
+      let twinkleT = 0
+      const calmNow = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+      const setTwinkle = k => { if (layers) { layers[0].style.opacity = k.toFixed(3); layers[1].style.opacity = (1 - k).toFixed(3) } }
+      const twinkle = () => {
+        twinkleT = 0
+        if (!layers) return
+        // ease-in-out, alternating: 0 → 1 over 12 s, then back
+        const ph = (performance.now() % (2 * TWINKLE_MS)) / TWINKLE_MS
+        const x = ph < 1 ? ph : 2 - ph
+        setTwinkle(0.5 - 0.5 * Math.cos(Math.PI * x))
+        twinkleT = setTimeout(twinkle, TWINKLE_STEP_MS)
+      }
+      const stopTwinkle = () => { clearTimeout(twinkleT); twinkleT = 0 }
       const sync = () => {
         const on = (document.documentElement.dataset.hermesTheme === AURORA_THEME || (document.documentElement.dataset.hermesTheme === SKY_THEME && stored('aurora') === true)) && stored('away') !== true && stored(STORE_KEYS.sky) !== false
         host.style.display = on ? 'block' : 'none'
-        if (layers) layers.forEach(c => { c.style.animationPlayState = !on || document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus()) ? 'paused' : 'running' })
+        const live = on && !document.hidden && (typeof document.hasFocus !== 'function' || document.hasFocus()) && !calmNow()
+        if (!live) stopTwinkle()
         if (!on || document.hidden) return
         draw()
-        layers.forEach(c => { c.style.animationPlayState = document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus()) ? 'paused' : 'running' })
+        if (calmNow()) setTwinkle(0.5)
+        else if (live && !twinkleT) twinkle()
         // stay just above the sky layer, which is re-added when it restarts
         const sky = document.getElementById('zephyr-gl-sky')
         if (host.parentNode !== document.body ||
@@ -5754,6 +5780,7 @@ export default {
         document.removeEventListener('visibilitychange', sync)
         clearTimeout(resizeT)
         clearTimeout(meteorT)
+        stopTwinkle()
         host.remove()
       })
     }

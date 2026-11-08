@@ -29,6 +29,11 @@ test('Aurora honours Low and Balanced frame rates', () => {
 })
 
 test('star canvases are lazy, reused and paused in background windows', () => {
+  // timers are local, so the twinkle loop is observable and cannot keep the test alive
+  const timers = new Map()
+  let nextTimer = 1
+  const setT = fn => { const id = nextTimer++; timers.set(id, fn); return id }
+  const clearT = id => { timers.delete(id) }
   const body = cut('    let syncAuroraStars =', '    // ── Tabs:')
   const canvases = [], disposers = []
   const context = { clearRect() {}, fillRect() {}, beginPath() {}, arc() {}, fill() {}, createRadialGradient: () => ({ addColorStop() {} }) }
@@ -39,8 +44,9 @@ test('star canvases are lazy, reused and paused in background windows', () => {
   }
   const doc = { hidden: false, hasFocus: () => true, documentElement: { dataset: { hermesTheme: 'zephyr-sky' } }, body: make('body'), createElement: make, getElementById: () => null, addEventListener() {}, removeEventListener() {} }
   const win = { innerWidth: 320, innerHeight: 200, devicePixelRatio: 2, addEventListener() {}, removeEventListener() {} }
-  const sync = new Function('ctx', 'document', 'window', 'MutationObserver', 'stored', 'STORE_KEYS', 'AURORA_THEME', 'SKY_THEME', `${body}; return syncAuroraStars`)(
-    { onDispose: fn => disposers.push(fn) }, doc, win, class { observe() {} disconnect() {} }, () => undefined, { sky: 'sky' }, 'zephyr-aurora', 'zephyr-sky')
+  const sync = new Function('ctx', 'document', 'window', 'MutationObserver', 'stored', 'STORE_KEYS', 'AURORA_THEME', 'SKY_THEME', 'setTimeout', 'clearTimeout', `${body}; return syncAuroraStars`)(
+    { onDispose: fn => disposers.push(fn) }, doc, win, class { observe() {} disconnect() {} }, () => undefined, { sky: 'sky' }, 'zephyr-aurora', 'zephyr-sky', setT, clearT)
+  const twinkling = () => canvases.length > 0 && [...timers.values()].some(fn => fn.name === 'twinkle')
   assert.equal(canvases.length, 0)
   doc.documentElement.dataset.hermesTheme = 'zephyr-aurora'
   doc.hidden = true
@@ -52,14 +58,24 @@ test('star canvases are lazy, reused and paused in background windows', () => {
   assert.equal(canvases[0].width, 480)
   sync()
   assert.equal(canvases.length, 2)
+  // no CSS animation: an infinite one keeps the compositor at display refresh
+  assert.ok(canvases.every(c => !c.style.animation && !c.style.animationPlayState))
+  assert.ok(twinkling())
+  // the step writes complementary opacities
+  { const [id, fn] = [...timers.entries()].find(([, f]) => f.name === 'twinkle'); timers.delete(id); fn() }
+  assert.ok(Math.abs(Number(canvases[0].style.opacity) + Number(canvases[1].style.opacity) - 1) < 0.002)
   doc.hidden = true
   sync()
-  assert.ok(canvases.every(c => c.style.animationPlayState === 'paused'))
+  assert.ok(!twinkling())
   doc.hidden = false
   doc.hasFocus = () => false
   sync()
-  assert.ok(canvases.every(c => c.style.animationPlayState === 'paused'))
+  assert.ok(!twinkling())
+  doc.hasFocus = () => true
+  sync()
+  assert.ok(twinkling())
   disposers.forEach(fn => fn())
+  assert.ok(!twinkling())
 })
 
 test('the Aurora star layer hides and returns when Sky changes', () => {
@@ -67,8 +83,8 @@ test('the Aurora star layer hides and returns when Sky changes', () => {
   let sky = true, draws = 0
   const host = { style: {}, parentNode: {} }
   const doc = { documentElement: { dataset: { hermesTheme: 'zephyr-aurora' } }, body: host.parentNode, getElementById: () => null }
-  const sync = new Function('document', 'host', 'AURORA_THEME', 'stored', 'STORE_KEYS', 'draw', 'SKY_THEME', 'layers', `${body}; return sync`)(
-    doc, host, 'zephyr-aurora', key => key === 'sky' ? sky : false, { sky: 'sky' }, () => draws++, 'zephyr-sky', [])
+  const sync = new Function('document', 'host', 'AURORA_THEME', 'stored', 'STORE_KEYS', 'draw', 'SKY_THEME', 'layers', 'calmNow', 'stopTwinkle', 'twinkle', 'setTwinkle', 'twinkleT', `${body}; return sync`)(
+    doc, host, 'zephyr-aurora', key => key === 'sky' ? sky : false, { sky: 'sky' }, () => draws++, 'zephyr-sky', [], () => false, () => {}, () => {}, () => {}, 1)
   sync()
   assert.equal(host.style.display, 'block')
   sky = false

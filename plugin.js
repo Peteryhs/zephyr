@@ -39,7 +39,7 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 const THEMES_AREA = 'themes'
 const DIRECTIVE_AREA = 'transcript.directives'
 
-const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', chrome: 'chrome', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin', home: 'home', homeCard: 'homeCard', recents: 'recents' }
+const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', chrome: 'chrome', replyGround: 'replyGround', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin', home: 'home', homeCard: 'homeCard', recents: 'recents' }
 const REPO_URL = 'https://github.com/Peteryhs/zephyr'
 
 // write an attribute only when its value changes: an identical write still queues a
@@ -366,7 +366,112 @@ const ensurePictureStyle = url => {
     document.head.appendChild(el)
   }
   const value = `:root { --zf-pic: url("${String(url).replace(/"/g, '%22')}"); }`
-  if (el.textContent !== value) el.textContent = value
+  if (el.textContent !== value) { el.textContent = value; pictureRevision += 1 }
+}
+
+// The image changes rarely; decode a small source grid once, then crop it to
+// the reading column when the existing material rewrite asks for samples.
+let pictureReady = () => {}
+let pictureRevision = 0
+let pictureSource = null
+let pictureSourceUrl = ''
+let pictureRequestUrl = ''
+const preparePictureBackdrop = url => {
+  // Returning to the cached picture must also invalidate a different pending
+  // decode, or its late callback replaces the picture we just switched to.
+  if (url === pictureSourceUrl) { pictureRequestUrl = url; return }
+  if (url === pictureRequestUrl || typeof Image === 'undefined') return
+  pictureRequestUrl = url
+  const image = new Image()
+  image.crossOrigin = 'anonymous'
+  image.onload = () => {
+    if (pictureRequestUrl !== url) return
+    try {
+      const canvas = document.createElement('canvas'), scale = Math.min(1, 64 / Math.max(image.naturalWidth, image.naturalHeight))
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+      pictureSource = { url, width: image.naturalWidth, height: image.naturalHeight, pixels: ctx.getImageData(0, 0, canvas.width, canvas.height), gridWidth: canvas.width, gridHeight: canvas.height }
+      pictureSourceUrl = url
+      pictureReady(url)
+    } catch {
+      pictureSource = { url, failed: true }
+      pictureSourceUrl = url
+      pictureReady(url)
+    }
+  }
+  image.onerror = () => {
+    if (pictureRequestUrl !== url) return
+    pictureSource = { url, failed: true }
+    pictureSourceUrl = url
+    pictureReady(url)
+  }
+  image.src = url
+}
+
+const pictureBackdrop = (bounds, filtered = true) => {
+  const source = pictureSource
+  if (!source || source.url !== String(SKIN.image || BACKWATER_URL) || source.failed) return [[0, 0, 0], [255, 255, 255]]
+  const width = Math.max(1, window.innerWidth || 1), height = Math.max(1, window.innerHeight || 1)
+  const fallback = { left: (width - Math.min(width, 736)) / (2 * width), top: 0, right: (width + Math.min(width, 736)) / (2 * width), bottom: 1 }
+  const region = bounds && ['left', 'top', 'right', 'bottom'].every(key => Number.isFinite(bounds[key])) ? bounds : fallback
+  const left = Math.max(0, Math.min(1, region.left)) * width, top = Math.max(0, Math.min(1, region.top)) * height
+  const right = Math.max(0, Math.min(1, region.right)) * width, bottom = Math.max(0, Math.min(1, region.bottom)) * height
+  if (right <= left || bottom <= top) return [[0, 0, 0], [255, 255, 255]]
+  const scale = SKIN.fit === 'contain'
+    ? Math.min(width / source.width, height / source.height)
+    : Math.max(width / source.width, height / source.height)
+  const drawnWidth = source.width * scale, drawnHeight = source.height * scale
+  const offsetX = (width - drawnWidth) * skinNumber(SKIN.posX, 46) / 100
+  const offsetY = (height - drawnHeight) * skinNumber(SKIN.posY, 45) / 100
+  const pixels = source.pixels.data, samples = [], deeper = hexRgb(SKIN.deeper)
+  const scrim = skinNumber(SKIN.scrim, 0.31)
+  const blend = (a, b, t) => [0, 1, 2].map(i => a[i] * (1 - t) + b[i] * t)
+  const chat = filtered && document.documentElement.matches?.("html[data-zf-chat='1']")
+  const applyBackdrop = (rgb, sx, sy) => {
+    // Transparent image pixels reveal the CSS background color before either scrim.
+    if (rgb.length > 3) rgb = blend(rgb, deeper, 1 - rgb[3] / 255)
+    const nx = (sx / width - 0.5) / 1.25, ny = (sy / height - 0.42) / 1.15
+    const radius = Math.hypot(nx, ny)
+    const stops = [[0, 0], [.35, .10], [.55, .32], [.72, .62], [.88, .90], [1, 1.05]]
+    let falloff = stops[stops.length - 1][1]
+    for (let i = 1; i < stops.length; i += 1) if (radius <= stops[i][0]) {
+      const t = (radius - stops[i - 1][0]) / (stops[i][0] - stops[i - 1][0])
+      falloff = stops[i - 1][1] * (1 - t) + stops[i][1] * t
+      break
+    }
+    // CSS stacks the radial and linear picture scrims before the chat backdrop filter.
+    const alpha = 1 - (1 - scrim * falloff) * (1 - scrim * 0.70)
+    rgb = blend(rgb, deeper, Math.min(1, alpha))
+    if (chat) {
+      const luma = rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722
+      const sat = skinNumber(SKIN.saturate, 1.3), brightness = skinNumber(SKIN.brightness, 0.9)
+      rgb = rgb.map(v => Math.max(0, Math.min(255, (luma + (v - luma) * sat) * brightness)))
+    }
+    // html::after paints its own radial scrim above the filtered backdrop.
+    if (chat) {
+      const afterRadius = Math.hypot((sx / width - 0.5) / 1.2, (sy / height - 0.4) / 0.9)
+      rgb = blend(rgb, deeper, scrim * (0.45 + 0.50 * Math.min(1, afterRadius)))
+    }
+    return rgb
+  }
+  const sampleAt = (sx, sy) => {
+    const ix = (sx - offsetX) / drawnWidth * source.gridWidth, iy = (sy - offsetY) / drawnHeight * source.gridHeight
+    let rgba = [...deeper, 255]
+    if (ix >= 0 && iy >= 0 && ix < source.gridWidth && iy < source.gridHeight) {
+      const index = (Math.floor(iy) * source.gridWidth + Math.floor(ix)) * 4
+      rgba = [pixels[index], pixels[index + 1], pixels[index + 2], pixels[index + 3]]
+    }
+    return applyBackdrop(rgba, sx, sy)
+  }
+  // A uniform screen grid estimates the local mean, including `contain`
+  // letterbox. Extrema from a whole viewport made night glows at the edge
+  // trigger a wash over otherwise readable prose in the reading column.
+  for (let y = 0; y < 16; y += 1) for (let x = 0; x < 16; x += 1) {
+    samples.push(sampleAt(left + (x + 0.5) * (right - left) / 16, top + (y + 0.5) * (bottom - top) / 16))
+  }
+  return [replyMean(samples)]
 }
 
 // Session tabs (the session rows in the tree — `data-tree-tab`, workspace or
@@ -909,6 +1014,142 @@ const zephyrMaterial = sky => {
     blendRgb([140, 152, 172], hue, 0.18)
   ]
   return { tint, tintHi, ink, night: n, accent: PHASE_ACCENT[phaseAt(new Date())] }
+}
+
+// ── Reply legibility ───────────────────────────────────────────────────────
+// CSS composites encoded sRGB channels; WCAG linearises the result, not the
+// inputs. Solving that same pair avoids a guessed day/night opacity threshold.
+const replyLuminance = rgb => rgb.reduce((sum, v, i) => {
+  const s = clamp01(v / 255)
+  return sum + (s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4) * [0.2126, 0.7152, 0.0722][i]
+}, 0)
+const replyContrast = (a, b) => {
+  const x = replyLuminance(a), y = replyLuminance(b)
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
+}
+const replyComposite = (ground, fill, alpha) => ground.map((v, i) => v + (fill[i] - v) * alpha)
+const replyMean = samples => samples.reduce((mean, rgb) => mean.map((v, i) => v + rgb[i] / samples.length), [0, 0, 0])
+const REPLY_TARGET = 4.5
+const replyMaterial = (ink, tint, samples) => {
+  const before = Math.min(...samples.map(rgb => replyContrast(ink, rgb)))
+  // The opposite pole comes from the existing tint/ink ramp. Custom dark ink
+  // needs the light end; reusing the normal dark glass would reduce contrast.
+  const dark = replyContrast(ink, tint) >= REPLY_TARGET ? tint : ZF_INK.map(v => v * 0.1)
+  const light = replyComposite(tint, [255, 255, 255], 0.97)
+  let color = replyContrast(ink, dark) >= replyContrast(ink, light) ? dark : light
+  if (replyContrast(ink, color) < REPLY_TARGET) color = [255, 255, 255]
+  if (before >= REPLY_TARGET) return { alpha: 0, color, before, after: before }
+  const contrastAt = alpha => Math.min(...samples.map(rgb => replyContrast(ink, replyComposite(rgb, color, alpha))))
+  let lo = 0, hi = 1
+  for (let i = 0; i < 20; i += 1) {
+    const mid = (lo + hi) / 2
+    if (contrastAt(mid) >= REPLY_TARGET) hi = mid
+    else lo = mid
+  }
+  // Round upward: serialising CSS must never round a passing pair below AA.
+  const alpha = Math.ceil(hi * 1000000) / 1000000
+  return { alpha, color, before, after: contrastAt(alpha) }
+}
+const REPLY_SHELL = "[data-slot='aui_assistant-message-content']"
+const replyGroundCss = material => {
+  // No rule at all at zero/off: even padding, nested fills and hit areas are
+  // byte-for-byte the host's previous styles at night.
+  if (!material.alpha) return ''
+  const shell = 'html body ' + REPLY_SHELL
+  return [
+    ':root {',
+    `  --zf-reply-ground: rgba(${material.color.join(', ')}, ${material.alpha});`,
+    '}',
+    // The host shell pads only the left gutter, so a wash painted on its bare
+    // box put the first line on the top edge and full lines on the right edge,
+    // where the 12px radius then cut into the glyphs (screenshots 2026-11-08).
+    // A small block padding and a right gutter fix it; the box still spans the
+    // column, so it keeps lining up with the composer, and the measure only
+    // loses ~10px.
+    shell + ' {',
+    '  background: var(--zf-reply-ground) !important;',
+    '  border-radius: var(--zf-radius, 12px) !important;',
+    '  padding-block: 0.4rem !important;',
+    '  padding-inline-end: 0.6rem !important;',
+    '  border-color: transparent !important; outline: 0 !important; box-shadow: none !important;',
+    '}',
+    // Content primitives lose their fill; the reply is their sole ground.
+    // Card containers keep one material step, while pre/code inside a card
+    // cannot paint a second framed well (including Gruvbox/Shiki overrides).
+    shell + " :is(.aui-md, pre, pre code, table, thead, tbody, tr, th, td, blockquote, .zephyr-work-summary, [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-slot='tool-block']:not([data-tool-open])) {",
+    '  background: transparent !important; box-shadow: none !important;',
+    '}',
+    shell + ' :is(pre, pre code, blockquote) { border-color: transparent !important; outline: 0 !important; }',
+    // Thinking/activity rows belong to this ground too; their own faint edge
+    // otherwise survives as a ghost card after its fill has been flattened.
+    shell + " :is([data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-slot='tool-block']:not([data-tool-open])) { border-color: transparent !important; }",
+    // These are cards, not another reply wash. Keep their current materials;
+    // only the redundant ring/lift disappears inside the unframed shell.
+    shell + " :is([data-slot='code-card'], [data-slot='file-diff-panel'], [data-slot='tool-block'][data-tool-open], [data-slot='clarify-inline'], .zf-snip, [class*='bg-(--ui-widget-surface-background)'], [class*='bg-(--ui-chat-surface-background)']) {",
+    '  box-shadow: none !important;',
+    '}',
+    // Tool command wells and inner diff/code wrappers otherwise add a second
+    // ground inside the retained card, even after its nested pre is cleared.
+    shell + " [data-slot='tool-block'] div:has(> code),",
+    shell + " :is([data-slot='code-card'], [data-slot='file-diff-panel']) :is([class*='bg-(--ui-widget-surface-background)'], [class*='bg-(--ui-chat-surface-background)']) {",
+    '  background: transparent !important; border-color: transparent !important; box-shadow: none !important;',
+    '}',
+    // Fold/thinking/tool labels and actions share the body ground. Without
+    // this, tertiary ink still disappeared even after the prose passed AA.
+    shell + " :is(.zephyr-work-summary, [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-slot='tool-block']:not([data-tool-open]), [data-slot*='actions'], [data-slot*='feedback'], time) {",
+    '  color: inherit !important; text-shadow: none !important;',
+    '}',
+    // The app normally places actions beside content; keep that cluster on
+    // the same ground when it is a sibling, without framing the whole root.
+    'html body [data-slot=\'aui_assistant-message-root\'] > :is([data-slot*=\'actions\'], [data-slot*=\'feedback\']) {',
+    '  background: var(--zf-reply-ground) !important; border-radius: var(--zf-radius, 12px);',
+    '  color: inherit !important; text-shadow: none !important;',
+    '}',
+  ].join('\n')
+}
+
+// Read only theme/viewport state, never individual messages. Hermes themes can
+// supply dark ink too, so inactive Zephyr appearance shares the same solver.
+const replyCssRgb = value => {
+  if (SKIN_HEX.test(String(value).trim())) return hexRgb(String(value).trim())
+  const numbers = String(value).match(/[\d.]+/g)?.map(Number)
+  // Computed color-mix values may stay in color(srgb …) notation; treating
+  // their 0..1 channels as bytes reverses the native-theme polarity decision.
+  if (/^color\(srgb\s/i.test(String(value).trim()) && numbers?.length >= 3) return numbers.slice(0, 3).map(v => v * 255)
+  return numbers?.length >= 3 ? numbers.slice(0, 3) : null
+}
+const replyHostGround = () => {
+  const fallback = { ink: [255, 255, 255], tint: ZF_NIGHT, samples: [ZF_NIGHT], bounds: { left: 0, top: 0, right: 1, bottom: 1 } }
+  if (typeof getComputedStyle !== 'function') return fallback
+  const thread = document.querySelector("[data-slot='aui_thread-content']") || document.body
+  if (!thread) return fallback
+  const cs = getComputedStyle(thread)
+  const ink = replyCssRgb(cs.color) || fallback.ink
+  let ground = document.documentElement.classList?.contains?.('dark') ? ZF_NIGHT : [255, 255, 255]
+  const ancestors = []
+  for (let el = thread; el; el = el.parentElement) ancestors.unshift(el)
+  for (const el of ancestors) {
+    const color = getComputedStyle(el).backgroundColor
+    const rgb = replyCssRgb(color)
+    const values = String(color).match(/[\d.]+/g)?.map(Number)
+    if (rgb) ground = replyComposite(ground, rgb, values?.[3] ?? 1)
+  }
+  const rect = thread.getBoundingClientRect?.()
+  const width = Math.max(1, window.innerWidth), height = Math.max(1, window.innerHeight)
+  const bounds = rect?.width > 0 ? {
+    left: clamp01(rect.left / width), right: clamp01(rect.right / width),
+    top: 0, bottom: 1,
+  } : fallback.bounds
+  return { ink, tint: replyLuminance(ink) > 0.18 ? ZF_NIGHT : [250, 251, 253], samples: [ground], bounds }
+}
+const replyCssSky = sky => {
+  // The fallback really is these encoded gradient stops plus the orb/scrim;
+  // weather does not affect that path. Average the bare and orb-lit stops.
+  const dim = 1 - (1 - sky.exposure) * 0.08
+  return [replyMean([sky.top, sky.mid, sky.low, sky.horizon].flatMap(rgb => [
+    rgb.map(v => v * dim),
+    replyComposite(rgb, sky.orb, sky.orbAlpha).map(v => v * dim),
+  ]))]
 }
 
 // The sky is INTERPOLATED, not switched. Each anchor is the palette at one hour;
@@ -4711,6 +4952,39 @@ const createSky = (opts = {}) => {
 
   return {
     canvas: root,
+    // Read the retained, already-rendered sky only when material is refreshed.
+    // The default drawing buffer is discarded after presentation; reading it
+    // later returned black. rtSky survives, needs no redraw, and includes the
+    // weather, grade and Aurora that a clock/exposure proxy cannot know.
+    backdrop(bounds = { left: 0, top: 0, right: 1, bottom: 1 }) {
+      if (run.dirty) return null
+      if (!(bounds.right > bounds.left) || !(bounds.bottom > bounds.top)) return null
+      if (!rtSky?.w || !run.skyInRt || !gl.readPixels) {
+        return run.frame ? [replyMean(run.frame.cols.map(c => c.map(v => clamp01(v * run.dim) * 255)))] : null
+      }
+      const x = Math.floor(clamp01(bounds.left) * rtSky.w)
+      const y = Math.floor((1 - clamp01(bounds.bottom)) * rtSky.h)
+      const w = Math.max(1, Math.min(rtSky.w - x, Math.ceil((bounds.right - bounds.left) * rtSky.w)))
+      const h = Math.max(1, Math.min(rtSky.h - y, Math.ceil((bounds.bottom - bounds.top) * rtSky.h)))
+      const pixels = new Uint8Array(w * h * 4)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, rtSky.fb)
+      try {
+        gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+      } catch {
+        return null
+      } finally { gl.bindFramebuffer(gl.FRAMEBUFFER, null) }
+      // A lost/incomplete context leaves zeroed readback bytes. Treat that as
+      // unavailable rather than mistaking a failed read for a legible night.
+      if (!pixels[3]) return null
+      // The shared input is the reading column's mean, not the brightest
+      // moon/aurora pixel anywhere in the viewport. A positive blur kernel
+      // preserves this mean apart from the small crop-edge contribution.
+      const mean = [0, 0, 0]
+      for (let i = 0; i < pixels.length; i += 4) {
+        for (let c = 0; c < 3; c += 1) mean[c] += pixels[i + c] * run.dim / (w * h)
+      }
+      return [mean]
+    },
     start() {
       if (run.disposed) return
       run.on = true
@@ -5939,6 +6213,7 @@ export default {
     // `sky` because both lived in one <style>.
     const sky = atom(stored(STORE_KEYS.sky) !== false)
     const chromeOn = atom(stored(STORE_KEYS.chrome) !== false)
+    const replyGround = atom(stored(STORE_KEYS.replyGround) !== false)
     // 'sunset' = the painted sky (the default); 'gruvbox' = the built-in
     // Backwater skin at its shipped defaults; 'custom' = the same skin driven by
     // your own picture and knobs (zephyr-theme.json). Built-in and custom differ
@@ -5967,6 +6242,7 @@ export default {
       ctx.storage.set(STORE_KEYS.tint, tint.get())
       ctx.storage.set(STORE_KEYS.sky, sky.get())
       ctx.storage.set(STORE_KEYS.chrome, chromeOn.get())
+      ctx.storage.set(STORE_KEYS.replyGround, replyGround.get())
       ctx.storage.set(STORE_KEYS.look, look.get())
       ctx.storage.set(STORE_KEYS.margins, margins.get())
       ctx.storage.set(STORE_KEYS.collapseWork, collapseWork.get())
@@ -8772,6 +9048,9 @@ export default {
     let lastWeatherSig = ''
     let previewTimer = null
     let zfDisposed = false
+    let replyRefreshKey = ''
+    let replyWeatherUntil = 0
+    let replyPictureVersion = 0
 
     const reducedMotion = () =>
       typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -8801,6 +9080,8 @@ export default {
       // A real change should land while you are still looking at it: two
       // minutes, not ten (and the 4x convergence in stepScene does the rest).
       glSky.setWeather(weights, mode === 'live' ? 120 : 25, instant)
+      replyRefreshKey = ''
+      replyWeatherUntil = Date.now() + (mode === 'live' ? 120_000 : 25_000)
     }
 
     // The sky runs at the quality's rate on battery too (Peter, 2026-10-10:
@@ -8864,15 +9145,60 @@ export default {
 
     // Background and styling are independent across all four looks.
     const surfaceOn = () => chromeOn.get() || sky.get() || look.get() !== 'sunset'
+    const renderReplyGround = now => {
+      if (typeof document === 'undefined' || !document.head) return
+      let sheet = document.getElementById('zephyr-reply-ground')
+      if (!replyGround.get()) { sheet?.remove(); replyRefreshKey = ''; return }
+      if (document.hidden) return
+      // Ordinary sky material keeps its five-minute grid. During a weather
+      // blend the existing minute tick also samples its changing light; no
+      // message observer, GPU redraw or new timer is involved.
+      const key = [Math.floor(now.getTime() / SKY_STEP_MS), away, chromeOn.get(), sky.get(), look.get(), AURORA_LOOK,
+        Boolean(glSky), weatherMode.get(), lastWeatherSig, replyPictureVersion, pictureRevision,
+        ...SKIN_SLIDERS.map(([k]) => SKIN[k]), ...SKIN_COLORS.map(([k]) => SKIN[k]), SKIN.fit, SKIN.posX, SKIN.posY,
+        Date.now() < replyWeatherUntil ? Math.floor(Date.now() / 60_000) : 'settled',
+        document.documentElement.className, window.innerWidth, window.innerHeight].join(':')
+      if (key === replyRefreshKey) return
+      replyRefreshKey = key
+      const native = replyHostGround()
+      const styled = !away && chromeOn.get() && document.documentElement.classList?.contains?.('dark')
+      const gradient = skyAt(new Date(Math.floor(now.getTime() / SKY_STEP_MS) * SKY_STEP_MS))
+      const material = LOOK_MODE === 'gruvbox' ? gruvboxMaterial() : zephyrMaterial(gradient)
+      const ink = styled ? LOOK_MODE === 'gruvbox' ? hexRgb(SKIN.ink) : [255, 255, 255] : native.ink
+      let samples = native.samples
+      if (!away && sky.get()) {
+        if (LOOK_MODE === 'gruvbox') {
+          preparePictureBackdrop(String(SKIN.image || BACKWATER_URL))
+          samples = pictureBackdrop(native.bounds, chromeOn.get())
+        }
+        else {
+          const rendered = glSky?.backdrop(native.bounds)
+          samples = rendered || replyCssSky(gradient)
+          // A just-held scene is still waiting for the sky's own scheduled
+          // draw. Retry on the existing tick instead of caching its old frame.
+          if (glSky && !rendered) replyRefreshKey = ''
+        }
+      }
+      if (!samples.length) samples = replyCssSky(gradient)
+      const css = replyGroundCss(replyMaterial(ink, styled ? material.tint : native.tint, samples))
+      if (!css) { sheet?.remove(); return }
+      if (!sheet) {
+        sheet = document.createElement('style')
+        sheet.id = 'zephyr-reply-ground'
+        document.head.appendChild(sheet)
+      }
+      if (sheet.textContent !== css) sheet.textContent = css
+    }
     const renderSky = now => {
       syncAuroraStars()
-      if (away) { dropGl(); clearSky(); return }
+      if (away) { dropGl(); clearSky(); renderReplyGround(now); return }
       const lookNow = look.get()
       const backdrop = sky.get()
       const chrome = chromeOn.get()
       if (!backdrop && !chrome) {
         dropGl()
         clearSky()
+        renderReplyGround(now)
         return
       }
       // gruvbox is a still painting, so there is no canvas sky and no clock to
@@ -8880,6 +9206,7 @@ export default {
       const gl = !backdrop || lookNow !== 'sunset' ? (dropGl(), null) : glOn.get() ? ensureGl() : (dropGl(), null)
       if (gl) gl.setHold(heldMoment())
       paintSky(now, Boolean(gl), { backdrop, chrome })
+      renderReplyGround(now)
     }
 
     const refreshWeather = () =>
@@ -8911,7 +9238,7 @@ export default {
     const tick = () => {
       const now = nowAt()
       writeSun(now)
-      if (surfaceOn()) renderSky(now)
+      if (surfaceOn() || replyGround.get()) renderSky(now)
       if (glSky && weatherMode.get() === 'live' && !liveWeather) applyWeather()
       if (phaseAt(now) !== phase.get()) apply(now)
     }
@@ -8988,6 +9315,8 @@ export default {
           if (!away) { away = true; ctx.storage.set('away', true); dropGl(); clearSky(); setAccentOverride(null) }
           appearance.set('hermes')
           syncAuroraStars()
+          replyRefreshKey = ''
+          renderReplyGround(nowAt())
           return
         }
         if (picked === SKY_THEME) {
@@ -9096,6 +9425,7 @@ export default {
     if (typeof storedPicture === 'string' && storedPicture.length > 32) customSkin.image = storedPicture
     // the built-in look always paints the shipped defaults
     setSkin(look.get() === 'custom' ? customSkin : { ...SKIN_DEFAULTS })
+    pictureReady = () => { if (!zfDisposed) { replyPictureVersion += 1; renderReplyGround(nowAt()) } }
     ensurePictureStyle(SKIN.image)
     const skin = atom({ ...customSkin })
     const lookWeather = (() => { const v = stored('lookWeather'); return v && typeof v === 'object' && !Array.isArray(v) ? { ...v } : {} })()
@@ -9110,6 +9440,8 @@ export default {
         appearance.set('hermes')
         dropGl(); clearSky(); setAccentOverride(null); syncAuroraStars()
         requestTheme(stored('hermesTheme') && !isOurTheme(stored('hermesTheme')) ? stored('hermesTheme') : 'nous')
+        replyRefreshKey = ''
+        renderReplyGround(nowAt())
         return
       }
       if (typeof document !== 'undefined') {
@@ -9851,6 +10183,7 @@ export default {
         const isTint = useValue(tint)
         const isSky = useValue(sky)
         const isChrome = useValue(chromeOn)
+        const isReplyGround = useValue(replyGround)
         const isMargins = useValue(margins)
         const isHome = useValue(homeOn)
         const isHomeCard = useValue(homeCard)
@@ -10123,6 +10456,12 @@ export default {
                 action: jsx(Button, { size: 'sm', variant: 'ghost', onClick: () => homeApi.reset(), children: 'Forget' })
               })
             : null,
+          jsx(ToggleRow, {
+            checked: isReplyGround,
+            description: 'Keep replies readable over bright backgrounds. Adds a soft fill only when needed.',
+            label: 'Reply legibility',
+            onChange: on => { replyGround.set(on); persist(); renderSky(nowAt()) }
+          }),
           jsx(ToggleRow, {
             checked: isMargins,
             description: 'A narrower reading column with wide margins, lined up with the message box.',
@@ -10481,6 +10820,8 @@ export default {
       document.querySelector?.(`[${STACK_FLARE_ATTR}]`)?.removeAttribute(STACK_FLARE_ATTR)
       dropGl()
       clearSky()
+      document.getElementById('zephyr-reply-ground')?.remove()
+      pictureReady = () => {}
       setAccentOverride(null)
       unpinWordmark()
       if (typeof window !== 'undefined') window.removeEventListener?.('resize', onResize)

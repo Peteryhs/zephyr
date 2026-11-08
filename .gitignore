@@ -2,3 +2,5 @@
 *.bak
 *.pre-*-backup
 *.log
+# Reproducible reply-material captures; the measurement summary lives in docs/.
+artifacts/reply-legibility/

@@ -73,6 +73,8 @@ values and never compounds. The exported `frameAt()` takes no timestamp; the exp
 exposes `FRAG`, `VERT`, `UNIFORM_NAMES`, `ATTRIB`, `applyScene`, `applyLift`, `frameAt`,
 `drawParams`, `detUnit`, `SCENE`, `LIFT_BASE` and `skyState`.
 
+The plugin’s reply-legibility material samples the host wrapper’s retained sky buffer on the existing material cadence. This is a readback of the graded/weathered sky under the reading column, not an exposure value inferred from the hour. It uses the local mean as its shared input; it does not change engine evaluation, uniforms, shader math or frame scheduling. Picture looks use decoded picture samples instead. The [reply report](reply-legibility.md) records contrast results and the limits of mean-based sampling.
+
 ## Checks and visual verification
 
 ```sh

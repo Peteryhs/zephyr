@@ -103,3 +103,19 @@ test('legacy Aurora migration and explicit live mode do not turn into held Night
     run.dispose()
   }
 })
+
+test('reply legibility defaults on and persists independently', () => {
+  const storage = {}
+  let run = setup(storage)
+  const toggle = () => run.nodes().find(n => n.props?.label === 'Reply legibility')
+  assert.equal(toggle()?.props.checked, true)
+  toggle().props.onChange(false)
+  assert.equal(storage.replyGround, false)
+  run.dispose()
+
+  run = setup(storage)
+  assert.equal(toggle()?.props.checked, false)
+  toggle().props.onChange(true)
+  assert.equal(storage.replyGround, true)
+  run.dispose()
+})

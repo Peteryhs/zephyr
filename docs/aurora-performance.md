@@ -44,6 +44,8 @@ Median star-layer setup over nine warm samples, after discarding the first sampl
 
 The deterministic High sky PNGs before and after have the same SHA-256 hash. Balanced intentionally trades resolution and cadence for lower cost; the lights remain visible under the existing 5 px blur. No northern-lights shader math was changed.
 
+The later reply-legibility feature does not change these frame settings or the star layers. It adds an occasional retained-buffer readback during material refresh, so these historical measurements do not include that refresh cost. See the [reply-legibility report](reply-legibility.md) for current measurements and limitations; no new whole-Hermes CPU or battery claim is made.
+
 ## Reproduction
 
 The optional benchmarks use Playwright. Set `ZEPHYR_PLAYWRIGHT_ROOT` to a directory containing its installation and optionally `ZEPHYR_CHROMIUM` to a Chromium executable. On this Windows machine they discover the existing Hermes tools and installed Playwright browser.

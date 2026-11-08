@@ -50,3 +50,14 @@ Target: the formulas and ordering of Dynamic Sky rebuild specification 1.0. Inde
 - Forbidden tells: marketing hero, decorative dashboard cards, fake weather readings, stars/terrain/particles outside the reference, generic sunrise gradient replacing the atmosphere.
 - Tokens: ink #20303d, secondary #596874, action #315d83, panel #f9fbfc, rule rgba(40,61,78,.13); Segoe UI Variable/Segoe UI; 16 px dock/panel radius, 8 px controls; translucent controls keep contrast independent of sky brightness.
 - Verification: CPU anchor tests, real GPU pixel tests, desktop/mobile screenshots, all 18 fixed scenes in three aspect ratios.
+
+## Assistant reply ground DOM contract
+
+The default-on **Reply legibility** setting adds an independent `zephyr-reply-ground` sheet only when the shared material solver finds a body-text contrast below 4.5:1. At zero alpha or with the setting off, that sheet is absent. Hermes appearance and light themes use native foreground/background colours; Zephyr does not assume light ink there.
+
+- `[data-slot='aui_assistant-message-content']` owns the fill, including streaming markdown, thinking/activity, and `.zephyr-work-summary`. The shell must remain assistant-only. No width, margin, overflow or message animation is added; the wash adds `padding-block: 0.4rem` and a `0.6rem` inline-end gutter (the host's left text indent is untouched) so glyphs never meet its edge or the corner radius.
+- `pre`, nested `pre code`, markdown wrappers, tables and blockquotes inside that shell lose redundant fills. Code/diff/open-tool/clarify/snippet cards and generic transcript widget cards keep their existing ground, with the extra lift removed. Tool command wells and inner code/diff widget backgrounds become transparent.
+- Assistant action/feedback slots inside the shell share its ink. Direct action/feedback children of `[data-slot='aui_assistant-message-root']` receive the same fill as a separate small cluster. Other host action arrangements require validation against the live DOM.
+- User-message roots, edit containers, composer, sidebar, home and transient overlays are not selected.
+
+The host sky wrapper exposes a cadence-only `backdrop(bounds)` read of its existing retained framebuffer; engine modules, shader math, uniforms and frame scheduling are unchanged. The picture path derives samples from decoded image bytes and current skin controls. See [reply legibility](reply-legibility.md) for the sampling limits and the surface checklist.

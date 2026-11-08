@@ -1790,23 +1790,19 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
     '  box-shadow: 0 0 6px rgba(59, 130, 246, 0.6) !important;',
     '  opacity: 1 !important;',
     '  position: relative !important;',
-    '  animation: zephyr-running-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;',
+    // Static on purpose. An infinite pulse, however small, keeps the
+    // compositor drawing the WHOLE window at display refresh (120 Hz) for as
+    // long as any session runs, and every translucent surface above the sky
+    // is re-composited each time. A lit dot says "running" just as well.
+    '  animation: none !important;',
     '}',
     // The pulse ring rides a pseudo-element: transform and opacity only, so it
     // animates on the compositor instead of repainting the dot's box-shadow on
     // the main thread while the history list scrolls.
     ":is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) [class*='place-items-center'] span[role='status']:is([class*='ui-accent'], [aria-label*='session running' i])::after {",
-    "  content: ''; position: absolute; inset: 0; border-radius: 9999px; pointer-events: none;",
-    '  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.6) !important;',
-    '  animation: zephyr-running-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;',
-    '}',
-    '@keyframes zephyr-running-dot {',
-    '  0%, 100% { transform: scale(1); }',
-    '  50% { transform: scale(1.15); }',
-    '}',
-    '@keyframes zephyr-running-ring {',
-    '  0%, 100% { transform: scale(0.8); opacity: 0.7; }',
-    '  50% { transform: scale(1.5); opacity: 0; }',
+    "  content: ''; position: absolute; inset: -3px; border-radius: 9999px; pointer-events: none;",
+    '  box-shadow: 0 0 0 1.5px rgba(59, 130, 246, 0.35) !important;',
+    '  animation: none !important;',
     '}',
     '@media (prefers-reduced-motion: reduce) {',
     // Mirrors the running-dot selectors' specificity (plus html) so the
@@ -3189,6 +3185,11 @@ const ensurePreviewMeasureShim = () => {
 // is the plain time-of-day gradient from skyStyleFor.
 
 // ══ §6 SKY ENGINE (weather presets, shader, createSky) ══════════════════════
+
+// Called right after the sky canvas repaints. Anything else that animates
+// behind the app (the Aurora star twinkle) steps here, in the same task, so it
+// lands in the compositor frame the sky already costs instead of adding its own.
+const skyFrameHooks = new Set()
 
 const WEATHER_PRESETS = {
   clear:    { cu: 0.00, sc: 0.00, st: 0.00, dark: 0.0, ac: 0.00, as: 0.00, ci: 0.08, cc: 0.00, cs: 0.00, haze: 0.04, rain: 0 },
@@ -4680,6 +4681,7 @@ const createSky = (opts = {}) => {
       }
       if (resize()) paint(true)
       else if (skyDue || wasFading) paint(skyDue)
+      if (skyDue) for (const hook of skyFrameHooks) { try { hook() } catch {} }
     } else {
       run.last = t
       run.lastSky = t   // else schedule() waits 0 ms and the timer spins while hidden
@@ -5727,22 +5729,30 @@ export default {
           }
         })
       }
-      // 5 steps a second: the largest per-step change on a 12 s ease is under
-      // 2% opacity on stars that are already faint.
-      const TWINKLE_MS = 12000, TWINKLE_STEP_MS = 200
-      let twinkleT = 0
+      // The twinkle steps with the sky's own frames (4-16 a second), so it
+      // never adds a compositor frame of its own. The timer is only a fallback
+      // for when no sky frame has arrived lately (painted sky, or a stall); the
+      // largest step on a 12 s ease is a few percent on already-faint stars.
+      const TWINKLE_MS = 12000, TWINKLE_STEP_MS = 250
+      let twinkleT = 0, twinkleOn = false, lastSkyStep = -1e9
       const calmNow = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
       const setTwinkle = k => { if (layers) { layers[0].style.opacity = k.toFixed(3); layers[1].style.opacity = (1 - k).toFixed(3) } }
-      const twinkle = () => {
-        twinkleT = 0
+      const stepTwinkle = () => {
         if (!layers) return
         // ease-in-out, alternating: 0 → 1 over 12 s, then back
         const ph = (performance.now() % (2 * TWINKLE_MS)) / TWINKLE_MS
         const x = ph < 1 ? ph : 2 - ph
         setTwinkle(0.5 - 0.5 * Math.cos(Math.PI * x))
+      }
+      const twinkle = () => {
+        twinkleT = 0
+        if (!layers) return
+        if (performance.now() - lastSkyStep > 1000) stepTwinkle()
         twinkleT = setTimeout(twinkle, TWINKLE_STEP_MS)
       }
-      const stopTwinkle = () => { clearTimeout(twinkleT); twinkleT = 0 }
+      const onSkyFrame = () => { if (!twinkleOn) return; lastSkyStep = performance.now(); stepTwinkle() }
+      if (typeof skyFrameHooks !== 'undefined') skyFrameHooks.add(onSkyFrame)
+      const stopTwinkle = () => { twinkleOn = false; clearTimeout(twinkleT); twinkleT = 0 }
       const sync = () => {
         const on = (document.documentElement.dataset.hermesTheme === AURORA_THEME || (document.documentElement.dataset.hermesTheme === SKY_THEME && stored('aurora') === true)) && stored('away') !== true && stored(STORE_KEYS.sky) !== false
         host.style.display = on ? 'block' : 'none'
@@ -5751,7 +5761,7 @@ export default {
         if (!on || document.hidden) return
         draw()
         if (calmNow()) setTwinkle(0.5)
-        else if (live && !twinkleT) twinkle()
+        else if (live && !twinkleT) { twinkleOn = true; twinkle() }
         // stay just above the sky layer, which is re-added when it restarts
         const sky = document.getElementById('zephyr-gl-sky')
         if (host.parentNode !== document.body ||
@@ -5781,6 +5791,7 @@ export default {
         clearTimeout(resizeT)
         clearTimeout(meteorT)
         stopTwinkle()
+        if (typeof skyFrameHooks !== 'undefined') skyFrameHooks.delete(onSkyFrame)
         host.remove()
       })
     }
@@ -8550,6 +8561,14 @@ export default {
       try { ghostInfo.set(el, { rect, closedAt }) } catch {}
     }
 
+    // Only a surface that opens and closes (Radix stamps data-state on it) can
+    // need a ghost. `[data-slot$='-overlay']` also matches overlays the app
+    // keeps mounted for good, such as the chat's drag-and-drop target, and
+    // tracking one of those kept the loop below measuring layout on every
+    // display refresh for the life of the window: the whole app redrew at
+    // 120 fps while sitting still.
+    const isGhostSurface = el => Boolean(el?.hasAttribute?.('data-state'))
+
     const trackSurfaces = () => {
       if (surfaceTracker || typeof requestAnimationFrame !== 'function') return
       const step = () => {
@@ -8558,7 +8577,7 @@ export default {
         for (const el of trackedSurfaces) {
           // Disconnected entries are dropped here (the removal branch below
           // consumes them; a removal we never saw still stops the loop).
-          if (!el.isConnected) { trackedSurfaces.delete(el); continue }
+          if (!el.isConnected || !isGhostSurface(el)) { trackedSurfaces.delete(el); continue }
           const rect = boxOf(el)
           if (rect) {
             const prev = ghostInfo.get(el)
@@ -8670,6 +8689,7 @@ export default {
               try { node.querySelectorAll?.(GHOST_SLOTS).forEach(el => hits.push(el)) } catch {}
             }
             for (const el of hits) {
+              if (!isGhostSurface(el)) continue
               rememberGhostSource(el)
               trackedSurfaces.add(el)
             }
@@ -8698,6 +8718,7 @@ export default {
       // pick it up so its close still gets a ghost.
       try {
         document.querySelectorAll(GHOST_SLOTS).forEach(el => {
+          if (!isGhostSurface(el)) return
           rememberGhostSource(el)
           trackedSurfaces.add(el)
         })

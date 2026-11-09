@@ -28,38 +28,76 @@ test('Aurora honours Low and Balanced frame rates', () => {
   }
 })
 
-test('star canvases are lazy, reused and paused in background windows', () => {
+test('star twinkle is bounded, timer-driven and pauses with window and motion state', () => {
   const body = cut('    let syncAuroraStars =', '    // ── Tabs:')
-  const canvases = [], disposers = []
+  const canvases = [], disposers = [], timers = new Map()
+  let timerId = 0, focused = true, reducedMotion = false, skyEnabled = true, motionChange
+  const setTimer = (fn, delay) => { const id = ++timerId; timers.set(id, { fn, delay }); return id }
+  const clearTimer = id => timers.delete(id)
   const context = { clearRect() {}, fillRect() {}, beginPath() {}, arc() {}, fill() {}, createRadialGradient: () => ({ addColorStop() {} }) }
   const make = tag => {
     const el = { style: {}, children: [], setAttribute() {}, appendChild(c) { this.children.push(c); c.parentNode = this }, getContext: () => context, remove() {} }
     if (tag === 'canvas') canvases.push(el)
     return el
   }
-  const doc = { hidden: false, hasFocus: () => true, documentElement: { dataset: { hermesTheme: 'zephyr-sky' } }, body: make('body'), createElement: make, getElementById: () => null, addEventListener() {}, removeEventListener() {} }
+  const doc = { hidden: false, hasFocus: () => focused, documentElement: { dataset: { hermesTheme: 'zephyr-sky' } }, body: make('body'), createElement: make, getElementById: () => null, addEventListener() {}, removeEventListener() {} }
   const win = { innerWidth: 320, innerHeight: 200, devicePixelRatio: 2, addEventListener() {}, removeEventListener() {} }
-  const sync = new Function('ctx', 'document', 'window', 'MutationObserver', 'stored', 'STORE_KEYS', 'AURORA_THEME', 'SKY_THEME', `${body}; return syncAuroraStars`)(
-    { onDispose: fn => disposers.push(fn) }, doc, win, class { observe() {} disconnect() {} }, () => undefined, { sky: 'sky' }, 'zephyr-aurora', 'zephyr-sky')
+  const media = { get matches() { return reducedMotion }, addEventListener: (name, fn) => { motionChange = fn }, removeEventListener() {} }
+  const sync = new Function('ctx', 'document', 'window', 'MutationObserver', 'stored', 'STORE_KEYS', 'AURORA_THEME', 'SKY_THEME', 'matchMedia', 'setTimeout', 'clearTimeout', `${body}; return syncAuroraStars`)(
+    { onDispose: fn => disposers.push(fn) }, doc, win, class { observe() {} disconnect() {} }, key => key === 'sky' ? skyEnabled : undefined, { sky: 'sky' }, 'zephyr-aurora', 'zephyr-sky', () => media, setTimer, clearTimer)
   assert.equal(canvases.length, 0)
   doc.documentElement.dataset.hermesTheme = 'zephyr-aurora'
   doc.hidden = true
   sync()
   assert.equal(canvases.length, 0)
+  reducedMotion = true
   doc.hidden = false
   sync()
   assert.equal(canvases.length, 2)
   assert.equal(canvases[0].width, 480)
+  assert.equal(timers.size, 1) // only the meteor timer; reduced motion stops twinkle
+  assert.ok(canvases.every(c => c.style.opacity === '0.5'))
+  assert.ok(!canvases.some(c => 'animationPlayState' in c.style))
+  reducedMotion = false
+  motionChange()
+  assert.ok([...timers.values()].some(t => t.delay === 250))
+  assert.deepEqual(canvases.map(c => c.style.opacity), ['0', '1'])
+  const opacity = canvases[0].style.opacity
+  const twinkle = [...timers.values()].find(t => t.delay === 250).fn
+  timers.delete([...timers.entries()].find(([, t]) => t.delay === 250)[0])
+  twinkle()
+  assert.notEqual(canvases[0].style.opacity, opacity)
+  const next = [...timers.values()].find(t => t.delay === 250).fn
+  timers.delete([...timers.entries()].find(([, t]) => t.delay === 250)[0])
+  next()
+  assert.notEqual(canvases[0].style.opacity, opacity)
+  assert.ok(canvases.every(c => Number(c.style.opacity) >= 0 && Number(c.style.opacity) <= 1))
+  assert.ok(Math.abs(canvases.reduce((sum, c) => sum + Number(c.style.opacity), 0) - 1) < 1e-9)
   sync()
   assert.equal(canvases.length, 2)
   doc.hidden = true
   sync()
-  assert.ok(canvases.every(c => c.style.animationPlayState === 'paused'))
+  assert.ok(![...timers.values()].some(t => t.delay === 250))
   doc.hidden = false
-  doc.hasFocus = () => false
+  focused = false
   sync()
-  assert.ok(canvases.every(c => c.style.animationPlayState === 'paused'))
+  assert.ok(![...timers.values()].some(t => t.delay === 250))
+  focused = true
+  reducedMotion = true
+  motionChange()
+  assert.ok(![...timers.values()].some(t => t.delay === 250))
+  assert.ok(canvases.every(c => c.style.opacity === '0.5'))
+  reducedMotion = false
+  motionChange()
+  assert.ok([...timers.values()].some(t => t.delay === 250))
+  skyEnabled = false
+  sync()
+  assert.ok(![...timers.values()].some(t => t.delay === 250))
+  skyEnabled = true
+  sync()
+  assert.ok([...timers.values()].some(t => t.delay === 250))
   disposers.forEach(fn => fn())
+  assert.ok(![...timers.values()].some(t => t.delay === 250))
 })
 
 test('the Aurora star layer hides and returns when Sky changes', () => {
@@ -67,8 +105,8 @@ test('the Aurora star layer hides and returns when Sky changes', () => {
   let sky = true, draws = 0
   const host = { style: {}, parentNode: {} }
   const doc = { documentElement: { dataset: { hermesTheme: 'zephyr-aurora' } }, body: host.parentNode, getElementById: () => null }
-  const sync = new Function('document', 'host', 'AURORA_THEME', 'stored', 'STORE_KEYS', 'draw', 'SKY_THEME', 'layers', `${body}; return sync`)(
-    doc, host, 'zephyr-aurora', key => key === 'sky' ? sky : false, { sky: 'sky' }, () => draws++, 'zephyr-sky', [])
+  const sync = new Function('document', 'host', 'AURORA_THEME', 'stored', 'STORE_KEYS', 'draw', 'SKY_THEME', 'layers', 'syncTwinkle', `${body}; return sync`)(
+    doc, host, 'zephyr-aurora', key => key === 'sky' ? sky : false, { sky: 'sky' }, () => draws++, 'zephyr-sky', [], () => {})
   sync()
   assert.equal(host.style.display, 'block')
   sky = false

@@ -4862,12 +4862,14 @@ const createSky = (opts = {}) => {
      for the blur being faded TO, once per change, not on every fade step. */
   const resize = () => {
     const blurK = 1 - 0.5 * clamp((run.blurTo - 4) / 12, 0, 1)
-    // Honour the selected quality for Aurora too. Crisp stars have their own
-    // layer; the blurred curtains do not need a forced High canvas.
-    const k = quality.res * blurK
+    // Blurred curtains use at most Balanced resolution; High keeps its 16 fps.
+    // Crisp stars are drawn separately at display resolution.
+    const res = run.aurora ? Math.min(quality.res, QUALITY.balanced.res) : quality.res
+    const maxSide = run.aurora ? Math.min(quality.maxSide, QUALITY.balanced.maxSide) : quality.maxSide
+    const k = res * blurK
     const cw = window.innerWidth
     const ch = window.innerHeight
-    const s = Math.min(k, quality.maxSide / Math.max(cw, ch))
+    const s = Math.min(k, maxSide / Math.max(cw, ch))
     const w = Math.max(2, Math.round(cw * s))
     const h = Math.max(2, Math.round(ch * s))
     if (canvas.width === w && canvas.height === h) return false

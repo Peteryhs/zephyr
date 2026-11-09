@@ -50,6 +50,7 @@ The status-bar picker shows your current look, such as “Sky · Live” or “A
 - **Animations**: menus, selects, popovers, dialogs and tooltips (6px, in from the side they open on), exit ghosts, the history list, the composer, tool rows, and one fade as a session swaps in. 140–280ms, opacity and transform only, so the compositor owns them. Off, or with reduced motion, everything is instant.
 - **Status panel** moves the status bar into the sessions sidebar in Simple mode.
 - **Spacious margins** hold the reading column to 46rem, lined up with the message box, with a typographic pass on the prose itself.
+- **Reply legibility.** Assistant replies get a soft, unframed fill when their backdrop needs more contrast. Its colour follows the current material, and its strength follows the rendered sky or sampled picture. Already-readable replies keep their original appearance, including night skies. Code and tool cards keep one ground inside the reply.
 
 <p align="center">
   <img src="assets/folded.png" alt="Folded work: one line, and the same steps opened" width="100%">
@@ -92,9 +93,13 @@ Choose **Sky**, **Aurora**, **Gruvbox**, or **Custom** in the appearance gallery
 
 Hermes Appearance contains one stable **Zephyr** entry; the selection stays the same as the sky changes. Suggestion cards, spacious margins, motion, the status panel, snippets and pins remain in Zephyr’s settings.
 
+**Reply legibility**, under Chat, is on by default and remembered. Turning it off removes the reply fill and all its nested-surface adjustments. It also checks Hermes appearance and light themes against their native text and ground; it leaves passing pairs alone. Arbitrary host background images are not sampled. The contrast model, decisions, measured cases and remaining verification limits are in [the implementation report](docs/reply-legibility.md).
+
 ## Performance
 
 The sky caches its cloud field in a texture and re-renders it a few times a minute: 8 fps by default, 1 when the window is unfocused, nothing when it is hidden, plus a few pixels of blur so text stays readable. Reduced motion is respected. If it runs warm, set Smoothness to Low.
+
+Reply legibility reads the sky’s retained image on the existing material refresh, rather than adding work to sky frames. Pictures are decoded when they load; later checks reuse that small image sample. It adds no timer, message observer or live backdrop blur; the occasional image readback has a measurable refresh cost, documented in the report.
 
 ## Privacy
 

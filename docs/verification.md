@@ -57,3 +57,9 @@ The local implementation and source archive are complete. A private Site identit
 The initial handoff used the reproducible `motion=0` verification URL, leaving the preview paused. Resuming previously failed to update that URL, so refreshing could stop the animation again. The host now synchronizes the motion flag and cloud animation time on pause/resume, displays an explicit moving/paused control, and runs at 0.5 shader-time units per real second for slow visible drift and evolution. An explicit resume also overrides the initial reduced-motion pause.
 
 Verified pause feedback, resume, and refresh retaining the running state. With the user's fog scene and 18:38 displayed hour held fixed, animation time advanced from 110.297 to 121.301 and an unobstructed sky capture changed. The footer fits at 390×844 without overflow or overlap. All 29 CPU regressions and the module/asset check pass after the host changes. The current browser handoff is running (`motion=1`).
+
+## Reply-legibility follow-up — 8 November 2026
+
+`npm test` passes all 15 test files, including the added material/polarity/continuity/selector regressions and persisted setting. `npm run check` passes and confirms the generated engine block still matches `sky/`. The optional `npm run rig` has five failures concerning zenith chroma and its 04:30 clock assumption; running the same rig against the unchanged `HEAD` plugin reproduced the same five failures. They were not changed as part of this transcript feature.
+
+The optional `scripts/reply-legibility.cjs` uses local Chromium, the actual plugin functions, decoded artwork and a synthetic transcript with the known Hermes selectors. It records representative backdrop contrast and captures desktop/mobile on/off images. It does not launch Hermes or validate its current private DOM. See [the implementation report](reply-legibility.md) for the current contrast matrix, screenshot parity, performance observations, decisions and remaining limits.

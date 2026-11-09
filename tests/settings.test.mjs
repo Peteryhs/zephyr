@@ -28,8 +28,8 @@ test('the background switch hides scenery for every look', () => {
   assert.match(render, /paintSky\(now, Boolean\(gl\), \{ backdrop, chrome \}\)/,
     'the sheet needs both switches')
   assert.doesNotMatch(render, /if \(!sky\.get\(\)\)/, 'Sky off must not clear the whole sheet')
-  assert.match(src, /if \(surfaceOn\(\)\) renderSky\(now\)/,
-    'the clock must keep the chrome sheet alive when the sky is off')
+  assert.match(src, /if \(surfaceOn\(\) \|\| replyGround\.get\(\)\) renderSky\(now\)/,
+    'the clock must keep the independent reply ground alive when scenery and chrome are off')
 })
 
 test('the generated sheet can skip the backdrop or the chrome', () => {

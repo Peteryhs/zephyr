@@ -5903,23 +5903,18 @@ export default {
     // ── Aurora stars ───────────────────────────────────────────────────────
     // The sky shader's stars are lost under its blur, so the Aurora theme gets
     // a crisp starfield of its own, just above the sky and below the app. The
-    // stars are drawn only on activation or resize. Two static brightness
-    // patterns crossfade on the compositor, so stars twinkle without repainting
-    // a full-window noise mask on every display refresh.
+    // stars are drawn only on activation or resize. Their static brightness
+    // patterns crossfade at 4 Hz without repainting a full-window noise mask.
     // The Aurora theme and the Sky switch decide whether it shows.
     if (typeof MutationObserver === 'function') {
       const host = document.createElement('div')
       host.id = 'zephyr-aurora-stars'
       host.setAttribute('aria-hidden', 'true')
       host.style.cssText = 'position:fixed;inset:0;z-index:-1;pointer-events:none;display:none;mix-blend-mode:screen'
-      // Build only on first use. Opacity is composited; moving CSS masks
-      // repainted the full starfield at display refresh even on Low quality.
+      // Build only on first use; bound opacity updates to 4 Hz.
       let layers = null
       const css = document.createElement('style')
-      css.textContent = '@keyframes zephyr-twinkle { from { opacity: 0 } to { opacity: 1 } }' +
-        '#zephyr-aurora-stars canvas { position:absolute;inset:0;width:100%;height:100%;will-change:opacity;animation:zephyr-twinkle 12s ease-in-out infinite alternate }' +
-        '#zephyr-aurora-stars canvas:nth-of-type(2) { animation-direction:alternate-reverse }' +
-        '@media (prefers-reduced-motion: reduce) { #zephyr-aurora-stars canvas { animation:none !important;opacity:.5 } }' +
+      css.textContent = '#zephyr-aurora-stars canvas { position:absolute;inset:0;width:100%;height:100% }' +
         // a shooting star: one small composited bar, moved by transform and opacity only
         '#zephyr-aurora-stars .zf-meteor { position:absolute;left:calc(-1 * var(--len, 160px));top:0;width:var(--len, 160px);height:1.6px;border-radius:2px;opacity:0;pointer-events:none;transform-origin:100% 50%;' +
         'background:linear-gradient(90deg, rgba(190,215,255,0), rgba(205,230,255,.55) 70%, rgba(255,255,255,.95));box-shadow:0 0 6px 1px rgba(170,215,255,.35) }' +
@@ -5957,6 +5952,25 @@ export default {
       let seed = 7
       const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
       let drawnFor = ''
+      let twinkleT = 0, twinklePhase = 0
+      const motionQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
+      const stopTwinkle = () => { clearTimeout(twinkleT); twinkleT = 0 }
+      const twinkle = () => {
+        twinkleT = 0
+        const level = (1 - Math.cos(twinklePhase)) / 2
+        layers[0].style.opacity = String(level)
+        layers[1].style.opacity = String(1 - level)
+        twinklePhase = (twinklePhase + Math.PI / 48) % (Math.PI * 2)
+        twinkleT = setTimeout(twinkle, 250)
+      }
+      const syncTwinkle = active => {
+        if (!active || (motionQuery && motionQuery.matches)) {
+          if (motionQuery && motionQuery.matches && layers) layers.forEach(c => { c.style.opacity = '0.5' })
+          stopTwinkle()
+          return
+        }
+        if (!twinkleT && layers) twinkle()
+      }
       const draw = () => {
         const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
         const w = Math.round(window.innerWidth * dpr), h = Math.round(window.innerHeight * dpr)
@@ -5964,6 +5978,7 @@ export default {
         drawnFor = w + 'x' + h
         if (!layers) { layers = [document.createElement('canvas'), document.createElement('canvas')]; layers.forEach(c => host.appendChild(c)) }
         layers.forEach((c, i) => {
+          if (!c.style.opacity) c.style.opacity = '0.5'
           seed = 7 // the same star positions on both layers; only brightness differs
           c.width = w
           c.height = h
@@ -5998,10 +6013,11 @@ export default {
       const sync = () => {
         const on = (document.documentElement.dataset.hermesTheme === AURORA_THEME || (document.documentElement.dataset.hermesTheme === SKY_THEME && stored('aurora') === true)) && stored('away') !== true && stored(STORE_KEYS.sky) !== false
         host.style.display = on ? 'block' : 'none'
-        if (layers) layers.forEach(c => { c.style.animationPlayState = !on || document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus()) ? 'paused' : 'running' })
+        const active = on && !document.hidden && (typeof document.hasFocus !== 'function' || document.hasFocus())
+        syncTwinkle(active)
         if (!on || document.hidden) return
         draw()
-        layers.forEach(c => { c.style.animationPlayState = document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus()) ? 'paused' : 'running' })
+        syncTwinkle(active)
         // stay just above the sky layer, which is re-added when it restarts
         const sky = document.getElementById('zephyr-gl-sky')
         if (host.parentNode !== document.body ||
@@ -6021,6 +6037,8 @@ export default {
       window.addEventListener('focus', sync)
       window.addEventListener('blur', sync)
       document.addEventListener('visibilitychange', sync)
+      motionQuery?.addEventListener?.('change', sync)
+      if (motionQuery && !motionQuery.addEventListener) motionQuery.addListener?.(sync)
       sync()
       ctx.onDispose?.(() => {
         watch.disconnect()
@@ -6028,6 +6046,9 @@ export default {
         window.removeEventListener('focus', sync)
         window.removeEventListener('blur', sync)
         document.removeEventListener('visibilitychange', sync)
+        motionQuery?.removeEventListener?.('change', sync)
+        if (motionQuery && !motionQuery.removeEventListener) motionQuery.removeListener?.(sync)
+        stopTwinkle()
         clearTimeout(resizeT)
         clearTimeout(meteorT)
         host.remove()

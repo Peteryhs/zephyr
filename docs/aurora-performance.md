@@ -1,5 +1,32 @@
 # Aurora performance measurement and optimization
 
+## 9 November update: cap compositing and High pixel cost
+
+High Aurora now uses at most Balanced's background resolution while retaining the selected 16 fps cadence. Low/Balanced and ordinary Sky resolution are unchanged. The shader's five curtains, palettes and motion equations are unchanged; crisp stars retain their separate canvases. At the 1080p/5px blur fixture, High Aurora drops from 736×414 to 460×259 (61% fewer shaded pixels).
+
+The two star patterns now crossfade through explicit opacity updates at 4 Hz over a 24-second cycle. There are no continuous star CSS animations or transitions. Star timers stop when hidden, unfocused, disabled or under reduced motion; motion-preference changes are observed and cleaned up on disposal. Reduced motion retains both patterns at half opacity. The occasional meteor is unchanged.
+
+New measurements on the same Adreno X1-85/ANGLE/D3D11 hardware:
+
+| Isolated measurement | Before | After |
+| --- | ---: | ---: |
+| Workspace High Aurora mean completed-render latency | 2.427 ms | 1.206 ms |
+| Installed-copy High Aurora mean completed-render latency | 2.254 ms | 1.053 ms |
+| Star-only DrawFrame events over 2.5 seconds | 300 | 10 |
+| Star-only Paint / RasterTask events | 0 / 0 | 0 / 0 |
+
+The star trace includes `disabled-by-default-devtools.timeline.frame` to capture compositor frames. It demonstrates that the previous paint-free opacity animation still kept the compositor drawing at 120 Hz in this environment. The revised star-only case draws at 4 Hz, with 10 small style updates (about 1.9 ms total) and no painting/raster tasks during the sample. This is a short isolated trace, not a whole-Hermes utilization measurement; meteors were outside the trace interval.
+
+Retained raw results are in `docs/benchmarks/aurora/2026-11-09/`: `workspace-before.json`, `workspace-after.json`, `installed-before.json`, `installed-after.json`, and `before-stars.json` / `after-stars.json`. Local screenshots and installation snapshots remain in `artifacts/aurora-perf/`. Render timings use the synchronous completion/readback method described below. They cannot be converted into a Task Manager GPU percentage.
+
+Visual comparison used the existing Aurora appearance as the contract: preserve composition, colours, crisp stars, horizon and motion. Eight fixed-clock full-display screenshots cover 1440×900 with 5px blur, a later animation phase, no blur, and 390×844 with 5px blur, before/after. Images retain the same appearance with some softer fine detail at lower background resolution; this tradeoff is most visible without blur. Reproduce with `node scripts/aurora-visual.cjs`; it reads the baseline from Git revision `761acc8`, or an alternative revision supplied as the first argument.
+
+Validation: all 143 unit tests pass and `npm run check` passes. `npm run rig` has one unrelated existing failure, its 04:30 dark-zenith expectation (0.399 measured versus <0.25 expected); the untouched saved baseline reproduces the same failure. The resolution regression covers desktop, 4K and narrow viewports, restoration after disabling Aurora, Low/Balanced preservation and unchanged cadence. Star lifecycle tests cover lazy allocation, bounded brightness, motion-preference changes, focus/visibility, background-off and disposal.
+
+The targeted resize/star changes were merged into `%LOCALAPPDATA%/hermes/desktop-plugins/zephyr/plugin.js` with all other installed code preserved. A sibling `plugin.js.before-aurora-20261109.bak` holds the original, and the installed output hash was verified against the tested candidate. After loading the update, the user reported idle GPU utilization falling from about 50% to about 17% (roughly a two-thirds reduction). This is a user observation rather than a controlled whole-application measurement.
+
+## 2 November baseline report
+
 Measured 2 November 2026 on this Windows machine, Qualcomm Adreno X1-85 through ANGLE/D3D11. These are controlled browser measurements on real hardware, not whole-Hermes CPU or battery measurements.
 
 ## Findings

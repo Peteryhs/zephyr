@@ -22,13 +22,13 @@ const block=src.slice(a,b)+'\nreturn {sync:()=>syncAuroraStars()}';
   return results;
  },block);
  await page.waitForTimeout(300);
- await cdp.send('Tracing.start',{categories:'devtools.timeline,disabled-by-default-devtools.timeline',transferMode:'ReturnAsStream'});
+ await cdp.send('Tracing.start',{categories:'devtools.timeline,disabled-by-default-devtools.timeline,disabled-by-default-devtools.timeline.frame,cc,benchmark,viz,gpu',transferMode:'ReturnAsStream'});
  await page.waitForTimeout(2500);
  const done=new Promise(resolve=>cdp.once('Tracing.tracingComplete',resolve));await cdp.send('Tracing.end');const {stream}=await done;
  let trace='';for(;;){const p=await cdp.send('IO.read',{handle:stream});trace+=p.data;if(p.eof)break}await cdp.send('IO.close',{handle:stream});
  const events=JSON.parse(trace).traceEvents;
  const summarize=name=>{const e=events.filter(e=>e.name===name&&e.ph==='X');return {count:e.length,totalMs:e.reduce((s,e)=>s+(e.dur||0),0)/1000}};
- const stats={label,startup,traceSeconds:2.5,paint:summarize('Paint'),raster:summarize('RasterTask'),layout:summarize('Layout'),style:summarize('UpdateLayoutTree')};
+ const stats={label,startup,traceSeconds:2.5,paint:summarize('Paint'),raster:summarize('RasterTask'),layout:summarize('Layout'),style:summarize('UpdateLayoutTree'),drawFrameEvents:events.filter(e=>e.name==='DrawFrame').length};
  const out=path.join(root,'artifacts/aurora-perf');fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,label+'-stars.json'),JSON.stringify(stats,null,2));console.log(JSON.stringify(stats));
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});

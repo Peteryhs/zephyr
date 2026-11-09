@@ -1,0 +1,103 @@
+{
+  "label": "implementation-after",
+  "startup": [
+    {
+      "aurora": false,
+      "ms": 2.7000000178813934
+    },
+    {
+      "aurora": false,
+      "ms": 0.09999999403953552
+    },
+    {
+      "aurora": false,
+      "ms": 0.09999999403953552
+    },
+    {
+      "aurora": false,
+      "ms": 0.20000001788139343
+    },
+    {
+      "aurora": false,
+      "ms": 0
+    },
+    {
+      "aurora": false,
+      "ms": 0
+    },
+    {
+      "aurora": false,
+      "ms": 0.09999999403953552
+    },
+    {
+      "aurora": false,
+      "ms": 0
+    },
+    {
+      "aurora": false,
+      "ms": 0.10000002384185791
+    },
+    {
+      "aurora": false,
+      "ms": 0.19999998807907104
+    },
+    {
+      "aurora": true,
+      "ms": 19.5
+    },
+    {
+      "aurora": true,
+      "ms": 12.599999994039536
+    },
+    {
+      "aurora": true,
+      "ms": 8
+    },
+    {
+      "aurora": true,
+      "ms": 16.099999994039536
+    },
+    {
+      "aurora": true,
+      "ms": 5.700000017881393
+    },
+    {
+      "aurora": true,
+      "ms": 5.699999988079071
+    },
+    {
+      "aurora": true,
+      "ms": 9.900000005960464
+    },
+    {
+      "aurora": true,
+      "ms": 5.5
+    },
+    {
+      "aurora": true,
+      "ms": 5.9000000059604645
+    },
+    {
+      "aurora": true,
+      "ms": 6
+    }
+  ],
+  "traceSeconds": 2.5,
+  "paint": {
+    "count": 0,
+    "totalMs": 0
+  },
+  "raster": {
+    "count": 0,
+    "totalMs": 0
+  },
+  "layout": {
+    "count": 0,
+    "totalMs": 0
+  },
+  "style": {
+    "count": 10,
+    "totalMs": 1.925
+  },
+  "drawFrameEvents": 10
+}

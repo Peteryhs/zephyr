@@ -9,6 +9,12 @@ const epoch=Date.parse('2026-10-15T16:00:00Z');
 const noon=patch=>evaluate({hourly:false,hour:12,...patch},epoch);
 const near=(actual,expected,tolerance=1e-6)=>assert.ok(Math.abs(actual-expected)<tolerance,`${actual} ≠ ${expected}`);
 const allFinite=value=>typeof value==='number'?Number.isFinite(value):Array.isArray(value)?value.every(allFinite):value&&typeof value==='object'?Object.values(value).every(allFinite):true;
+test('Toronto autumn 4pm lower sky is golden with blue overhead',()=>{
+  const f=evaluate({timeZone:'America/Toronto'},Date.parse('2026-11-09T21:00:00Z'));
+  near(f.diagnostics.hour,16);
+  for(const [r,g,b] of f.cols.slice(2))assert.ok(r>g&&g>b,`expected warm yellow haze: ${[r,g,b]}`);
+  assert.ok(f.cols[0][2]>f.cols[0][0]);
+});
 export function eveningHour(altitude,date=null){let lo=13,hi=24;for(let i=0;i<55;i++){const mid=(lo+hi)/2;if(noon({hour:mid,date}).sun[2]>altitude)lo=mid;else hi=mid;}return (lo+hi)/2;}
 
 test('frozen Toronto geometry, fields and optical anchors match specification',()=>{

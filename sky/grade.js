@@ -46,6 +46,9 @@ export function gradePalette(linear, e, grade = GRADE_BASE) {
     a*=vibrance*grade.saturation; b*=vibrance*grade.saturation;
     [a,b]=rotate(a,b,rad(grade.blueHue*clamp((-b-.015)/.05)));
     [a,b]=rotate(a,b,rad(-38*grade.sunsetPink*gaussian(effective,-.5,1.8)*clamp((b-.008)/.05)));
+    // Keep low-sun yellow haze from turning green under the saturation lift.
+    const golden=i>=2?smooth(e/3)*(1-smooth((e-10)/10))*smooth(b/.008):0;
+    a=mix(a,Math.max(a,.15*b),golden);
     const mud=Math.max(1-smooth((L-.16)/.26),smooth((-e-5)/6));
     a*=1-.75*mud; if(b>0)b*=1-.92*mud;
     const mapped=fromOklab([L,a,b]).map((v,j)=>floors[i][j]+clamp(v)*(1-floors[i][j]));

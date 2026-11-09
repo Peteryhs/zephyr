@@ -58,9 +58,9 @@ const banner = `/* =============================================================
 const block = `${banner}
 const SKY_ENGINE = (() => {
 ${parts.join('\n\n')}
-})();`
+})();`.replace(/\r\n/g, '\n')
 
-let plugin = await readFile(PLUGIN, 'utf8')
+let plugin = (await readFile(PLUGIN, 'utf8')).replace(/\r\n/g, '\n')
 const start = plugin.indexOf(`/* ============================================================================
    ZEPHYR SKY ENGINE`)
 if (start < 0) throw new Error('the engine banner is not in plugin.js')

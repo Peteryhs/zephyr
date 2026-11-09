@@ -4,3 +4,5 @@
 *.log
 # Reproducible reply-material captures; the measurement summary lives in docs/.
 artifacts/reply-legibility/
+# Local Aurora captures, installed-plugin snapshots and backup helpers.
+artifacts/aurora-perf/

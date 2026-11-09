@@ -101,6 +101,8 @@ The sky caches its cloud field in a texture and re-renders it a few times a minu
 
 Reply legibility reads the sky’s retained image on the existing material refresh, rather than adding work to sky frames. Pictures are decoded when they load; later checks reuse that small image sample. It adds no timer, message observer or live backdrop blur; the occasional image readback has a measurable refresh cost, documented in the report.
 
+Aurora keeps crisp stars separate from the background. High retains 16 fps with a smaller curtain render target; star brightness updates at 4 Hz rather than continuously at display refresh. Twinkle pauses when the window is hidden or unfocused and respects reduced motion. See [Aurora performance measurements](docs/aurora-performance.md).
+
 ## Privacy
 
 No location prompt: Zephyr reads a nearby city from your time zone, then asks Open-Meteo for sunrise, sunset and weather. Nothing else leaves your computer, and the suggestions stay on disk.

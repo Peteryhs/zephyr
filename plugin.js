@@ -4641,9 +4641,11 @@ const createSky = (opts = {}) => {
   const fading = () => run.blur !== run.blurTo
   /* the day preview runs smooth; a window you are not using drifts at 1 fps */
   // Reduced motion is a hard cap, including Aurora and the day preview.
-  const curFps = () => run.fps < 1 ? run.fps : live.fast ? Math.max(run.fps, 15)
-    : (typeof document.hasFocus === 'function' && !document.hasFocus()) ? Math.min(run.fps, 1)
-    : run.fps
+  const curFps = () => run.fps < 1 ? run.fps : live.fast ? Math.max(run.fps, 15) : run.fps
+  // A window you are not using does not animate at all: the sky holds its
+  // last frame and no timer runs until focus returns (the 'focus' listener
+  // below restarts it). A resize still repaints that one frame.
+  const asleep = () => document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus())
   const stepBlur = t => {
     if (!fading()) return
     const k = clamp((t - run.blurT0) / BLUR_FADE_MS, 0, 1)
@@ -4655,7 +4657,12 @@ const createSky = (opts = {}) => {
     run.timer = 0
     if (run.disposed || !run.on) return
     const t = now()
-    if (!document.hidden) {
+    if (asleep()) {
+      run.last = t
+      run.lastSky = t
+      return
+    }
+    {
       const fps = curFps()
       const skyDue = t - run.lastSky >= 1000 / fps - 4
       const wasFading = fading()
@@ -4682,15 +4689,12 @@ const createSky = (opts = {}) => {
       if (resize()) paint(true)
       else if (skyDue || wasFading) paint(skyDue)
       if (skyDue) for (const hook of skyFrameHooks) { try { hook() } catch {} }
-    } else {
-      run.last = t
-      run.lastSky = t   // else schedule() waits 0 ms and the timer spins while hidden
     }
     schedule()
   }
 
   const schedule = () => {
-    if (run.timer || !run.on || run.disposed) return
+    if (run.timer || !run.on || run.disposed || asleep()) return
     const fps = curFps()
     /* a blur fade runs its passes at 30 fps; the sky keeps its own pace */
     const wait = fading() ? 1000 / 30 : Math.max(0, run.lastSky + 1000 / fps - now())
@@ -4698,7 +4702,7 @@ const createSky = (opts = {}) => {
   }
   const reschedule = () => { clearTimeout(run.timer); run.timer = 0; schedule() }
   const onVisible = () => {
-    if (document.hidden || !run.on) return
+    if (asleep() || !run.on) return
     run.last = now()          // no catch-up jump after the window comes back
     reschedule()
   }

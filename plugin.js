@@ -458,6 +458,8 @@ const glassLayers = () => [
 ]
 const glassChromeCss = () => [
   "html:root {",
+  `  --zf-glass-rgb: ${hexTriple(GLASS.ground)};`,
+  `  --zf-glass-a: ${GLASS.tint};`,
   `  --ui-text-tertiary: ${GLASS.quiet} !important;`,
   `  --ui-text-quaternary: rgba(${hexTriple(GLASS.quiet)}, 0.8) !important;`,
   `  --zf-ink-3: ${GLASS.quiet} !important;`,
@@ -9324,6 +9326,7 @@ export default {
       ensurePictureStyle(SKIN.image)
       if (next === 'glass') ensureWindowGlass()
       persist()
+      syncBackdrop()
       applyWeather(true)
       apply(nowAt())
     }
@@ -9335,7 +9338,7 @@ export default {
     // store listens for this key's storage event, so it applies live.
     const TRANSLUCENCY_KEY = 'hermes.desktop.translucency.v2'
     const ensureWindowGlass = () => {
-      if (typeof document === 'undefined' || !window.hermesDesktop?.glassSupported) return
+      if (typeof document === 'undefined' || !window.hermesDesktop?.glassSupported || backdrop) return
       let book = {}
       try { book = JSON.parse(localStorage.getItem(TRANSLUCENCY_KEY) || '{}') || {} } catch {}
       // Like a terminal's background-blur: the whole window, on the thinnest
@@ -9352,8 +9355,109 @@ export default {
         window.dispatchEvent(new StorageEvent('storage', { key: TRANSLUCENCY_KEY, newValue: JSON.stringify(next) }))
       } catch {}
     }
+    // ── Glass backdrop ──
+    // macOS window materials blur hard and lay their own fill over the desktop,
+    // so through them the wallpaper is a dark smear. A terminal's
+    // background-blur is a light blur with no fill. To get that exactly, the
+    // wallpaper itself is baked once (blurred 20px at screen size, a JPEG) and
+    // painted behind the tint, slid by the window's position on screen so it
+    // lines up with the real desktop. One static image: no per-frame blur and
+    // no native material, which is also far cheaper than vibrancy.
+    const BACKDROP_STYLE = 'zephyr-glass-backdrop'
+    let backdrop = ''
+    try { const b = ctx.storage.get('glassBackdrop'); if (typeof b === 'string' && b.startsWith('data:image/')) backdrop = b } catch {}
+    let bx = NaN, by = NaN, trackTimer = 0, trackRaf = 0, still = 0
+    const placeBackdrop = () => {
+      const x = window.screenX - (window.screen.left || 0)
+      const y = window.screenY - (window.screen.top || 0)
+      if (x === bx && y === by) return false
+      bx = x; by = y
+      const root = document.documentElement.style
+      root.setProperty('--zf-bx', `${-x}px`)
+      root.setProperty('--zf-by', `${-y}px`)
+      root.setProperty('--zf-bw', `${window.screen.width}px`)
+      root.setProperty('--zf-bh', `${window.screen.height}px`)
+      return true
+    }
+    const stopTracking = () => { clearTimeout(trackTimer); cancelAnimationFrame(trackRaf); trackTimer = 0; trackRaf = 0 }
+    // While focused, a cheap 4 Hz position check; once the window is moving,
+    // follow it every frame until it has sat still for half a second. Unfocused
+    // or hidden: no timers at all.
+    const trackBackdrop = () => {
+      stopTracking()
+      if (!backdrop || look.get() !== 'glass' || document.hidden || !document.hasFocus()) return
+      if (placeBackdrop()) still = 0
+      const burst = () => {
+        if (placeBackdrop()) still = 0
+        else still += 1
+        if (still < 30) trackRaf = requestAnimationFrame(burst)
+        else { trackRaf = 0; trackTimer = setTimeout(poll, 250) }
+      }
+      const poll = () => { if (placeBackdrop()) { still = 0; trackRaf = requestAnimationFrame(burst) } else trackTimer = setTimeout(poll, 250) }
+      trackTimer = setTimeout(poll, 250)
+    }
+    const syncBackdrop = () => {
+      const on = !!backdrop && look.get() === 'glass'
+      const root = document.documentElement
+      root.toggleAttribute('data-zf-backdrop', on)
+      let el = document.getElementById(BACKDROP_STYLE)
+      if (!on) { el?.remove(); stopTracking(); return }
+      windowGlassOff()
+      if (!el) { el = document.createElement('style'); el.id = BACKDROP_STYLE; document.head.appendChild(el) }
+      const css = `html:root[data-zf-backdrop] body { background: linear-gradient(rgba(var(--zf-glass-rgb), var(--zf-glass-a)), rgba(var(--zf-glass-rgb), var(--zf-glass-a))) fixed, url("${backdrop}") var(--zf-bx, 0px) var(--zf-by, 0px) / var(--zf-bw, 100vw) var(--zf-bh, 100vh) no-repeat fixed, #000 !important; }`
+      if (el.textContent !== css) el.textContent = css
+      bx = by = NaN
+      placeBackdrop()
+      trackBackdrop()
+    }
+    const onBackdropResize = () => { if (backdrop && look.get() === 'glass') { bx = NaN; placeBackdrop() } }
+    window.addEventListener('focus', trackBackdrop)
+    window.addEventListener('blur', stopTracking)
+    document.addEventListener('visibilitychange', trackBackdrop)
+    window.addEventListener('resize', onBackdropResize)
+    ctx.onDispose?.(() => {
+      stopTracking()
+      window.removeEventListener('focus', trackBackdrop)
+      window.removeEventListener('blur', stopTracking)
+      document.removeEventListener('visibilitychange', trackBackdrop)
+      window.removeEventListener('resize', onBackdropResize)
+      document.getElementById(BACKDROP_STYLE)?.remove()
+      document.documentElement.removeAttribute('data-zf-backdrop')
+    })
+    // Bake: cover-fit to the screen's size in points, blurred like a terminal's
+    // background-blur. Drawn oversize so the blur doesn't darken the edges.
+    const bakeBackdrop = img => {
+      const W = window.screen.width, H = window.screen.height, pad = 60
+      const c = document.createElement('canvas')
+      c.width = W; c.height = H
+      const g = c.getContext('2d')
+      const k = Math.max((W + pad * 2) / img.naturalWidth, (H + pad * 2) / img.naturalHeight)
+      const dw = img.naturalWidth * k, dh = img.naturalHeight * k
+      g.filter = 'blur(20px)'
+      g.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh)
+      return c.toDataURL('image/jpeg', 0.82)
+    }
+    // With the wallpaper painted here the window is opaque, so the native
+    // material underneath would be pure GPU cost: turn the app's glass off
+    // (its tint slider goes to 0; the user's other glass settings are kept).
+    const windowGlassOff = () => {
+      if (!document.documentElement.hasAttribute('data-hermes-glass-on')) return
+      let book = {}
+      try { book = JSON.parse(localStorage.getItem(TRANSLUCENCY_KEY) || '{}') || {} } catch {}
+      const next = { ...book, dark: { ...(book.dark || {}), intensity: 0 } }
+      try {
+        localStorage.setItem(TRANSLUCENCY_KEY, JSON.stringify(next))
+        window.dispatchEvent(new StorageEvent('storage', { key: TRANSLUCENCY_KEY, newValue: JSON.stringify(next) }))
+      } catch {}
+    }
+    const setBackdrop = url => {
+      backdrop = url || ''
+      try { ctx.storage.set('glassBackdrop', backdrop) } catch {}
+      syncBackdrop()
+    }
+
     const glassState = atom({ ...GLASS })
-    if (look.get() === 'glass') ensureWindowGlass()
+    if (look.get() === 'glass') { ensureWindowGlass(); syncBackdrop() }
     const pushGlass = patch => {
       setGlass({ ...GLASS, ...patch })
       glassState.set({ ...GLASS })
@@ -9361,12 +9465,13 @@ export default {
       if (look.get() !== 'glass') { selectAppearance('glass'); return }
       setSkin(glassSkin())
       apply(nowAt())
+      syncBackdrop()
     }
     // Sample a picture small (the palette needs colour, not detail) and derive
     // every glass colour from it. A tiny copy is kept for the picker swatch.
     const matchPicture = file => new Promise(resolve => {
       if (!file) return resolve(false)
-      const url = URL.createObjectURL(file)
+      const url = typeof file === 'string' ? file : URL.createObjectURL(file)
       const img = new Image()
       img.onload = () => {
         try {
@@ -9378,11 +9483,13 @@ export default {
           const t = document.createElement('canvas')
           t.width = 160; t.height = 90
           t.getContext('2d').drawImage(img, 0, 0, 160, 90)
+          backdrop = bakeBackdrop(img)
+          try { ctx.storage.set('glassBackdrop', backdrop) } catch {}
           pushGlass({ ...pal, thumb: t.toDataURL('image/jpeg', 0.7) })
           resolve(true)
-        } catch { resolve(false) } finally { URL.revokeObjectURL(url) }
+        } catch { resolve(false) } finally { if (typeof file !== 'string') URL.revokeObjectURL(url) }
       }
-      img.onerror = () => { URL.revokeObjectURL(url); resolve(false) }
+      img.onerror = () => { if (typeof file !== 'string') URL.revokeObjectURL(url); resolve(false) }
       img.src = url
     })
     const setSkyPhase = value => {
@@ -10077,12 +10184,12 @@ export default {
       const chip = hex => jsx('span', { title: hex, style: { display: 'inline-block', width: '1.1rem', height: '1.1rem', borderRadius: '4px', background: hex, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' } }, hex)
       return jsxs('div', { className: 'flex flex-col gap-2 py-2', children: [
         jsx(ListRow, {
-          title: 'Colours from a picture',
-          description: 'Pick your wallpaper and the glass, text and accent are drawn from it.',
+          title: 'Your wallpaper',
+          description: 'Pick your wallpaper: it shows through the window, blurred like a terminal, and every colour is drawn from it.',
           action: jsxs('div', { className: 'flex items-center gap-2', children: [
-            jsx('label', { className: 'cursor-pointer rounded-md px-2 py-1 text-[0.75rem]', style: btn, children: ['Match a picture…',
+            jsx('label', { className: 'cursor-pointer rounded-md px-2 py-1 text-[0.75rem]', style: btn, children: ['Choose wallpaper…',
               jsx('input', { type: 'file', accept: 'image/*', style: { display: 'none' }, onChange: e => { const f = e.target.files && e.target.files[0]; void matchPicture(f); e.target.value = '' } })] }),
-            jsx('button', { type: 'button', className: 'rounded-md px-2 py-1 text-[0.75rem]', style: btn, onClick: () => pushGlass({ ...GLASS_DEFAULTS }), children: 'Reset' })
+            jsx('button', { type: 'button', className: 'rounded-md px-2 py-1 text-[0.75rem]', style: btn, onClick: () => { backdrop = ''; try { ctx.storage.set('glassBackdrop', '') } catch {}; pushGlass({ ...GLASS_DEFAULTS }) }, children: 'Reset' })
           ] })
         }),
         jsx(ListRow, {
@@ -10146,7 +10253,7 @@ export default {
         const status = selectedLook === 'hermes' ? 'Hermes appearance · Zephyr appearance paused' : selectedLook === 'aurora' ? 'Aurora · always night' : lookNow === 'gruvbox'
           ? ['Gruvbox', 'The Backwater, Wyllie', '4096 × 2428 at full size', isChrome ? 'Zephyr styling' : 'Hermes styling'].join('  ·  ')
           : lookNow === 'glass'
-            ? ['Glass', 'your desktop behind a ' + Math.round(GLASS.tint * 100) + '% tint', document.documentElement.hasAttribute('data-hermes-glass-on') ? 'window glass on' : 'window glass off: painted solid'].join('  ·  ')
+            ? ['Glass', 'your desktop behind a ' + Math.round(GLASS.tint * 100) + '% tint', document.documentElement.hasAttribute('data-zf-backdrop') ? 'wallpaper, blurred 20px' : document.documentElement.hasAttribute('data-hermes-glass-on') ? 'window glass' : 'no wallpaper chosen: painted solid'].join('  ·  ')
           : lookNow === 'custom'
             ? ['Custom picture', isChrome ? 'Zephyr styling' : 'Hermes styling'].join('  ·  ')
             : [

@@ -229,7 +229,7 @@ let SKIN = { ...SKIN_DEFAULTS }
 const GLASS_DEFAULTS = {
   ground: '#1f0b06', deeper: '#170805', cardTint: '#2c130b', bubbleTint: '#3b1a10', edge: '#5b2a1b',
   accent: '#e2704a', ink: '#edd1b3', ink2: '#d6b597', quiet: '#a8846c', link: '#7fa3bc', code: '#e6a3ac', quote: '#9db07c',
-  tint: 0.82, thumb: ''
+  tint: 0.92, thumb: ''
 }
 const GLASS_KEYS = Object.keys(GLASS_DEFAULTS)
 let GLASS = { ...GLASS_DEFAULTS }
@@ -299,7 +299,7 @@ const glassGrounds = () => {
     primary: GLASS.accent, primaryForeground: GLASS.deeper, secondary: a(GLASS.bubbleTint, 0.7), secondaryForeground: GLASS.ink,
     accent: GLASS.accent, accentForeground: GLASS.deeper, border: GLASS.edge, input: a(GLASS.cardTint, 0.7), ring: GLASS.accent,
     destructive: '#e5482f', destructiveForeground: '#fff4ee',
-    sidebarBackground: a(GLASS.deeper, 0.2), sidebarBorder: GLASS.edge, userBubble: a(GLASS.bubbleTint, 0.78), userBubbleBorder: GLASS.edge
+    sidebarBackground: 'transparent', sidebarBorder: a(GLASS.ink, 0.09), userBubble: a(GLASS.ink, 0.05), userBubbleBorder: a(GLASS.ink, 0.1)
   }
 }
 // Glass reuses the skin machinery for its panels; these are its skin values.
@@ -461,6 +461,15 @@ const glassChromeCss = () => [
   `  --ui-text-tertiary: ${GLASS.quiet} !important;`,
   `  --ui-text-quaternary: rgba(${hexTriple(GLASS.quiet)}, 0.8) !important;`,
   `  --zf-ink-3: ${GLASS.quiet} !important;`,
+  // One surface, like a terminal: panels are a faint lift of the ink over the
+  // same tint, never a second slab of colour, and nothing casts a shadow.
+  `  --zf-side-card: rgba(${hexTriple(GLASS.ink)}, 0.035) !important;`,
+  `  --zf-side-card-hi: rgba(${hexTriple(GLASS.ink)}, 0.07) !important;`,
+  `  --zf-glass: rgba(${hexTriple(GLASS.ink)}, 0.035) !important;`,
+  `  --zf-glass-hover: rgba(${hexTriple(GLASS.ink)}, 0.07) !important;`,
+  `  --theme-neutral-card: rgba(${hexTriple(GLASS.ink)}, 0.035) !important;`,
+  `  --zf-edge: rgba(${hexTriple(GLASS.ink)}, 0.09) !important;`,
+  "  --zf-lift: none !important;",
   "}",
   // Nothing in this look needs a live blur: the OS already blurred what is
   // behind the window, and blurring our own flat tint again is pure GPU cost.
@@ -9326,12 +9335,17 @@ export default {
     // store listens for this key's storage event, so it applies live.
     const TRANSLUCENCY_KEY = 'hermes.desktop.translucency.v2'
     const ensureWindowGlass = () => {
-      if (typeof document === 'undefined' || document.documentElement.hasAttribute('data-hermes-glass-on')) return
-      if (!window.hermesDesktop?.glassSupported) return
+      if (typeof document === 'undefined' || !window.hermesDesktop?.glassSupported) return
       let book = {}
       try { book = JSON.parse(localStorage.getItem(TRANSLUCENCY_KEY) || '{}') || {} } catch {}
+      // Like a terminal's background-blur: the whole window, on the thinnest
+      // material ('under-window'; 'titlebar' frosts everything grey), and the
+      // sidebar-only scope would leave the chat column a solid slab.
       const dark = { ...(book.dark || {}) }
       if (!(Number(dark.intensity) > 0)) dark.intensity = 20
+      if (book.mode === 'glass' && dark.material === 'under-window' && dark.scope === 'window') return
+      dark.material = 'under-window'
+      dark.scope = 'window'
       const next = { ...book, mode: 'glass', dark }
       try {
         localStorage.setItem(TRANSLUCENCY_KEY, JSON.stringify(next))
@@ -9339,6 +9353,7 @@ export default {
       } catch {}
     }
     const glassState = atom({ ...GLASS })
+    if (look.get() === 'glass') ensureWindowGlass()
     const pushGlass = patch => {
       setGlass({ ...GLASS, ...patch })
       glassState.set({ ...GLASS })

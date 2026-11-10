@@ -457,10 +457,7 @@ const glassLayers = () => [
   "html:root [data-contrib-shell], html:root [data-slot='sidebar-wrapper'] { background-color: transparent !important; }",
 ]
 const glassChromeCss = () => [
-  // terminal type: the app ships JetBrains Mono; a Nerd Font build wins if installed
   "html:root {",
-  "  --dt-font-sans: 'JetBrainsMono Nerd Font', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace !important;",
-  "  --dt-font-mono: 'JetBrainsMono Nerd Font', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace !important;",
   `  --ui-text-tertiary: ${GLASS.quiet} !important;`,
   `  --ui-text-quaternary: rgba(${hexTriple(GLASS.quiet)}, 0.8) !important;`,
   `  --zf-ink-3: ${GLASS.quiet} !important;`,

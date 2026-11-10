@@ -9399,7 +9399,8 @@ export default {
     const syncBackdrop = () => {
       const on = !!backdrop && look.get() === 'glass'
       const root = document.documentElement
-      root.toggleAttribute('data-zf-backdrop', on)
+      if (on) root.setAttribute('data-zf-backdrop', '')
+      else root.removeAttribute?.('data-zf-backdrop')
       let el = document.getElementById(BACKDROP_STYLE)
       if (!on) { el?.remove(); stopTracking(); return }
       windowGlassOff()

@@ -219,6 +219,96 @@ const SKIN_COLORS = [
   ['ink2', 'Quiet text']
 ]
 let SKIN = { ...SKIN_DEFAULTS }
+
+// ── Glass: the desktop through the window ──────────────────────────────────
+// A terminal-style look: no picture of our own. The window is see-through (the
+// app's native glass, i.e. macOS vibrancy, blurs whatever is behind it) and one
+// dark tint, drawn from the colours of what is behind it, sits over the whole
+// window. The defaults are a warm terminal palette; "Match a picture" re-derives
+// every colour from your wallpaper.
+const GLASS_DEFAULTS = {
+  ground: '#1f0b06', deeper: '#170805', cardTint: '#2c130b', bubbleTint: '#3b1a10', edge: '#5b2a1b',
+  accent: '#e2704a', ink: '#edd1b3', ink2: '#d6b597', quiet: '#a8846c', link: '#7fa3bc', code: '#e6a3ac', quote: '#9db07c',
+  tint: 0.82, thumb: ''
+}
+const GLASS_KEYS = Object.keys(GLASS_DEFAULTS)
+let GLASS = { ...GLASS_DEFAULTS }
+const setGlass = next => {
+  const out = { ...GLASS_DEFAULTS }
+  for (const key of GLASS_KEYS) {
+    const v = next?.[key]
+    if (key === 'tint') { const n = Number(v); if (Number.isFinite(n)) out.tint = Math.min(0.97, Math.max(0.4, n)) }
+    else if (key === 'thumb') { if (typeof v === 'string' && v.startsWith('data:image/')) out.thumb = v }
+    else if (typeof v === 'string' && SKIN_HEX.test(v.trim())) out[key] = v.trim()
+  }
+  GLASS = out
+}
+// HSL in [0,360) / [0,1] / [0,1] to '#rrggbb'
+const hslHex = (h, s, l) => {
+  h = ((h % 360) + 360) % 360
+  const k = n => (n + h / 30) % 12
+  const a = s * Math.min(l, 1 - l)
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))
+  return '#' + [f(0), f(8), f(4)].map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
+}
+const rgbHsl = (r, g, b) => {
+  r /= 255; g /= 255; b /= 255
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2
+  if (max === min) return [0, 0, l]
+  const d = max - min
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  const h = max === r ? ((g - b) / d + (g < b ? 6 : 0)) : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+  return [h * 60, s, l]
+}
+// The palette a picture implies: its dominant hue becomes the glass, the ink and
+// the accent; the strongest hue far from it becomes links. Pure, so testable.
+const glassPaletteFrom = pixels => {
+  const bins = new Array(36).fill(0), sat = new Array(36).fill(0)
+  let total = 0
+  for (let i = 0; i + 2 < pixels.length; i += 4) {
+    const [h, s, l] = rgbHsl(pixels[i], pixels[i + 1], pixels[i + 2])
+    const w = s * Math.max(0, 1 - Math.abs(l - 0.5) * 2)
+    const b = Math.floor(h / 10) % 36
+    bins[b] += w; sat[b] += s * w; total += w
+  }
+  const smooth = bins.map((_, i) => bins[(i + 35) % 36] * 0.5 + bins[i] + bins[(i + 1) % 36] * 0.5)
+  const top = smooth.indexOf(Math.max(...smooth))
+  const hue = top * 10 + 5
+  // how colourful the picture is overall (0 grey .. 1 vivid), so a grey
+  // wallpaper gets grey glass rather than an invented colour
+  const vivid = Math.min(1, total / (pixels.length / 4) / 0.35)
+  const chroma = Math.max(0.08, (sat[top] / Math.max(bins[top], 1e-6)) * vivid)
+  let far = -1, farW = 0
+  smooth.forEach((w, i) => { const d = Math.min(Math.abs(i - top), 36 - Math.abs(i - top)); if (d >= 6 && w > farW) { farW = w; far = i } })
+  const linkHue = far >= 0 && farW > smooth[top] * 0.08 ? far * 10 + 5 : hue + 180
+  const c = x => Math.min(1, x * chroma / 0.75)
+  return {
+    ground: hslHex(hue, c(0.68), 0.075), deeper: hslHex(hue, c(0.7), 0.055),
+    cardTint: hslHex(hue, c(0.55), 0.11), bubbleTint: hslHex(hue, c(0.5), 0.15), edge: hslHex(hue, c(0.42), 0.25),
+    accent: hslHex(hue + 2, Math.max(0.35, c(0.72)), 0.6), ink: hslHex(hue + 18, c(0.62), 0.82), ink2: hslHex(hue + 18, c(0.42), 0.72),
+    quiet: hslHex(hue + 14, c(0.22), 0.55), link: hslHex(linkHue, Math.max(0.2, c(0.33)), 0.63),
+    code: hslHex(hue - 20, Math.max(0.25, c(0.55)), 0.75), quote: hslHex(hue + 70, Math.max(0.15, c(0.25)), 0.6)
+  }
+}
+// The glass colours, as the host theme's tokens (menus, dialogs, inputs).
+const glassGrounds = () => {
+  const a = (hex, alpha) => `rgba(${hexTriple(hex)}, ${alpha})`
+  return {
+    background: a(GLASS.ground, 0.80), foreground: GLASS.ink, card: a(GLASS.cardTint, 0.86), cardForeground: GLASS.ink,
+    muted: a(GLASS.cardTint, 0.6), mutedForeground: GLASS.ink2, popover: a(GLASS.deeper, 0.96), popoverForeground: GLASS.ink,
+    primary: GLASS.accent, primaryForeground: GLASS.deeper, secondary: a(GLASS.bubbleTint, 0.7), secondaryForeground: GLASS.ink,
+    accent: GLASS.accent, accentForeground: GLASS.deeper, border: GLASS.edge, input: a(GLASS.cardTint, 0.7), ring: GLASS.accent,
+    destructive: '#e5482f', destructiveForeground: '#fff4ee',
+    sidebarBackground: a(GLASS.deeper, 0.2), sidebarBorder: GLASS.edge, userBubble: a(GLASS.bubbleTint, 0.78), userBubbleBorder: GLASS.edge
+  }
+}
+// Glass reuses the skin machinery for its panels; these are its skin values.
+const glassSkin = () => ({
+  ...SKIN_DEFAULTS, scrim: 0, blur: 0, saturate: 1, brightness: 1,
+  chrome: 0.62, sidebar: 0.5, card: 0.7, bubble: 0.8,
+  ground: GLASS.ground, deeper: GLASS.deeper, cardTint: GLASS.cardTint, bubbleTint: GLASS.bubbleTint,
+  edge: GLASS.edge, accent: GLASS.accent, ink: GLASS.ink, ink2: GLASS.ink2
+})
 // The skin comes from a hand-edited file and goes into the stylesheet as text, so
 // one stray `;` or `}` would break every rule after it. Colours must be hex and
 // numbers are clamped to what the sliders allow; anything else keeps its default.
@@ -320,7 +410,7 @@ const gruvboxMaterial = () => ({
   // the status bar, the fold line, shortcuts — and gruvbox's Comment grey is
   // simply too quiet at that size over a tinted ground, so the quiet tier sits
   // at fg1. This is the one place the theme deliberately out-contrasts gruvbox.
-  ink: [hexRgb(SKIN.ink), hexRgb(SKIN.ink2), GB.fg2, hexRgb(SKIN.ink2)],
+  ink: [hexRgb(SKIN.ink), hexRgb(SKIN.ink2), LOOK_MODE === 'glass' ? hexRgb(GLASS.ink2) : GB.fg2, hexRgb(SKIN.ink2)],
   night: 0.2,
   accent: SKIN.accent
 })
@@ -354,6 +444,42 @@ const gruvboxLayers = () => {
     'body::before { content: none; }'
   ]
 }
+
+// Glass has no picture: the window is the picture. <body> is the one painter,
+// a single tint over the native material, exactly like a terminal with
+// background-opacity + background-blur. Without native glass (the setting is
+// off, or the platform has none) the same tint is painted solid.
+const glassLayers = () => [
+  "html, html:root { background: transparent !important; background-color: transparent !important; }",
+  `html:root body { background: rgba(${hexTriple(GLASS.ground)}, ${GLASS.tint}) !important; }`,
+  `html:root:not([data-hermes-glass-on]) body { background: ${GLASS.ground} !important; }`,
+  "html::before, body::before { content: none !important; }",
+  "html:root [data-contrib-shell], html:root [data-slot='sidebar-wrapper'] { background-color: transparent !important; }",
+]
+const glassChromeCss = () => [
+  // terminal type: the app ships JetBrains Mono; a Nerd Font build wins if installed
+  "html:root {",
+  "  --dt-font-sans: 'JetBrainsMono Nerd Font', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace !important;",
+  "  --dt-font-mono: 'JetBrainsMono Nerd Font', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace !important;",
+  `  --ui-text-tertiary: ${GLASS.quiet} !important;`,
+  `  --ui-text-quaternary: rgba(${hexTriple(GLASS.quiet)}, 0.8) !important;`,
+  `  --zf-ink-3: ${GLASS.quiet} !important;`,
+  "}",
+  // Nothing in this look needs a live blur: the OS already blurred what is
+  // behind the window, and blurring our own flat tint again is pure GPU cost.
+  "html:root *, html:root *::before, html:root *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }",
+  // Over a busy desktop the prose shadow reads as smudge; the tint carries contrast.
+  "html:root :is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message'], [data-slot='assistant-message'], [data-slot='aui_intro'], [data-slot='statusbar']) :is(p, li, td, th, dd, dt, figcaption, h1, h2, h3, span) { text-shadow: none !important; }",
+  `::selection { background: rgba(${hexTriple(GLASS.accent)}, 0.38) !important; color: ${GLASS.ink} !important; }`,
+  // the running dot takes the palette's accent instead of a stock blue
+  "html:root :is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) [class*='place-items-center'] span[role='status']:is([class*='ui-accent'], [aria-label*='session running' i]) {",
+  `  background: ${GLASS.accent} !important; background-color: ${GLASS.accent} !important; box-shadow: 0 0 6px rgba(${hexTriple(GLASS.accent)}, 0.55) !important;`,
+  "}",
+  "html:root :is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) [class*='place-items-center'] span[role='status']:is([class*='ui-accent'], [aria-label*='session running' i])::after {",
+  `  box-shadow: 0 0 0 1.5px rgba(${hexTriple(GLASS.accent)}, 0.35) !important;`,
+  "}",
+  "* { scrollbar-color: rgba(" + hexTriple(GLASS.ink) + ", 0.16) transparent; }",
+]
 
 // The picture lives in its own style element: a 5 MB data URL must not be
 // re-stringified on every clock tick.
@@ -444,8 +570,8 @@ const polishCss = (gruv = false) => [
   // applies a theme, and inline declarations otherwise beat any stylesheet.
   `  --ui-text-primary: ${LOOK_MODE === 'sunset' ? '#ffffff' : SKIN.ink} !important;`,
   `  --ui-text-secondary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.86)' : SKIN.ink2} !important;`,
-  `  --ui-text-tertiary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.72)' : '#bdae93'} !important;`,
-  `  --ui-text-quaternary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.58)' : '#a89984'} !important;`,
+  `  --ui-text-tertiary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.72)' : LOOK_MODE === 'glass' ? GLASS.quiet : '#bdae93'} !important;`,
+  `  --ui-text-quaternary: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.58)' : LOOK_MODE === 'glass' ? GLASS.quiet : '#a89984'} !important;`,
   '}',
   // `--zf-` is the app's namespace too: it ships its own --zf-ink-2, which is
   // rgb(33 3 25) — near-black. Every rule of ours that said
@@ -455,7 +581,7 @@ const polishCss = (gruv = false) => [
   `  --zf-ink-0: ${LOOK_MODE === 'sunset' ? '#ffffff' : SKIN.ink} !important;`,
   `  --zf-ink-1: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.92)' : SKIN.ink2} !important;`,
   `  --zf-ink-2: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.78)' : SKIN.ink2} !important;`,
-  `  --zf-ink-3: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.60)' : '#d5c4a1'} !important;`,
+  `  --zf-ink-3: ${LOOK_MODE === 'sunset' ? 'rgba(255, 255, 255, 0.60)' : LOOK_MODE === 'glass' ? GLASS.quiet : '#d5c4a1'} !important;`,
   '}',
   ':root {',
   // One ladder, four steps: chip 4, control/row/well 8, card 12, sheet 16.
@@ -791,6 +917,7 @@ const gruvboxTextCss = () => [
   // It hangs off html::after rather than a thread element precisely because a
   // thread element's width ends at the pane boundary, and that boundary is the
   // hard line we are trying to get rid of.
+  ...(LOOK_MODE === 'glass' ? [] : [
   "html[data-zf-chat='1']::after {",
   "  content: '';",
   '  position: fixed; left: 0; right: 0; top: 0; bottom: 0; z-index: -1;',
@@ -799,6 +926,7 @@ const gruvboxTextCss = () => [
   `  backdrop-filter: blur(${skinNumber(SKIN.blur, 16)}px) saturate(${skinNumber(SKIN.saturate, 1.35)}) brightness(${skinNumber(SKIN.brightness, 0.84)});`,
   '}',
   "html[data-zf-chat='1'][data-zf-clip='1']::after { clip-path: var(--zf-chat-clip); }",
+  ]),
   `::selection { background: ${SKIN.edge} !important; color: ${SKIN.ink} !important; }`,
   // The tab bar floats on the picture with nothing marking where it ends. The very top of the
   // window is a touch darker, fading out under the tabs, with a faint line at the bar's foot.
@@ -814,26 +942,26 @@ const gruvboxTextCss = () => [
   '}',
   // Underlined
   ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) a {",
-  '  color: #83a598 !important;',
+  `  color: ${LOOK_MODE === 'glass' ? GLASS.link : '#83a598'} !important;`,
   '  text-decoration: underline !important;',
-  '  text-decoration-color: rgba(131, 165, 152, 0.55) !important;',
+  `  text-decoration-color: rgba(${LOOK_MODE === 'glass' ? hexTriple(GLASS.link) : '131, 165, 152'}, 0.55) !important;`,
   '}',
   // Constant
   ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) :is(code, kbd, samp) {",
-  '  color: #d3869b !important;',
-  `  background: rgba(${hexTriple(SKIN.deeper)}, 0.78) !important;`,
+  `  color: ${LOOK_MODE === 'glass' ? GLASS.code : '#d3869b'} !important;`,
+  `  background: rgba(${hexTriple(SKIN.deeper)}, ${LOOK_MODE === 'glass' ? 0.55 : 0.78}) !important;`,
   `  border: 1px solid ${SKIN.edge} !important;`,
   '}',
   // String / Special in blocks: the fence keeps bg0_hard, the border is bg2
   ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) pre {",
-  `  background: rgba(${hexTriple(SKIN.deeper)}, 0.90) !important;`,
+  `  background: rgba(${hexTriple(SKIN.deeper)}, ${LOOK_MODE === 'glass' ? 0.6 : 0.90}) !important;`,
   `  border: 1px solid ${SKIN.edge} !important;`,
-  '  color: #ebdbb2 !important;',
+  `  color: ${LOOK_MODE === 'glass' ? GLASS.ink : '#ebdbb2'} !important;`,
   '}',
   // PreProc
   ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) blockquote {",
-  '  border-left: 2px solid #8ec07c !important;',
-  '  color: #d5c4a1 !important;',
+  `  border-left: 2px solid ${LOOK_MODE === 'glass' ? GLASS.quote : '#8ec07c'} !important;`,
+  `  color: ${LOOK_MODE === 'glass' ? GLASS.ink2 : '#d5c4a1'} !important;`,
   '}',
   // LineNr
   ":is([data-slot='aui_assistant-message-content'], [data-slot='aui_user-message-root'], [data-slot='user-message']) hr {",
@@ -851,7 +979,7 @@ const gruvboxTextCss = () => [
 // Read by skyStyleFor, which stays a pure function of (date, gl, switches).
 // The look is a module-level switch so the sheet builder stays a single path.
 let LOOK_MODE = 'sunset'
-const setLookMode = mode => { LOOK_MODE = mode === 'gruvbox' ? 'gruvbox' : 'sunset' }
+const setLookMode = mode => { LOOK_MODE = mode === 'gruvbox' || mode === 'glass' ? mode : 'sunset' }
 
 const WORK_ICONS = {
   brain: '<svg width="14" height="14" viewBox="0 0 256 256" fill="#ffffff"><path d="M216,72a48,48,0,0,0-88-26.49A48,48,0,0,0,40,72v1.39a56,56,0,0,0,0,101.22V176a48,48,0,0,0,88,26.49A48,48,0,0,0,216,176v-1.39A56.09,56.09,0,0,0,248,124,56.11,56.11,0,0,0,216,72ZM120,208a32,32,0,0,1-32-32,48,48,0,0,1,32-45.26Zm0-93.26A48,48,0,0,1,88,69.26,32,32,0,0,1,120,40Zm16-74.74A32,32,0,0,1,168,69.26a48,48,0,0,1-32,45.48Zm0,93.26A48,48,0,0,1,168,176a32,32,0,0,1-32,32Z"/></svg>',
@@ -1373,7 +1501,8 @@ const ARCLIKE_CSS = [
 // switches in Settings, so a plain Hermes chrome can keep its sky, and the
 // glass can stay without a backdrop behind it.
 const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) => {
-  const gruv = LOOK_MODE === 'gruvbox'
+  const gruv = LOOK_MODE !== 'sunset'
+  const glass = LOOK_MODE === 'glass'
   const sky = skyAt(date)
   const isNight = !gruv && phaseAt(date) === 'night'
   const horizonTilt = horizonTiltAt(date)
@@ -1382,23 +1511,25 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
   // quality knob, and making them translucent is what lets the sky read through.
   // Gruvbox has no light level: it uses the same body dusk gets.
   const zf = gruv ? gruvboxMaterial() : zephyrMaterial(sky)
-  const density = gruv ? String(skinNumber(SKIN.chrome, 0.88)) : Math.min(0.92, 0.55 + 0.35 * sky.exposure + 0.24 * zf.night).toFixed(3)
+  const density = glass ? '0' : gruv ? String(skinNumber(SKIN.chrome, 0.88)) : Math.min(0.92, 0.55 + 0.35 * sky.exposure + 0.24 * zf.night).toFixed(3)
   // The painting has real light and shade, unlike a sky gradient, so gruvbox
   // tunes the three neutrals separately: the reading pane lets the painting
   // through, the sidebar (smallest text) and the cards hold it back.
-  const sideDensity = gruv ? String(skinNumber(SKIN.sidebar, 0.92)) : density
-  const cardDensity = gruv ? String(skinNumber(SKIN.card, 0.96)) : density
+  const sideDensity = glass ? '0.22' : gruv ? String(skinNumber(SKIN.sidebar, 0.92)) : density
+  const cardDensity = glass ? '0.55' : gruv ? String(skinNumber(SKIN.card, 0.96)) : density
   const glassPct = a => `${Math.round(a)}%`
   // gruvbox has no white in its palette; fg0 is the brightest ink it uses.
-  const solidInk = gruv ? gbHex(GB.fg0) : '#ffffff'
+  const solidInk = glass ? GLASS.ink : gruv ? gbHex(GB.fg0) : '#ffffff'
 
   return [
-    gruv
+    glass
+      ? `/* Zephyr · glass. Tint ${GLASS.ground} at ${GLASS.tint} over the native window material. */`
+      : gruv
       ? `/* Zephyr · gruvbox. The Backwater, ${BACKWATER_FILE}, full ${4096}×${2428}, cover-fitted. */`
       : `/* Zephyr sky. Blended for ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}, exposure ${sky.exposure.toFixed(2)}, horizon ${horizonTilt.angle.toFixed(1)}°. */`,
     ...(backdrop ? [
     'html {',
-    `  background-color: ${gruv ? '#1d2021' : cssRgb(sky.base)};`,
+    `  background-color: ${glass ? 'transparent' : gruv ? '#1d2021' : cssRgb(sky.base)};`,
     '}',
     // The app's own ground is `body { background: var(--ui-chat-surface-background) }`,
     // and that chrome colour is a color-mix whose second input is an OPAQUE
@@ -1413,7 +1544,9 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
     // In gruvbox the painting IS the background, so its own layer block is used.
     ...(gl
       ? ['html::before { content: none; }', 'body::before { content: none; }']
-      : gruv
+      : glass
+        ? glassLayers()
+        : gruv
         ? gruvboxLayers()
         : [
     // Negative z-index is the whole trick: these layers paint above the canvas
@@ -2319,6 +2452,7 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
     })()),
     ...SESSION_TAB_CSS,
     ...(gruv ? gruvboxTextCss() : []),
+    ...(glass ? glassChromeCss() : []),
     ...polishCss(gruv),
     // Sidebar cards, the composer and the switch pill share the material.
     "[data-slot='sidebar-content'] > [data-slot='sidebar-group'],",
@@ -4872,7 +5006,8 @@ const APPEARANCE_LOOKS = [
   { id: 'sky', label: 'Sky', description: 'Follows the sun', preview: 'linear-gradient(165deg, #2473a0, #8ec7d4 65%, #e3cd9d)' },
   { id: 'aurora', label: 'Aurora', description: 'Northern lights', preview: 'linear-gradient(117deg, #10192c 15%, #458f7b 26%, #8dc8a3 29%, #353454 39%, #10192c 60%)' },
   { id: 'gruvbox', label: 'Gruvbox', description: 'Painting & warm glass', preview: 'linear-gradient(165deg, #767b52 35%, #aa9a6d 36%, #aa9a6d 56%, #4d593c 57%, #353a2e)' },
-  { id: 'custom', label: 'Custom', description: 'Your picture & colours', preview: 'var(--ui-widget-surface-background)' }
+  { id: 'custom', label: 'Custom', description: 'Your picture & colours', preview: 'var(--ui-widget-surface-background)' },
+  { id: 'glass', label: 'Glass', description: 'Your desktop, through tinted glass', preview: '' }
 ]
 // every theme name Zephyr owns; anything else is the user's own pick
 const isOurTheme = name => name === SKY_THEME || PHASES.some(p => name === phaseThemeName(p)) || (typeof GRUVBOX_THEME !== 'undefined' && name === GRUVBOX_THEME) || name === AURORA_THEME
@@ -5332,7 +5467,7 @@ function PhaseChip({ appearance, held, onSelect }) {
   const selected = useValue(appearance)
   const phase = useValue(held)
   const value = selected === 'sky' ? 'sky:' + (phase || 'live') : selected
-  const choices = [['sky:live', 'Sky · Live'], ...PHASES.map(p => ['sky:' + p, 'Sky · ' + (p === 'dusk' ? 'Sunset' : p[0].toUpperCase() + p.slice(1))]), ['aurora', 'Aurora'], ['gruvbox', 'Gruvbox'], ['custom', 'Custom'], ['hermes', 'Hermes appearance']]
+  const choices = [['sky:live', 'Sky · Live'], ...PHASES.map(p => ['sky:' + p, 'Sky · ' + (p === 'dusk' ? 'Sunset' : p[0].toUpperCase() + p.slice(1))]), ['aurora', 'Aurora'], ['gruvbox', 'Gruvbox'], ['custom', 'Custom'], ['glass', 'Glass'], ['hermes', 'Hermes appearance']]
   return jsxs(Select, { value, onValueChange: onSelect, children: [
     jsx(SelectTrigger, { 'aria-label': 'Zephyr appearance', className: 'h-7 w-auto text-xs', children: jsx(SelectValue, {}) }),
     jsx(SelectContent, { children: choices.map(([id, label]) => jsx(SelectItem, { value: id, children: label }, id)) })
@@ -5971,7 +6106,7 @@ export default {
       const now = document.documentElement.dataset.hermesTheme || ''
       away = (stored('away') === true || stored(STORE_KEYS.auto) === false) && Boolean(now) && !isOurTheme(now)
     }
-    const appearance = atom(away ? 'hermes' : stored('aurora') === true ? 'aurora' : stored(STORE_KEYS.look) === 'gruvbox' ? 'gruvbox' : stored(STORE_KEYS.look) === 'custom' ? 'custom' : 'sky')
+    const appearance = atom(away ? 'hermes' : stored('aurora') === true ? 'aurora' : stored(STORE_KEYS.look) === 'gruvbox' ? 'gruvbox' : stored(STORE_KEYS.look) === 'custom' ? 'custom' : stored(STORE_KEYS.look) === 'glass' ? 'glass' : 'sky')
     const appearanceAssets = atom(0)
     const wake = () => { away = false; ctx.storage.set('away', false) }
     const tint = atom(stored(STORE_KEYS.tint) === true)
@@ -5985,10 +6120,11 @@ export default {
     // Backwater skin at its shipped defaults; 'custom' = the same skin driven by
     // your own picture and knobs (zephyr-theme.json). Built-in and custom differ
     // only in which values the sheet reads.
-    const LOOKS = ['sunset', 'gruvbox', 'custom']
+    const LOOKS = ['sunset', 'gruvbox', 'custom', 'glass']
+    setGlass(stored('glass'))
     const lookStore = stored(STORE_KEYS.look)
     const look = atom(LOOKS.includes(lookStore) ? lookStore : 'sunset')
-    setLookMode(look.get() === 'sunset' ? 'sunset' : 'gruvbox')
+    setLookMode(look.get() === 'sunset' ? 'sunset' : look.get() === 'glass' ? 'glass' : 'gruvbox')
     const margins = atom(stored(STORE_KEYS.margins) === true)
     const collapseWork = atom(stored(STORE_KEYS.collapseWork) !== false)
     const motion = atom(stored(STORE_KEYS.motion) !== false)
@@ -8956,7 +9092,7 @@ export default {
 
       registerLive(next)
       requestTheme(SKY_THEME)
-      if (tint.get()) setAccentOverride(AURORA_LOOK ? AURORA_ACCENT : look.get() !== 'sunset' ? GRUVBOX_ACCENT : GROUNDS[pin.get() || next].accent)
+      if (tint.get()) setAccentOverride(AURORA_LOOK ? AURORA_ACCENT : look.get() === 'glass' ? GLASS.accent : look.get() !== 'sunset' ? GRUVBOX_ACCENT : GROUNDS[pin.get() || next].accent)
 
     }
 
@@ -9017,13 +9153,13 @@ export default {
     // colours whenever the phase turns, so the app repaints in place and the
     // pick in Appearance never changes. The four phases below hold one sky.
     function registerLive(ph) {
-      const key = AURORA_LOOK ? 'aurora' : look.get() !== 'sunset' ? look.get() : ph
+      const key = AURORA_LOOK ? 'aurora' : look.get() === 'glass' ? 'glass:' + GLASS_KEYS.filter(k => k !== 'thumb').map(k => GLASS[k]).join() : look.get() !== 'sunset' ? look.get() : ph
       if (liveFor === key) return
       liveFor = key
       ctx.register({ id: 'theme.sky', area: THEMES_AREA, order: 38, data: {
         name: SKY_THEME, label: 'Zephyr',
         description: 'Choose Sky, Aurora, Gruvbox or Custom in Settings → Zephyr.',
-        colors: AURORA_LOOK ? AURORA_GROUNDS : look.get() !== 'sunset' ? GRUVBOX_GROUNDS : GROUNDS[ph]
+        colors: AURORA_LOOK ? AURORA_GROUNDS : look.get() === 'glass' ? glassGrounds() : look.get() !== 'sunset' ? GRUVBOX_GROUNDS : GROUNDS[ph]
       } })
     }
     registerLive(phaseAt(nowAt()))
@@ -9147,12 +9283,12 @@ export default {
     const storedPicture = stored(STORE_KEYS.skinImage)
     if (typeof storedPicture === 'string' && storedPicture.length > 32) customSkin.image = storedPicture
     // the built-in look always paints the shipped defaults
-    setSkin(look.get() === 'custom' ? customSkin : { ...SKIN_DEFAULTS })
+    setSkin(look.get() === 'custom' ? customSkin : look.get() === 'glass' ? glassSkin() : { ...SKIN_DEFAULTS })
     ensurePictureStyle(SKIN.image)
     const skin = atom({ ...customSkin })
     const lookWeather = (() => { const v = stored('lookWeather'); return v && typeof v === 'object' && !Array.isArray(v) ? { ...v } : {} })()
     const selectAppearance = next => {
-      if (!['sky', 'aurora', 'gruvbox', 'custom', 'hermes'].includes(next)) return
+      if (!['sky', 'aurora', 'gruvbox', 'custom', 'glass', 'hermes'].includes(next)) return
       const previous = appearance.get()
       if (previous !== 'hermes') lookWeather[previous] = weatherMode.get()
       ctx.storage.set('lookWeather', lookWeather)
@@ -9177,14 +9313,66 @@ export default {
       appearance.set(next)
       const savedWeather = lookWeather[next]
       weatherMode.set(Object.hasOwn(WEATHER_LABEL, savedWeather) ? savedWeather : next === 'aurora' ? 'clear' : 'live')
-      setLookMode(look.get() === 'sunset' ? 'sunset' : 'gruvbox')
-      setSkin(next === 'custom' ? { ...skin.get() } : { ...SKIN_DEFAULTS })
+      setLookMode(look.get() === 'sunset' ? 'sunset' : look.get() === 'glass' ? 'glass' : 'gruvbox')
+      setSkin(next === 'custom' ? { ...skin.get() } : next === 'glass' ? glassSkin() : { ...SKIN_DEFAULTS })
       ensurePictureStyle(SKIN.image)
+      if (next === 'glass') ensureWindowGlass()
       persist()
       applyWeather(true)
       apply(nowAt())
     }
     const switchLook = next => selectAppearance(next === 'sunset' ? 'sky' : next)
+
+    // Glass needs the window itself to be see-through: Hermes's own glass
+    // setting (Settings → Appearance → Translucency). If it is off, turn it on
+    // for the dark palette at a light tint; ours paints the colour. The app's
+    // store listens for this key's storage event, so it applies live.
+    const TRANSLUCENCY_KEY = 'hermes.desktop.translucency.v2'
+    const ensureWindowGlass = () => {
+      if (typeof document === 'undefined' || document.documentElement.hasAttribute('data-hermes-glass-on')) return
+      if (!window.hermesDesktop?.glassSupported) return
+      let book = {}
+      try { book = JSON.parse(localStorage.getItem(TRANSLUCENCY_KEY) || '{}') || {} } catch {}
+      const dark = { ...(book.dark || {}) }
+      if (!(Number(dark.intensity) > 0)) dark.intensity = 20
+      const next = { ...book, mode: 'glass', dark }
+      try {
+        localStorage.setItem(TRANSLUCENCY_KEY, JSON.stringify(next))
+        window.dispatchEvent(new StorageEvent('storage', { key: TRANSLUCENCY_KEY, newValue: JSON.stringify(next) }))
+      } catch {}
+    }
+    const glassState = atom({ ...GLASS })
+    const pushGlass = patch => {
+      setGlass({ ...GLASS, ...patch })
+      glassState.set({ ...GLASS })
+      ctx.storage.set('glass', { ...GLASS })
+      if (look.get() !== 'glass') { selectAppearance('glass'); return }
+      setSkin(glassSkin())
+      apply(nowAt())
+    }
+    // Sample a picture small (the palette needs colour, not detail) and derive
+    // every glass colour from it. A tiny copy is kept for the picker swatch.
+    const matchPicture = file => new Promise(resolve => {
+      if (!file) return resolve(false)
+      const url = URL.createObjectURL(file)
+      const img = new Image()
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas')
+          c.width = 64; c.height = 36
+          const g = c.getContext('2d')
+          g.drawImage(img, 0, 0, 64, 36)
+          const pal = glassPaletteFrom(g.getImageData(0, 0, 64, 36).data)
+          const t = document.createElement('canvas')
+          t.width = 160; t.height = 90
+          t.getContext('2d').drawImage(img, 0, 0, 160, 90)
+          pushGlass({ ...pal, thumb: t.toDataURL('image/jpeg', 0.7) })
+          resolve(true)
+        } catch { resolve(false) } finally { URL.revokeObjectURL(url) }
+      }
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(false) }
+      img.src = url
+    })
     const setSkyPhase = value => {
       const next = PHASES.includes(value) ? value : null
       pin.set(next)
@@ -9871,6 +10059,28 @@ export default {
       ]})
     }
 
+    const GlassEditor = () => {
+      const g = useValue(glassState)
+      const btn = { border: '1px solid var(--zf-edge, var(--ui-stroke-tertiary, rgba(255,255,255,0.16)))' }
+      const chip = hex => jsx('span', { title: hex, style: { display: 'inline-block', width: '1.1rem', height: '1.1rem', borderRadius: '4px', background: hex, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' } }, hex)
+      return jsxs('div', { className: 'flex flex-col gap-2 py-2', children: [
+        jsx(ListRow, {
+          title: 'Colours from a picture',
+          description: 'Pick your wallpaper and the glass, text and accent are drawn from it.',
+          action: jsxs('div', { className: 'flex items-center gap-2', children: [
+            jsx('label', { className: 'cursor-pointer rounded-md px-2 py-1 text-[0.75rem]', style: btn, children: ['Match a picture…',
+              jsx('input', { type: 'file', accept: 'image/*', style: { display: 'none' }, onChange: e => { const f = e.target.files && e.target.files[0]; void matchPicture(f); e.target.value = '' } })] }),
+            jsx('button', { type: 'button', className: 'rounded-md px-2 py-1 text-[0.75rem]', style: btn, onClick: () => pushGlass({ ...GLASS_DEFAULTS }), children: 'Reset' })
+          ] })
+        }),
+        jsx(ListRow, {
+          title: 'Tint', description: 'How much of the desktop shows through. A terminal sits around 80–90%.',
+          action: jsx('input', { type: 'range', min: 0.4, max: 0.97, step: 0.01, value: g.tint, style: { width: '10rem', accentColor: 'var(--zf-accent, currentColor)' }, onChange: e => pushGlass({ tint: Number(e.target.value) }) })
+        }),
+        jsx('div', { className: 'flex flex-wrap gap-1.5', 'aria-label': 'Glass palette', children: ['ground', 'cardTint', 'bubbleTint', 'edge', 'accent', 'ink', 'ink2', 'quiet', 'link', 'code', 'quote'].map(k => chip(g[k])) })
+      ] })
+    }
+
     const SkinEditor = () => {
       const cfg = useValue(skin)
       const slider = ([key, label, min, max, step]) =>
@@ -9898,6 +10108,7 @@ export default {
       render: function ZephyrSettings() {
         useValue(appearanceAssets)
         useValue(skin)
+        useValue(glassState)
         const selectedLook = useValue(appearance)
         const heldPhase = useValue(pin)
         const isTint = useValue(tint)
@@ -9922,6 +10133,8 @@ export default {
 
         const status = selectedLook === 'hermes' ? 'Hermes appearance · Zephyr appearance paused' : selectedLook === 'aurora' ? 'Aurora · always night' : lookNow === 'gruvbox'
           ? ['Gruvbox', 'The Backwater, Wyllie', '4096 × 2428 at full size', isChrome ? 'Zephyr styling' : 'Hermes styling'].join('  ·  ')
+          : lookNow === 'glass'
+            ? ['Glass', 'your desktop behind a ' + Math.round(GLASS.tint * 100) + '% tint', document.documentElement.hasAttribute('data-hermes-glass-on') ? 'window glass on' : 'window glass off: painted solid'].join('  ·  ')
           : lookNow === 'custom'
             ? ['Custom picture', isChrome ? 'Zephyr styling' : 'Hermes styling'].join('  ·  ')
             : [
@@ -9989,7 +10202,7 @@ export default {
               style: { height: 'auto', minWidth: 0, padding: '0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem', whiteSpace: 'normal', textAlign: 'left', ...(selectedLook === item.id ? { outline: '2px solid var(--ui-accent)', outlineOffset: '2px' } : {}) },
               onClick: () => selectAppearance(item.id),
               children: [
-                jsx('span', { 'aria-hidden': true, style: { display: 'block', height: '4rem', borderRadius: 'var(--zf-r-control, 8px)', background: item.id === 'gruvbox' ? `center / cover url("${BACKWATER_URL}")` : item.id === 'custom' && skin.get().image ? `center / cover url("${String(skin.get().image).replace(/"/g, '%22')}")` : item.preview } }),
+                jsx('span', { 'aria-hidden': true, style: { display: 'block', height: '4rem', borderRadius: 'var(--zf-r-control, 8px)', background: item.id === 'glass' ? (GLASS.thumb ? `linear-gradient(rgba(${hexTriple(GLASS.ground)}, ${GLASS.tint}), rgba(${hexTriple(GLASS.ground)}, ${GLASS.tint})), center / cover url("${GLASS.thumb}")` : `linear-gradient(135deg, ${GLASS.ground} 40%, ${GLASS.bubbleTint} 70%, ${GLASS.accent})`) : item.id === 'gruvbox' ? `center / cover url("${BACKWATER_URL}")` : item.id === 'custom' && skin.get().image ? `center / cover url("${String(skin.get().image).replace(/"/g, '%22')}")` : item.preview } }),
                 jsxs('span', { style: { display: 'flex', justifyContent: 'space-between' }, children: [item.label, selectedLook === item.id ? jsx(Codicon, { name: 'check', size: '1rem' }) : null] }),
                 jsx('span', { className: 'text-xs text-muted-foreground', children: item.description })
               ]
@@ -10010,6 +10223,7 @@ export default {
             ] })
           }) : null,
           selectedLook === 'aurora' ? jsx(ListRow, { title: 'Always night', description: 'Northern lights over indigo glass. Clear weather shows the lights best.' }) : null,
+          selectedLook === 'glass' ? jsx(GlassEditor, {}) : null,
           selectedLook !== 'hermes' ? jsx(ToggleRow, {
             checked: isSky, label: 'Background', description: 'Show the scenery behind the app. Off keeps the colours and Zephyr styling.',
             onChange: on => { sky.set(on); persist(); renderSky(nowAt()) }

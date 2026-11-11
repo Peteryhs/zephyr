@@ -9374,6 +9374,36 @@ export default {
     // painted behind the tint, slid by the window's position on screen so it
     // lines up with the real desktop. One static image: no per-frame blur and
     // no native material, which is also far cheaper than vibrancy.
+    // Narrow rails are hover overlays, not persistent pins over the chat.
+    // The host pins them after a titlebar / keyboard reveal; explicitly close
+    // that reveal after the pointer leaves their combined chrome + guest area.
+    // One event-driven timeout, no polling and no work when the pane is closed.
+    let narrowHideTimer = 0
+    const clearNarrowHide = () => { clearTimeout(narrowHideTimer); narrowHideTimer = 0 }
+    const outsideNarrowRail = event => {
+      const overlay = document.querySelector('[data-narrow-overlay]')
+      if (!overlay || window.innerWidth >= 640) { clearNarrowHide(); return }
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('[data-narrow-overlay], [data-pane-overlay], [role="dialog"], [role="menu"], [data-radix-popper-content-wrapper], div.fixed[data-zf-sbbtn]')) {
+        clearNarrowHide()
+        return
+      }
+      if (narrowHideTimer) return
+      const id = overlay.getAttribute('data-narrow-overlay')
+      narrowHideTimer = setTimeout(() => {
+        narrowHideTimer = 0
+        if (window.innerWidth < 640 && document.querySelector('[data-narrow-overlay]')?.getAttribute('data-narrow-overlay') === id) {
+          window.dispatchEvent(new CustomEvent('hermes:pane-toggle-reveal', { detail: { id, mode: 'close' } }))
+        }
+      }, 180)
+    }
+    document.addEventListener('pointermove', outsideNarrowRail, { passive: true })
+    ctx.onDispose?.(() => {
+      clearNarrowHide()
+      document.removeEventListener('pointermove', outsideNarrowRail)
+    })
+
     const BACKDROP_STYLE = 'zephyr-glass-backdrop'
     let backdrop = ''
     try { const b = ctx.storage.get('glassBackdrop'); if (typeof b === 'string' && b.startsWith('data:image/')) backdrop = b } catch {}
@@ -10734,6 +10764,18 @@ export default {
 
       const sync = () => {
         if (!alive()) return
+        // Native narrow overlays own their own lifecycle. Do not interpret
+        // their dismissal as a desktop pin/float toggle and reopen them.
+        if (window.innerWidth < 640) {
+          clearTimeout(closeTimer)
+          modeBtn.style.display = 'none'
+          hot.style.display = 'none'
+          delete root.dataset.zfArc
+          delete root.dataset.zfArcOpen
+          document.querySelectorAll('[data-zf-arc-col]').forEach(el => { delete el.dataset.zfArcCol })
+          return
+        }
+        syncChromeControls()
         const side = document.querySelector("[data-slot='sidebar']")
         if (!side) {
           // the app collapsed it (button, shortcut, or our own first run):
@@ -10807,7 +10849,7 @@ export default {
 
       // the app's toggle flips arclike <-> pinned instead of unmounting the tree
       const onToggleClick = event => {
-        if (!alive() || !event.isTrusted) return
+        if (!alive() || !event.isTrusted || window.innerWidth < 640) return
         const btn = event.target instanceof Element ? event.target.closest('button') : null
         if (!btn || !/^(show|hide) sidebar/i.test(btn.getAttribute('aria-label') || '')) return
         if (!document.querySelector("[data-slot='sidebar']")) return

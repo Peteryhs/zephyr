@@ -1381,6 +1381,10 @@ const MORPH_CSS = [
 ]
 
 const ARCLIKE_CSS = [
+  // The host replaces the desktop rail with a native overlay below its narrow
+  // breakpoint. It is not data-zf-arc-col, and must mask the transcript even
+  // when the theme deliberately makes pinned sidebar surfaces transparent.
+  "html:root body [data-narrow-overlay] { background: var(--zf-m-solid, var(--ui-bg-chrome)) !important; background-image: none !important; }",
   // ── Arclike ──────────────────────────────────────────────────────────────
   // The sidebar column never unmounts. "Collapsed" takes it out of the flow
   // (position: fixed, so the chat never reflows) and parks it off-screen; a
@@ -1473,6 +1477,13 @@ const ARCLIKE_CSS = [
   "[data-slot='dialog-overlay'], [data-slot='dialog-content'], [data-slot='sheet-overlay'], [data-slot='sheet-content'], [data-slot='alert-dialog-overlay'], [data-slot='alert-dialog-content'] { z-index: 72 !important; }",
   // the sidebar toggle hides while the arclike is out; the card is the control then
   "html[data-zf-arc-ready='1'] div.fixed[data-zf-sbbtn] { opacity: 0 !important; pointer-events: none !important; }",
+  // Below the host's 640px dock floor there is no Arc column / mode button.
+  // The native titlebar toggle is the only persistent way to close AND reopen
+  // its narrow overlay, including after the overlay has unmounted.
+  '@media (max-width: 639.98px) {',
+  "  html[data-zf-arc-ready='1'] body div.fixed[data-zf-sbbtn] { opacity: 1 !important; pointer-events: auto !important; }",
+  "  html[data-zf-arc-ready='1'] body div.fixed[data-zf-sbbtn] button { pointer-events: auto !important; }",
+  '}',
   // Pinned: no card. The column keeps the app's own gravity and inset, but
   // paints nothing: the surfaces inside it are the sidebar, not a Zephyr panel.
   // Floating mode below is the one piece of glass.

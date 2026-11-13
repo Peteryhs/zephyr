@@ -37,7 +37,7 @@ test('native light and dark themes keep their existing passing text unchanged', 
   assert.equal(replyMaterial([24, 26, 30], [20, 21, 25], [[250, 250, 250]]).alpha, 0)
   assert.equal(replyMaterial([250, 251, 253], [20, 21, 25], [[18, 20, 24]]).alpha, 0)
   assert.ok(/const native = replyHostGround\(\)/.test(src), 'Hermes appearance samples the host instead of assuming Zephyr ink')
-  assert.ok(/const ink = styled \? LOOK_MODE === 'gruvbox' \? hexRgb\(SKIN\.ink\) : \[255, 255, 255\] : native\.ink/.test(src), 'away and light themes use their current ink')
+  assert.ok(/const ink = styled \? LOOK_MODE !== 'sunset' \? hexRgb\(SKIN\.ink\) : \[255, 255, 255\] : native\.ink/.test(src), 'away and light themes use their current ink')
 })
 
 test('native CSS color parsing handles byte and unit sRGB syntax', () => {

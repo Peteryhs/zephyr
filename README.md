@@ -36,6 +36,8 @@ The status-bar picker shows your current look, such as “Sky · Live” or “A
 
 *The Backwater* (C. W. Wyllie, 1903) behind tinted glass, dressed from gruvbox's own element table: cream text, green glass, amber accent.
 
+Settings > Zephyr > Gruvbox has one **Tint** slider: 0 keeps this painting and its original styling; higher values reveal more of the desktop through flat panels. **Choose wallpaper…** matches the colours and supplies a blurred wallpaper backdrop. Without a wallpaper or native window glass, the ground stays solid. Existing Glass settings migrate to Gruvbox with their colours and transparency preserved.
+
 <p align="center">
   <img src="assets/app-gruvbox.jpg" alt="Zephyr Gruvbox: a painting behind glass, on the home screen" width="100%">
 </p>

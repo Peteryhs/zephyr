@@ -8401,6 +8401,9 @@ export default {
        precedes the last work block is interim and folds with the tools; the
        prose that follows all the work is the reply and stays. */
     const WORK_MARKERS = "[data-conversation-scaffold], [data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], [data-tool-group], [data-tool-summary]"
+    // Set on a tile that Zephyr opened itself for a running turn, so the fold can
+    // close it when the model stops without overriding a click.
+    const AUTO_OPEN_ATTR = 'data-zf-auto-open'
     // Node is absent from the CSS test rigs, so fall back to the spec's values.
     const DOC_FOLLOWING = typeof Node !== 'undefined' ? Node.DOCUMENT_POSITION_FOLLOWING : 4
     const DOC_CONTAINED = typeof Node !== 'undefined' ? Node.DOCUMENT_POSITION_CONTAINED_BY : 16
@@ -8579,6 +8582,8 @@ export default {
           // stale under the tile.
           const clickParts = partsOf(container)
           const settle = pinWhileFolding((clickParts[clickParts.length - 1] || owner).root)
+          // A click is his decision: the automatic fold stands down from here on.
+          toggle.removeAttribute(AUTO_OPEN_ATTR)
           const expandedNow = toggle.getAttribute('data-expanded') === 'true'
           setToggleExpanded(toggle, clickParts.map(part => part.content), !expandedNow)
           if (!expandedNow) {
@@ -8605,7 +8610,14 @@ export default {
           const fallback = setTimeout(finish, ms + 80)
         })
         host.content.insertBefore(toggle, host.content.firstChild)
-        setToggleExpanded(toggle, parts.map(part => part.content), false)
+        // The work stays open while the turn runs: a fold that snaps shut the
+        // moment the first tool lands hides what he just asked to watch. The
+        // tile starts expanded on a live turn and processTurn folds it when the
+        // stream stops; a finished turn (a session switch, a scroll back) still
+        // arrives folded. A click in between hands control to him for good.
+        const liveNow = info.some(part => part.live)
+        setToggleExpanded(toggle, parts.map(part => part.content), liveNow)
+        if (liveNow) put(toggle, AUTO_OPEN_ATTR, 'true')
       } else if (toggle.parentElement !== host.content || host.content.firstChild !== toggle) {
         host.content.insertBefore(toggle, host.content.firstChild)
       }
@@ -8637,6 +8649,16 @@ export default {
       const counted = toggle.getAttribute('data-live') === 'true' && started
         ? (Date.now() - Number(started)) / 1000 : null
       toggle.removeAttribute('data-live')
+      // The model stopped talking: fold the work the running turn kept open.
+      // Anything he clicked during the turn cleared the marker and stays as he
+      // left it.
+      if (toggle.getAttribute(AUTO_OPEN_ATTR) === 'true') {
+        toggle.removeAttribute(AUTO_OPEN_ATTR)
+        const settleFold = pinWhileFolding(owner.root)
+        setToggleExpanded(toggle, info.map(part => part.content), false)
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(settleFold)
+        else setTimeout(settleFold, 0)
+      }
       if (counted !== null) markDone(info[0].root)
 
       // Finished turns don't change: once summarised with the same scaffold

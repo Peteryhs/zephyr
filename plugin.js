@@ -816,7 +816,7 @@ const polishCss = (gruv = false) => [
   '  margin-block: 1.15em 0.5em;',
   '  line-height: 1.3;',
   '}',
-  "[data-slot='aui_thread-content'] :is(ul, ol) { padding-inline-start: 1.35em; margin-block: 0.6em; }",
+  "[data-slot='aui_thread-content'] :is(ul, ol) { padding-inline-start: 2.4em; margin-block: 0.6em; }",
   "[data-slot='aui_thread-content'] li { margin-block: 0.22em !important; }",
   "[data-slot='aui_thread-content'] li::marker { color: var(--zf-ink-3, #a89984); }",
   "[data-slot='aui_thread-content'] hr {",
@@ -1730,12 +1730,18 @@ const ARCLIKE_CSS = [
   "[data-slot='dialog-overlay'], [data-slot='dialog-content'], [data-slot='sheet-overlay'], [data-slot='sheet-content'], [data-slot='alert-dialog-overlay'], [data-slot='alert-dialog-content'] { z-index: 72 !important; }",
   // the sidebar toggle hides while the arclike is out; the card is the control then
   "html[data-zf-arc-ready='1'] div.fixed[data-zf-sbbtn] { opacity: 0 !important; pointer-events: none !important; }",
+  // Keyed on the BUTTON as well as the marked wrapper: the mark comes from the page
+  // observer, which fires on sidebar rows and tab strips, and in a pinned window the
+  // app's own toggle kept painting in the same corner as the mode button (two
+  // sidebar controls on top of each other). A rule on the element itself cannot miss.
+  "html[data-zf-arc-ready='1'] :is(div.fixed, [data-titlebar-cluster='left']) > button[aria-label*='sidebar' i]:not(#zf-mode-btn):not([aria-label*='right sidebar' i]) { opacity: 0 !important; pointer-events: none !important; }",
   // Below the host's 640px dock floor there is no Arc column / mode button.
   // The native titlebar toggle is the only persistent way to close AND reopen
   // its narrow overlay, including after the overlay has unmounted.
   '@media (max-width: 639.98px) {',
   "  html[data-zf-arc-ready='1'] body div.fixed[data-zf-sbbtn] { opacity: 1 !important; pointer-events: auto !important; }",
   "  html[data-zf-arc-ready='1'] body div.fixed[data-zf-sbbtn] button { pointer-events: auto !important; }",
+  "  html[data-zf-arc-ready='1'] body :is(div.fixed, [data-titlebar-cluster='left']) > button[aria-label*='sidebar' i]:not(#zf-mode-btn):not([aria-label*='right sidebar' i]) { opacity: 1 !important; pointer-events: auto !important; }",
   '}',
   // Pinned: no card. The column keeps the app's own gravity and inset, but
   // paints nothing: the surfaces inside it are the sidebar, not a Zephyr panel.

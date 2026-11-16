@@ -49,9 +49,11 @@ const changeTint = (run, value) => {
 const css = run => run.dom.head.get('zephyr-sky-style')?.textContent || ''
 const theme = run => run.registered.filter(c => c.id === 'theme.sky').at(-1).data.colors
 const cssSet = () => [false, true].flatMap(gl => [false, true].flatMap(backdrop => [false, true].map(chrome => mod.skyStyleFor(new Date('2026-10-15T16:00:00Z'), gl, { backdrop, chrome }))))
-// SHA-256 of all eight CSS outputs, captured from cd14ca8 before editing.
+// SHA-256 of all eight CSS outputs. It moves whenever the sheet gains a rule:
+// the thread-list indent and the rule that hides the app sidebar toggle in a
+// pinned window are on top of cd14ca8, so this is the value they produce.
 const cssHash = () => createHash('sha256').update(JSON.stringify(cssSet())).digest('hex')
-const OPAQUE_HASH = 'abb1aa815f98a31f0ed8c0e82f4ea135785b19a21197de0f2e71573815357698'
+const OPAQUE_HASH = '68d08c0d44d11c33b697739253af89689a2cab3b6b8dabf650acce8977753c37'
 // The legacy body layers, host tokens and skin remain identical after migration.
 const legacyHash = () => createHash('sha256').update(JSON.stringify([mod.glassLayers(), mod.glassGrounds(), mod.glassSkin()])).digest('hex')
 const GLASS_HASH = 'dbec21d46c0162553d381db721f85aafea6b746259a1ee00931349afe8e773f0'

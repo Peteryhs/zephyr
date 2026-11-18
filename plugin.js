@@ -1751,7 +1751,10 @@ const ARCLIKE_CSS = [
   '}',
   // sidebar mode switch, sitting in the command-center row
   "#zf-mode-btn { position: absolute; left: 8px; top: 4px; z-index: 5; display: none; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--zf-ink-2, #ebdbb2); cursor: pointer; -webkit-app-region: no-drag; transition: background-color 120ms ease, color 120ms ease, transform 120ms ease; }",
-  "[data-zf-arc-col] > #zf-mode-btn { display: inline-grid; position: absolute !important; left: 10px !important; top: 3px !important; width: 24px !important; height: 24px !important; margin: 0 !important; transform: none; }",
+  // The column starts 10px in, right under the macOS traffic lights (x 12-70).
+  // The host's --titlebar-controls-left is the first x clear of them (86 on
+  // macOS, 14 in fullscreen or off macOS), so the button starts there instead.
+  "[data-zf-arc-col] > #zf-mode-btn { display: inline-grid; position: absolute !important; left: max(10px, calc(var(--titlebar-controls-left, 20px) - 10px)) !important; top: 3px !important; width: 24px !important; height: 24px !important; margin: 0 !important; transform: none; }",
   "html:not([data-zf-arc='1']) [data-zf-arc-col] { position: relative !important; }",
   "html[data-zf-settings] #zf-mode-btn { display: none; }",
   "#zf-mode-btn svg { width: 16px; height: 16px; }",

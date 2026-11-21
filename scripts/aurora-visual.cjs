@@ -13,11 +13,16 @@ fs.mkdirSync(out, { recursive: true });
       const original = text.replace(/\r\n/g, '\n');
       const source = original.replace("from '@hermes/plugin-sdk'", "from '/sdk.js'").replace("from 'react/jsx-runtime'", "from '/react.js'") + '\nexport {createSky, WEATHER_PRESETS};';
       const stars = original.slice(original.indexOf('    let syncAuroraStars ='), original.indexOf('    // ── Tabs:', original.indexOf('    let syncAuroraStars =')));
-      for (const [name, width, height, blur, elapsed] of [
+      for (const [name, width, height, blur, elapsed, aurora = true, hour = 23, weather = 'clear'] of [
         ['desktop', 1440, 900, 5, 0], ['desktop-later', 1440, 900, 5, 60],
-        ['desktop-sharp', 1440, 900, 0, 0], ['mobile', 390, 844, 5, 0]
+        ['desktop-sharp', 1440, 900, 0, 0], ['mobile', 390, 844, 5, 0],
+        ['sky-night', 1440, 900, 5, 0, false],
+        ['sky-cirrus', 1440, 900, 5, 0, false, 13, 'cirrus'],
+        ['sky-storm', 390, 844, 0, 0, false, 16, 'storm'],
+        ['sky-fog', 1440, 900, 5, 0, false, 8, 'fog']
       ]) {
-        const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
+        const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1, timezoneId: 'America/Toronto' });
+        await page.clock.setFixedTime(new Date('2026-11-02T23:00:00-05:00'));
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await page.route('http://zephyr.test/**', async route => {
           const url = new URL(route.request().url());
@@ -29,7 +34,7 @@ fs.mkdirSync(out, { recursive: true });
           await route.fulfill({ body, contentType });
         });
         await page.goto('http://zephyr.test/');
-        await page.evaluate(async ({ blur, elapsed, stars }) => {
+        await page.evaluate(async ({ blur, elapsed, stars, aurora, hour, weather }) => {
           const { createSky, WEATHER_PRESETS } = await import('/plugin.js');
           let clock = 0, seq = 0; const jobs = new Map();
           Object.defineProperty(performance, 'now', { value: () => clock });
@@ -38,20 +43,24 @@ fs.mkdirSync(out, { recursive: true });
           window.clearTimeout = id => jobs.delete(id);
           const sky = createSky({ quality: 'high', lat: 43.65, lng: -79.38 });
           if (!sky) throw Error('WebGL unavailable');
-          sky.setHold(new Date(2026, 10, 2, 23)); sky.setWeather(WEATHER_PRESETS.clear, 0, true);
-          sky.setAurora(true); sky.setBlur(blur); sky.start();
+          sky.setHold(new Date(2026, 10, 2, hour)); sky.setWeather(WEATHER_PRESETS[weather], 0, true);
+          sky.setAurora(aurora); sky.setBlur(blur); sky.start();
           for (let i = 0; i < 35 + Math.round(elapsed * 16); i++) {
             const [id, job] = [...jobs.entries()][0]; jobs.delete(id);
             clock += Math.max(1, job.delay) + 5; job.fn();
           }
-          document.documentElement.dataset.hermesTheme = 'zephyr-aurora';
-          new Function('ctx', 'stored', 'STORE_KEYS', 'AURORA_THEME', 'SKY_THEME', stars)(
-            { onDispose() {} }, () => undefined, { sky: 'sky' }, 'zephyr-aurora', 'zephyr-sky');
-        }, { blur, elapsed, stars });
+          const gl = sky.canvas.querySelector('canvas').getContext('webgl');
+          if (gl.getError() !== gl.NO_ERROR) throw Error(`WebGL error in ${weather} scene`);
+          if (aurora) {
+            document.documentElement.dataset.hermesTheme = 'zephyr-aurora';
+            new Function('ctx', 'stored', 'STORE_KEYS', 'AURORA_THEME', 'SKY_THEME', stars)(
+              { onDispose() {} }, () => undefined, { sky: 'sky' }, 'zephyr-aurora', 'zephyr-sky');
+          }
+        }, { blur, elapsed, stars, aurora, hour, weather });
         await page.screenshot({ path: path.join(out, `visual-${label}-${name}.png`) });
         await page.close();
       }
     }
-    console.log('Saved eight fixed-clock desktop/mobile Aurora comparisons including crisp stars.');
+    console.log('Saved 16 fixed-clock desktop and mobile Sky and Aurora captures.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exit(1); });

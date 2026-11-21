@@ -97,7 +97,9 @@ Hermes Appearance contains one stable **Zephyr** entry; the selection stays the 
 
 ## Performance
 
-The sky caches its cloud field in a texture and re-renders it a few times a minute: 8 fps by default, 1 when the window is unfocused, nothing when it is hidden, plus a few pixels of blur so text stays readable. Reduced motion is respected. If it runs warm, set Smoothness to Low.
+The sky scrolls and blends two cached cloud textures, refreshing a snapshot about every 1.6 seconds of animation. It renders at 8 fps by default, normally slows to 1 fps when the window loses focus, and cancels its frame timer while hidden. Low and High select 4 and 16 fps, and reduced motion caps the sky at 0.25 fps. Blur runs inside WebGL so large panels can use the same softened backdrop.
+
+While replies stream, Zephyr updates the affected response groups and leaves other turns out of the fold pass. Theme refreshes replace only the stylesheet sections whose values changed. See the [rendering performance audit](docs/performance-audit.md#19-november-2026-update) for the pipelines, benchmarks, and reproduction steps.
 
 Reply legibility reads the sky’s retained image on the existing material refresh, rather than adding work to sky frames. Pictures are decoded when they load; later checks reuse that small image sample. It adds no timer, message observer or live backdrop blur; the occasional image readback has a measurable refresh cost, documented in the report.
 

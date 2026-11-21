@@ -75,17 +75,22 @@ void main(){
   c=mix(c,uC0,smoothstep(.62,1.0,gm));
 
   float sky=1.0-smoothstep(.47,.78,f);
-  float a1=radians(uSun.z+(112.5*(uv.y-.10)-uSun.z)*K.y),a2=radians(uSun.z);
-  float az=radians((uv.x-uSun.x)*K.x*112.5);
-  float cosine=clamp(sin(a1)*sin(a2)+cos(a1)*cos(a2)*cos(az),-1.0,1.0);
-  float theta=acos(cosine),angle=degrees(theta);
-  float purity=(1.0-cosine*cosine)/(1.0+cosine*cosine),pol=purity*uPolar*sky;
-  c=max(vec3(0),mix(c,vec3(lum(c))+(c-lum(c))*1.25,pol))*(1.0-.45*pol);
-  float broad=cosine>=0.0?cosine*cosine:0.0;
-  float aureole=uAureole.x*(.35*broad+.65*exp(-angle/max(1.0,uAureole.y)))*sky;
-  vec3 illum=mix(vec3(1),uGlowCol,.5);
-  c=mix(c,illum*lum(c),.7*aureole);
-  c=screenRGB(c,.55*aureole*illum);
+  float angle=0.0;
+  if(uPolar!=0.0||uAureole.x!=0.0||uLit.y!=0.0){
+    float a1=radians(uSun.z+(112.5*(uv.y-.10)-uSun.z)*K.y),a2=radians(uSun.z);
+    float az=radians((uv.x-uSun.x)*K.x*112.5);
+    float cosine=clamp(sin(a1)*sin(a2)+cos(a1)*cos(a2)*cos(az),-1.0,1.0);
+    angle=degrees(acos(cosine));
+    float purity=(1.0-cosine*cosine)/(1.0+cosine*cosine),pol=purity*uPolar*sky;
+    c=max(vec3(0),mix(c,vec3(lum(c))+(c-lum(c))*1.25,pol))*(1.0-.45*pol);
+    float broad=cosine>=0.0?cosine*cosine:0.0;
+    float aureole=uAureole.x*(.35*broad+.65*exp(-angle/max(1.0,uAureole.y)))*sky;
+    vec3 illum=mix(vec3(1),uGlowCol,.5);
+    c=mix(c,illum*lum(c),.7*aureole);
+    c=screenRGB(c,.55*aureole*illum);
+  }else{
+    c=max(vec3(0),c);
+  }
 
   vec2 G=(uv-uSun.xy)*K;
   float alt=112.5*(uv.y-.10);
@@ -101,17 +106,19 @@ void main(){
 
   c*=1.0+(f-.5)*(.05+.13*min(uDensity,1.7)+.7*uDeck)*(.85+.45*uv.y)*uTexV;
   c*=mix(vec3(1),uTint,smoothstep(.47,.78,f));
-  float thick=smoothstep(.58,.80,f);
-  float thin=smoothstep(.47,.60,f)*(1.0-smoothstep(.60,.74,f));
-  float rim=smoothstep(.56,.66,f)*(1.0-smoothstep(.66,.78,f));
-  float back=1.0-smoothstep(15.0,60.0,angle),front=smoothstep(70.0,120.0,angle);
-  illum=mix(vec3(1),uGlowCol,.6);
-  c=mix(c,c*vec3(.90,.95,1.04)*.88,uLit.x*thin);
-  c*=1.0-.28*uLit.y*back*thick;
-  c=screenRGB(c,illum*uLit.y*back*(.35*rim+.45*thin));
-  c=screenRGB(c,illum*.14*uLit.y*front*thick);
+  if(uLit.x!=0.0||uLit.y!=0.0){
+    float thick=smoothstep(.58,.80,f);
+    float thin=smoothstep(.47,.60,f)*(1.0-smoothstep(.60,.74,f));
+    float rim=smoothstep(.56,.66,f)*(1.0-smoothstep(.66,.78,f));
+    float back=1.0-smoothstep(15.0,60.0,angle),front=smoothstep(70.0,120.0,angle);
+    vec3 illum=mix(vec3(1),uGlowCol,.6);
+    c=mix(c,c*vec3(.90,.95,1.04)*.88,uLit.x*thin);
+    c*=1.0-.28*uLit.y*back*thick;
+    c=screenRGB(c,illum*uLit.y*back*(.35*rim+.45*thin));
+    c=screenRGB(c,illum*.14*uLit.y*front*thick);
+  }
 
-  if(uPuff>.001){
+  if(uPuff>.001&&uv.y>.10){
     vec2 Pa=P-.007*t*uDrift;
     float dv=noise(.4*Pa+vec2(19.3,4.7))-.5;
     float alpha=uCirA.x+8.0*dv*dv*dv*uCirA.y;
@@ -132,13 +139,15 @@ void main(){
   }
   c+=uMilk*clamp(f-.46,0.0,.40)*uNight*(.8+.4*uv.y);
 
-  float z=.5*(alt+sqrt(alt*alt+4.0))+1.0;
-  float airMass=1.0/(sin(radians(z))+.15*pow(z+3.885,-1.253));
-  float whiteAmount=1.0-exp(-uWhiten*airMass);
-  float lowSun=1.0-smoothstep(5.0,25.0,uSun.z);
-  illum=mix(vec3(1),uGlowCol,.6*lowSun);
-  illum=mix(illum,illum*vec3(.88,.93,1.14),uLit.z);
-  c=mix(c,illum*mix(lum(c),.92,.6),whiteAmount);
+  if(uWhiten!=0.0){
+    float z=.5*(alt+sqrt(alt*alt+4.0))+1.0;
+    float airMass=1.0/(sin(radians(z))+.15*pow(z+3.885,-1.253));
+    float whiteAmount=1.0-exp(-uWhiten*airMass);
+    float lowSun=1.0-smoothstep(5.0,25.0,uSun.z);
+    vec3 illum=mix(vec3(1),uGlowCol,.6*lowSun);
+    illum=mix(illum,illum*vec3(.88,.93,1.14),uLit.z);
+    c=mix(c,illum*mix(lum(c),.92,.6),whiteAmount);
+  }
   float lowBand=1.0-smoothstep(.02,.52,uv.y);
   float hazeTex=smoothstep(.30,.72,f)-.5;
   c*=1.0+.9*hazeTex*uHaze*lowBand;
@@ -155,8 +164,10 @@ void main(){
   float d2=dot(B,B)/(uGlowSize*uGlowSize);
   c=screenRGB(c,uGlowCol*uGlow*(.60*exp(-55.0*d2)+.25*exp(-11.0*d2)));
   vec2 O=.06*(vec2(.5)-uGlowPos)*K,H=B+O;
-  float hr=length(H),patch=.6+.4*noise(.9*A+vec2(12.7,3.9));
+  float patch=0.0;
+  if(uHalo>.001||uDogs.x>.001)patch=.6+.4*noise(.9*A+vec2(12.7,3.9));
   if(uHalo>.001){
+    float hr=length(H);
     float dy=H.y/max(hr,.0001);
     float radius=uHaloLook.x*(1.0+(.5-uGlowPos.y)*.15*dy),width=.070*uHaloLook.z;
     float envelope=smoothstep(radius-.018,radius,hr)*(1.0-smoothstep(radius,radius+1.45*width,hr));
@@ -210,11 +221,16 @@ void main(){
     // deep navy overhead, a lighter blue toward the horizon
     vec3 deep=mix(vec3(.075,.105,.175),vec3(.012,.018,.048),smoothstep(0.0,.95,y));
     c=mix(c,deep+.08*c*c,.95*auroraGate);
-    vec2 sg=pixel/(3.2*uDet/300.0);
-    vec2 cell=floor(sg),fp=fract(sg)-.5;
-    float sh=hash(cell),star=step(.982,sh)*smoothstep(.32,0.0,length(fp+.3*(vec2(hash(cell+7.1),hash(cell+3.3))-.5)));
-    float twinkle=.6+.4*sin(t*(1.0+3.0*hash(cell+1.7))+6.28*sh);
-    c+=vec3(.85,.90,1.0)*star*twinkle*(.25+.75*fract(sh*91.0))*.8*smoothstep(.15,.5,y)*auroraGate;
+    if(y>.15){
+      vec2 sg=pixel/(3.2*uDet/300.0),cell=floor(sg);
+      float sh=hash(cell);
+      if(sh>=.982){
+        vec2 fp=fract(sg)-.5;
+        float star=smoothstep(.32,0.0,length(fp+.3*(vec2(hash(cell+7.1),hash(cell+3.3))-.5)));
+        float twinkle=.6+.4*sin(t*(1.0+3.0*hash(cell+1.7))+6.28*sh);
+        c+=vec3(.85,.90,1.0)*star*twinkle*(.25+.75*fract(sh*91.0))*.8*smoothstep(.15,.5,y)*auroraGate;
+      }
+    }
     vec3 acc=vec3(0);
     vec3 green=vec3(.05,1.0,.40),lime=vec3(.55,1.0,.20),teal=vec3(.02,.82,.62),pink=vec3(1.0,.16,.36),coral=vec3(1.0,.38,.36),violet=vec3(.42,.20,1.0),auCyan=vec3(.05,.80,1.0),auBlue=vec3(.14,.38,1.0);
     float S=W/1.6;
@@ -229,6 +245,13 @@ void main(){
       float lean=.75*(x0-vp.x)/(.5-vp.y);
       float lo=k==0?.06:k==1?.24:k==2?.26:k==3?.0:.06;
       float hi=k==0?1.15:k==1?.90:k==2?1.3:k==3?1.25:1.1;
+      // The floor offsets are bounded by ±.05 and ±.02. Outside this range the curtain is zero.
+      if(y<=lo-.07||y>=hi+.05)continue;
+      float lo2=lo+.10*(field(vec2(2.0*X+4.0*fk,.008*t))-.5);
+      float h=y-lo2;
+      float env=smoothstep(0.0,.26,h+.04*(noise(vec2(14.0*X,fk))-.5));
+      if(env==0.0)continue;
+      env=pow(env,1.3)*(.55+.45*exp(-max(h,0.0)/.30))*(1.0-smoothstep(hi-.45,hi+.05,y));
       float cx=x0+lean*(y-.5)+(.16+.06*fract(fk*.7))*sin(2.4*y+1.7*fk+.045*t)
         +.30*(field(vec2(.9*y+3.0*fk,.010*t+fk))-.5)
         // folds that travel up the curtain, deeper when the display is active
@@ -240,13 +263,12 @@ void main(){
       float prof=(d<0.0?exp(-d*d*2.4):exp(-d*d*.55))+.45*exp(-d*d*7.0);
       float soft=exp(-d*d*.12);
       // rays run along the ribbon, so they curve with it
-      float ax=X-cx;
       // two ray sets sliding opposite ways along the curtain, so the rays shimmer
-      float ray=.62+.38*smoothstep(.2,.8,noise(vec2(70.0*angR-.09*t,.8*y+fk-.02*t)))*(.50+.50*noise(vec2(170.0*angR+3.0+.13*t,1.3*y)));
-      float lo2=lo+.10*(field(vec2(2.0*X+4.0*fk,.008*t))-.5);
-      float h=y-lo2;
-      ray=mix(ray,1.0,smoothstep(.30,.75,h));
-      float env=pow(smoothstep(0.0,.26,h+.04*(noise(vec2(14.0*X,fk))-.5)),1.3)*(.55+.45*exp(-max(h,0.0)/.30))*(1.0-smoothstep(hi-.45,hi+.05,y));
+      float ray=1.0;
+      if(h<.75){
+        ray=.62+.38*smoothstep(.2,.8,noise(vec2(70.0*angR-.09*t,.8*y+fk-.02*t)))*(.50+.50*noise(vec2(170.0*angR+3.0+.13*t,1.3*y)));
+        ray=mix(ray,1.0,smoothstep(.30,.75,h));
+      }
       float hot=.45+.85*smoothstep(.30,.75,field(vec2(1.5*y-.04*t+5.0*fk,.010*t+2.0*fk)));
       float breathe=.72+.28*smoothstep(.2,.8,noise(vec2(.05*t+3.7*fk,fk)));
       // bright knots that climb each curtain, a little faster on each one

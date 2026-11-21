@@ -13,6 +13,7 @@ import { dirname, join } from 'node:path'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..')
+process.env.TZ = 'America/Toronto'
 
 process.on('unhandledRejection', () => {})   // the plugin's weather fetch is live network
 
@@ -86,6 +87,8 @@ const makeGl = () => new Proxy(Object.assign({}, glConst, {
 
 /* ── enough DOM for the sky engines ─────────────────────────────────────── */
 let webglAvailable = true
+const documentListeners = new Map()
+const windowListeners = new Map()
 const head = new Map()
 const body = new Map()
 const makeElement = tag => {
@@ -125,8 +128,8 @@ globalThis.document = {
   createElement: tag => makeElement(tag),
   getElementById: id => head.get(id) || body.get(id) || null,
   querySelector: () => null,
-  addEventListener: () => {},
-  removeEventListener: () => {},
+  addEventListener: (name, listener) => documentListeners.set(name, listener),
+  removeEventListener: name => documentListeners.delete(name),
   head: { appendChild: el => { head.set(el.id, el) } },
   body: { appendChild: el => { if (el.id) body.set(el.id, el) } },
 }
@@ -144,7 +147,8 @@ const rafQueue = []
 globalThis.window = {
   innerWidth: 1512, innerHeight: 945, devicePixelRatio: 2,
   matchMedia: () => ({ matches: false, addEventListener: () => {} }),
-  addEventListener: () => {}, removeEventListener: () => {},
+  addEventListener: (name, listener) => windowListeners.set(name, listener),
+  removeEventListener: name => windowListeners.delete(name),
   requestAnimationFrame: fn => { rafQueue.push(fn); return rafQueue.length },
   cancelAnimationFrame: () => {},
   getComputedStyle: () => ({ getPropertyValue: () => '' }),
@@ -238,6 +242,8 @@ ok(calls.unknown.length === 0, 'no unknown uniform was requested' + (calls.unkno
 ok(globalThis.document.getElementById('zephyr-gl-sky') !== null, 'the sky root is mounted')
 
 /* a frame through the loop, after a storm pick: rain reaches the shader */
+const daytime = new Date(2026, 9, 10, 13)
+sky.setHold(daytime)
 calls.draws = 0
 calls.uniforms.length = 0
 sky.start()
@@ -274,6 +280,10 @@ sky.setWeather({ sc: 0.55, st: 0.9, as: 0.8 }, 0, true)
 step(3000)
 const uniLid = Object.fromEntries(calls.uniforms.map(u => [u[0], u.slice(1)]))
 ok(uniLid.uDeck && uniLid.uDeck[0] > 0.5, 'a low overcast still closes the lid (uDeck = ' + (uniLid.uDeck ? uniLid.uDeck[0].toFixed(2) : '?') + ')')
+calls.uniforms.length = 0
+step(3500)
+ok(calls.uniforms.some(([name]) => name === 'uTime') && !calls.uniforms.some(([name]) => name === 'uC0'),
+  'animation advances without re-uploading the unchanged atmospheric look')
 
 /* the grade dial: 1 is Hark's own grade, above it is more chroma */
 sky.setWeather({ ci: 0.9, cc: 0.3, cs: 0.6, haze: 0.17 }, 0, true)
@@ -295,11 +305,16 @@ ok(chroma(lifted.cols[0]) > 0.5, 'the shipped blue keeps a strongly blue zenith 
 /* an engine that was never told a lift must still use the shipped dial: the
    first build pass used to send lift: null and flatten the sky to 1.0 */
 {
+  sky.stop()
   const fresh = createSky({ id: 'zephyr-gl-sky-probe', quality: 'balanced', lat: 43.65, lng: -79.38 })
+  fresh.setHold(daytime)
   fresh.setWeather({ ci: 0.9, cc: 0.3, cs: 0.6, haze: 0.17 }, 0, true)
+  fresh.start()
+  step(5250)
   const anyway = SKY_ENGINE.frameAt()
   ok(chroma(anyway.cols[0]) > 0.55, 'a fresh engine keeps the shipped blue without being told (chroma ' + chroma(anyway.cols[0]).toFixed(3) + ')')
   fresh.dispose()
+  sky.start()
 }
 
 /* ── 3. the clock and the location reach the scene ─────────────────────── */
@@ -307,16 +322,48 @@ calls.uniforms.length = 0
 ok(typeof SKY_ENGINE.SCENE.tz === 'string' && SKY_ENGINE.SCENE.tz.includes('/'), 'the scene reads the zone from the machine (' + SKY_ENGINE.SCENE.tz + ')')
 sky.setWeather(WEATHER_PRESETS.clear, 0, true)   // a clear sky, so the clock is what is measured
 calls.uniforms.length = 0
-sky.setClock(() => new Date(2026, 5, 21, 4, 30, 0))
+sky.setClock(() => new Date(2026, 5, 21, 4, 30, 0), true)
 step(6000)
 const uni2 = Object.fromEntries(calls.uniforms.map(u => [u[0], u.slice(1)]))
 const lum = c => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
 ok(uni2.uC0 && lum(uni2.uC0) < 0.25, 'a 04:30 clock gives a dark zenith (lum ' + (uni2.uC0 ? lum(uni2.uC0).toFixed(3) : '?') + ')')
-sky.setClock(() => new Date(2026, 5, 21, 13, 0, 0))
+sky.setClock(() => new Date(2026, 5, 21, 13, 0, 0), true)
 step(7000)
 const uni3 = Object.fromEntries(calls.uniforms.map(u => [u[0], u.slice(1)]))
 ok(uni3.uC0 && uni3.uC0[2] > uni3.uC0[0], 'a 13:00 clock gives a blue zenith')
 sky.setClock(null)
+
+/* Hiding a running sky cancels the pending frame, even during a blur fade. */
+{
+  sky.stop()
+  const beforeStart = calls.draws
+  const hiddenSky = createSky({ id: 'zephyr-gl-sky-hidden-probe', deferFirstFrame: true })
+  hiddenSky.setHold(new Date(2026, 5, 21, 23))
+  hiddenSky.setWeather(WEATHER_PRESETS.clear, 0, true)
+  hiddenSky.setAurora(true)
+  hiddenSky.setBlur(5)
+  ok(calls.draws === beforeStart, 'deferred setup skips the default weather and unblurred boot draws')
+  calls.uniforms.length = 0
+  hiddenSky.start()
+  ok(calls.draws > beforeStart && calls.uniforms.some(([name, value]) => name === 'uAurora' && value === 1),
+    'the first deferred frame uses the configured Aurora look')
+  hiddenSky.setBlur(8)
+  document.hidden = true
+  documentListeners.get('visibilitychange')()
+  const before = calls.draws
+  window.innerWidth += 100
+  windowListeners.get('resize')()
+  hiddenSky.setDim(0.8)
+  step(9000)
+  ok(timers.size === 0 && calls.draws === before, 'hidden sky cancels frame timers and skips resize and dim draws')
+  document.hidden = false
+  documentListeners.get('visibilitychange')()
+  step(9250)
+  ok(timers.size === 1 && calls.draws > before, 'visible sky resumes drawing and schedules one frame')
+  hiddenSky.dispose()
+  ok(timers.size === 0, 'disposing the running sky cancels its next frame')
+  window.innerWidth -= 100
+}
 
 /* ── 4. no WebGL: null, so the CSS time-of-day gradient takes over ─────── */
 webglAvailable = false

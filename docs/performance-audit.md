@@ -1,6 +1,50 @@
 # Zephyr performance and impact audit
 
-24 October 2026. Working tree at `32b7cb7`. This is an audit of the current `plugin.js`, not a set of code changes. The repository was not modified.
+## 19 November 2026 update
+
+The baseline for this update is `cc5d81b`. In Chromium on Windows, regular streaming work now scales with the number of changed responses. The 500-turn test cut an average fold and layout pass from 14.37 ms to 0.69 ms and a scheduled style refresh from 137.17 ms to 14.51 ms.
+
+### Rendering paths
+
+- The shipping entry point is `plugin.js`. Its generated sky engine, built from `sky/`, evaluates the atmosphere from the clock, weather, and scene settings. It rebuilds the frame data about every four seconds and sooner during active weather changes or the day preview. `sky/renderer.js` is the reference driver. The plugin drives WebGL through `createSky`.
+- WebGL renders into a fraction of the CSS viewport at 4, 8, or 16 fps. It interpolates adjacent cloud-field snapshots as the wind moves them, draws a full-screen triangle, and applies horizontal and vertical blur when needed. A blur transition can run its own passes at 30 fps using the retained image. In Aurora, the shader draws the curtains while separate star canvases change opacity at 4 Hz. The renderer falls back to a painted CSS gradient when WebGL is unavailable or disabled.
+- The appearance layer derives glass and chrome colours from the clock on a five-minute grid. Reply legibility can read the retained sky on its material refresh. Separate DOM observers handle work summaries, tabs, sidebars, and session switches.
+
+### Changes measured
+
+| Mounted turns | Mean fold pass before → after | Turns visited per pass | Mean style refresh before → after |
+| ---: | ---: | ---: | ---: |
+| 120 | 3.50 → 0.59 ms | 120 → 1 | 30.36 → 4.48 ms |
+| 500 | 14.37 → 0.69 ms | 500 → 1 | 137.17 → 14.51 ms |
+
+The streaming fixture appends 48 tokens and measures the throttled callback. It checks multi-part replies, simultaneous updates to an older turn, independent response groups, expansion, pane-tab discovery, and the session-switch curtain. Navigation and curtain removal still run a full scan. Pane-tab discovery processes added or removed subtrees. Transcript changes leave sidebar measurements idle. The style fixture averages 30 five-minute advances and includes a browser style and layout flush. A typical update replaces about 2,246 characters of CSS, down from 65,631. The parsed rules and their cascade order match across seven appearance and switch combinations.
+
+Ordinary WebGL frames reuse the atmosphere uniforms until the CPU frame changes. The field pass uploads only its own inputs. The first production frame uses the selected weather, held time, look, and blur. Hiding the window cancels the pending frame, and it resumes without advancing through the hidden interval. The shader skips effects whose contribution is zero, including parts of Aurora outside the visible ribbons. A separate curtain texture sped up Aurora in testing and slowed ordinary Sky, so the final shader uses the existing passes.
+
+At 1920 × 1080 with 5 CSS pixels of blur, hardware timer queries put High Sky's clear-night render at 0.338 → 0.282 ms per frame. High Aurora moved from 0.963 → 0.928 ms. Each figure is the median of three 120-frame batch means. Low and Balanced timings varied across repeats. A separate replay that waits for pixel readback showed smaller gains across the three Aurora quality settings. These are isolated renderer measurements.
+
+Eight paired screenshots cover two Aurora phases, sharp Aurora, a narrow Aurora window, and Sky at night, in cirrus, a storm, and fog. Six pairs matched pixel for pixel. The other two differed by one 8-bit colour value at 17 and 33 pixels, respectively, out of 1,296,000 pixels per capture. The renderer rig now fixes the test clock and checks hidden-window, first-frame, and uniform reuse behavior. All 143 unit tests, the rig and the generated-code check pass.
+
+### Reproduce
+
+Run from the plugin repository root. Set `ZEPHYR_PLAYWRIGHT_ROOT` to a local Playwright installation if the harness cannot find it and `ZEPHYR_CHROMIUM` to a Chromium executable if needed.
+
+```text
+git show cc5d81b:plugin.js > render-baseline.js.bak
+node scripts/render-perf.cjs render-baseline.js.bak
+node scripts/aurora-visual.cjs cc5d81b
+node scripts/aurora-perf.cjs render-baseline.js.bak before
+node scripts/aurora-perf.cjs plugin.js after
+npm test
+npm run rig
+npm run check
+```
+
+The stream and style measurements use synthetic Hermes markup. Graphics checks use Chromium on the Qualcomm Adreno X1-85 via ANGLE/D3D11. Live Hermes utilization, battery drain, and other GPUs remain unmeasured. Shader compilation still occurs on first WebGL use.
+
+## 24 October 2026 baseline
+
+Working tree at `32b7cb7`. This records the measurements and proposals at that revision.
 
 ## Short version
 

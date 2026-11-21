@@ -24,9 +24,6 @@ test('getSolar only trusts finite, ordered live sun times', () => {
 test('a fetched sunrise that does not parse is dropped before it is stored', () => {
   assert.match(src, /Number\.isFinite\(rise\) && Number\.isFinite\(set\) && rise < set\)\) return\r?\n\s+liveSolar = \{/)
 })
-test('a hidden window does not spin the frame timer', () => {
-  assert.match(src, /run\.last = t\r?\n\s+run\.lastSky = t/)
-})
 test('stored weather and quality names must be own keys, not "constructor"', () => {
   assert.match(src, /Object\.hasOwn\(WEATHER_LABEL, stored\(STORE_KEYS\.weather\)\)/)
   assert.match(src, /Object\.hasOwn\(QUALITY, stored\(STORE_KEYS\.quality\)\)/)

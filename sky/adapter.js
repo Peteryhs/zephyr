@@ -62,14 +62,9 @@ function zApplyScene(patch) {
 /* One frame for the current scene. */
 const zFrameAt = () => engineFrameAt()
 
-/* ---- uniform upload: the whole GL surface of the sky ---- */
-function zDrawParams(gl, U, f, opts) {
-  const o = opts || {}
+/* Upload atmospheric uniforms when the CPU evaluator delivers a new frame. */
+function zUploadLook(gl, U, f) {
   const look = f.look || skyState.tuning
-  gl.uniform2f(U.uRes, o.width, o.height)
-  gl.uniform1f(U.uDet, o.det)
-  gl.uniform1f(U.uTime, o.time)
-  gl.uniform1f(U.uAlpha, o.alpha == null ? 1 : o.alpha)
   gl.uniform3f(U.uC0, f.cols[0][0], f.cols[0][1], f.cols[0][2])
   gl.uniform3f(U.uC1, f.cols[1][0], f.cols[1][1], f.cols[1][2])
   gl.uniform3f(U.uC2, f.cols[2][0], f.cols[2][1], f.cols[2][2])
@@ -82,9 +77,6 @@ function zDrawParams(gl, U, f, opts) {
   gl.uniform1f(U.uWarp, look.warp)
   gl.uniform1f(U.uGrain, look.grain)
   gl.uniform2f(U.uDrift, f.drift[0], f.drift[1])
-  /* callers that do not integrate fall back to the old drift × time */
-  const off = o.driftOff || [f.drift[0] * o.time, f.drift[1] * o.time]
-  if (U.uDriftOff) gl.uniform2f(U.uDriftOff, off[0], off[1])
   gl.uniform3f(U.uPrecip, f.precip[0], f.precip[1], f.precip[2])
   gl.uniform3f(U.uShaft, look.shaft.strength, look.shaft.coverage, look.shaft.reach)
   gl.uniform1f(U.uFog, f.fog)
@@ -92,8 +84,6 @@ function zDrawParams(gl, U, f, opts) {
   gl.uniform1f(U.uDeck, f.deck)
   gl.uniform1f(U.uPuff, f.puff)
   gl.uniform1f(U.uNight, f.night)
-  /* the Zephyr Aurora theme's northern lights; 0 (off) for every other look */
-  if (U.uAurora) gl.uniform1f(U.uAurora, o.aurora || 0)
   gl.uniform1f(U.uHaze, f.haze)
   gl.uniform1f(U.uSquash, f.squash)
   gl.uniform3f(U.uTint, f.tint[0], f.tint[1], f.tint[2])
@@ -118,7 +108,6 @@ function zDrawParams(gl, U, f, opts) {
   gl.uniform3f(U.uFloorH, f.floorH[0], f.floorH[1], f.floorH[2])
   gl.uniform3f(U.uDogs, f.dogs[0], f.dogs[1], f.dogs[2])
   gl.uniform3f(U.uCorona, f.corona[0], f.corona[1], f.corona[2])
-  gl.drawArrays(gl.TRIANGLES, 0, 3)
 }
 
 /* The engine's vertex shader names its attribute aPosition; the vendored sky
@@ -154,7 +143,7 @@ return {
   cloneScene: zCloneScene,
   applyScene: zApplyScene,
   frameAt: zFrameAt,
-  drawParams: zDrawParams,
+  uploadLook: zUploadLook,
   applyLift: zApplyLift,
   GRADE_BASE: GRADE_BASE,
   detUnit: zDetUnit,

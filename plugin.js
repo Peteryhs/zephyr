@@ -981,7 +981,7 @@ const WORK_ICONS = {
 // The plugin owns this <style> element rather than riding the theme's
 // `customCSS`: one owner, one lifecycle (removed on unload and when the toggle
 // is off), and no dependence on which theme is active.
-const SKY_STYLE_ID = 'zephyr-sky-style'
+const SKY_STYLE_IDS = ['zephyr-sky-style', 'zephyr-chrome-base', 'zephyr-chrome-night', 'zephyr-chrome-material', 'zephyr-chrome-details']
 
 // The glass and ink of the Zephyr material, derived from the sky so every
 // surface carries the hour's hue. `sky.top` is the zenith colour; its hue is
@@ -1613,7 +1613,7 @@ const ARCLIKE_CSS = [
 // `chrome` paints Zephyr's own panels, type and controls. They are separate
 // switches in Settings, so a plain Hermes chrome can keep its sky, and the
 // glass can stay without a backdrop behind it.
-const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) => {
+const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true, split = false } = {}) => {
   const gruv = LOOK_MODE === 'gruvbox'
   const sky = skyAt(date)
   const isNight = !gruv && phaseAt(date) === 'night'
@@ -1633,10 +1633,9 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
   // gruvbox has no white in its palette; fg0 is the brightest ink it uses.
   const solidInk = gruv ? gbHex(GB.fg0) : '#ffffff'
 
-  return [
-    gruv
-      ? `/* Zephyr · gruvbox. The Backwater, ${BACKWATER_FILE}, full ${4096}×${2428}, cover-fitted. */`
-      : `/* Zephyr sky. Blended for ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}, exposure ${sky.exposure.toFixed(2)}, horizon ${horizonTilt.angle.toFixed(1)}°. */`,
+  // Keep the sections in cascade order. The clock only changes the backdrop
+  // and material, so a refresh doesn't reparse the layout and widget rules.
+  const sections = [[
     ...(backdrop ? [
     'html {',
     `  background-color: ${gruv ? '#1d2021' : cssRgb(sky.base)};`,
@@ -1707,6 +1706,8 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
     '  --accent-foreground: var(--zf-ink-1);',
     '  --ui-accent-foreground: var(--zf-ink-1);',
     '}',
+    ] : []),
+  ], chrome ? [
     // Active clicked elements: swap text to crisp light slate grey (var(--zf-ink-1)) so it never turns dark
     ":is([data-slot='sidebar-menu-button'], [data-slot='sidebar-menu-action'], [class~='peer/menu-button'], button, [role='button'], [data-slot='pane-tab'], a, input, select):active,",
     ":is([data-slot='sidebar-menu-button'], [data-slot='sidebar-menu-action'], [class~='peer/menu-button'], button, [role='button'], [data-slot='pane-tab']):active * {",
@@ -2385,6 +2386,7 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
     // Work progress collapse on finished turns lives in the always-on motion
     // sheet (§5b), not here: folding is an interface behaviour, not a sky
     // visual, so it must survive Sky being off. Search for "THE WORK FOLD".
+  ] : [], chrome ? [
     // Night is a TONE of the same material now: the tint itself turns neutral
     // as the light goes (see zephyrMaterial), so there is no separate opaque
     // night palette to switch on at duskEnd. What still needs saying at night
@@ -2459,6 +2461,7 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
     "[data-slot='tool-block'][data-tool-open] div:has(> code) { background: var(--zf-well) !important; border-color: var(--zf-edge) !important; }",
     "[data-slot='tool-block'][data-tool-open] [class*='tracking-[0.08em]'] { color: var(--zf-ink-2) !important; }",
     ...(isNight ? [] : ["[data-slot='tool-block']:not([data-tool-open]), .zephyr-work-summary { text-shadow: 0 1px 0.5rem rgba(0, 0, 0, 0.35); }"]),
+  ] : [], chrome ? [
     // ── Zephyr material ─────────────────────────────────────────────────────
     // One glass for every surface, tinted by the sky itself: a deep ink pulled
     // toward the current zenith colour, so panels read navy at noon and plum at
@@ -2562,6 +2565,7 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
         ".aui-md { color: color-mix(in srgb, var(--ui-text-primary) 94%, rgb(196, 206, 255)); }",
       ]
     })()),
+  ] : [], chrome ? [
     ...SESSION_TAB_CSS,
     ...(gruv ? gruvboxTextCss() : []),
     ...polishCss(gruv),
@@ -2914,8 +2918,8 @@ const skyStyleFor = (date, gl = false, { backdrop = true, chrome = true } = {}) 
     '* { scrollbar-color: rgba(255, 255, 255, 0.14) transparent; scrollbar-width: thin; }',
     ...ARCLIKE_CSS,
     ...MORPH_CSS,
-    ] : []),
-  ].join('\n')
+  ] : []].map(lines => lines.join('\n'))
+  return split ? sections : sections.join('\n')
 }
 
 // ══ §5b APP MOTION (fold + interface animation, independent of the sky) ════
@@ -4009,17 +4013,22 @@ void main(){
   c=mix(c,uC0,smoothstep(.62,1.0,gm));
 
   float sky=1.0-smoothstep(.47,.78,f);
-  float a1=radians(uSun.z+(112.5*(uv.y-.10)-uSun.z)*K.y),a2=radians(uSun.z);
-  float az=radians((uv.x-uSun.x)*K.x*112.5);
-  float cosine=clamp(sin(a1)*sin(a2)+cos(a1)*cos(a2)*cos(az),-1.0,1.0);
-  float theta=acos(cosine),angle=degrees(theta);
-  float purity=(1.0-cosine*cosine)/(1.0+cosine*cosine),pol=purity*uPolar*sky;
-  c=max(vec3(0),mix(c,vec3(lum(c))+(c-lum(c))*1.25,pol))*(1.0-.45*pol);
-  float broad=cosine>=0.0?cosine*cosine:0.0;
-  float aureole=uAureole.x*(.35*broad+.65*exp(-angle/max(1.0,uAureole.y)))*sky;
-  vec3 illum=mix(vec3(1),uGlowCol,.5);
-  c=mix(c,illum*lum(c),.7*aureole);
-  c=screenRGB(c,.55*aureole*illum);
+  float angle=0.0;
+  if(uPolar!=0.0||uAureole.x!=0.0||uLit.y!=0.0){
+    float a1=radians(uSun.z+(112.5*(uv.y-.10)-uSun.z)*K.y),a2=radians(uSun.z);
+    float az=radians((uv.x-uSun.x)*K.x*112.5);
+    float cosine=clamp(sin(a1)*sin(a2)+cos(a1)*cos(a2)*cos(az),-1.0,1.0);
+    angle=degrees(acos(cosine));
+    float purity=(1.0-cosine*cosine)/(1.0+cosine*cosine),pol=purity*uPolar*sky;
+    c=max(vec3(0),mix(c,vec3(lum(c))+(c-lum(c))*1.25,pol))*(1.0-.45*pol);
+    float broad=cosine>=0.0?cosine*cosine:0.0;
+    float aureole=uAureole.x*(.35*broad+.65*exp(-angle/max(1.0,uAureole.y)))*sky;
+    vec3 illum=mix(vec3(1),uGlowCol,.5);
+    c=mix(c,illum*lum(c),.7*aureole);
+    c=screenRGB(c,.55*aureole*illum);
+  }else{
+    c=max(vec3(0),c);
+  }
 
   vec2 G=(uv-uSun.xy)*K;
   float alt=112.5*(uv.y-.10);
@@ -4035,17 +4044,19 @@ void main(){
 
   c*=1.0+(f-.5)*(.05+.13*min(uDensity,1.7)+.7*uDeck)*(.85+.45*uv.y)*uTexV;
   c*=mix(vec3(1),uTint,smoothstep(.47,.78,f));
-  float thick=smoothstep(.58,.80,f);
-  float thin=smoothstep(.47,.60,f)*(1.0-smoothstep(.60,.74,f));
-  float rim=smoothstep(.56,.66,f)*(1.0-smoothstep(.66,.78,f));
-  float back=1.0-smoothstep(15.0,60.0,angle),front=smoothstep(70.0,120.0,angle);
-  illum=mix(vec3(1),uGlowCol,.6);
-  c=mix(c,c*vec3(.90,.95,1.04)*.88,uLit.x*thin);
-  c*=1.0-.28*uLit.y*back*thick;
-  c=screenRGB(c,illum*uLit.y*back*(.35*rim+.45*thin));
-  c=screenRGB(c,illum*.14*uLit.y*front*thick);
+  if(uLit.x!=0.0||uLit.y!=0.0){
+    float thick=smoothstep(.58,.80,f);
+    float thin=smoothstep(.47,.60,f)*(1.0-smoothstep(.60,.74,f));
+    float rim=smoothstep(.56,.66,f)*(1.0-smoothstep(.66,.78,f));
+    float back=1.0-smoothstep(15.0,60.0,angle),front=smoothstep(70.0,120.0,angle);
+    vec3 illum=mix(vec3(1),uGlowCol,.6);
+    c=mix(c,c*vec3(.90,.95,1.04)*.88,uLit.x*thin);
+    c*=1.0-.28*uLit.y*back*thick;
+    c=screenRGB(c,illum*uLit.y*back*(.35*rim+.45*thin));
+    c=screenRGB(c,illum*.14*uLit.y*front*thick);
+  }
 
-  if(uPuff>.001){
+  if(uPuff>.001&&uv.y>.10){
     vec2 Pa=P-.007*t*uDrift;
     float dv=noise(.4*Pa+vec2(19.3,4.7))-.5;
     float alpha=uCirA.x+8.0*dv*dv*dv*uCirA.y;
@@ -4066,13 +4077,15 @@ void main(){
   }
   c+=uMilk*clamp(f-.46,0.0,.40)*uNight*(.8+.4*uv.y);
 
-  float z=.5*(alt+sqrt(alt*alt+4.0))+1.0;
-  float airMass=1.0/(sin(radians(z))+.15*pow(z+3.885,-1.253));
-  float whiteAmount=1.0-exp(-uWhiten*airMass);
-  float lowSun=1.0-smoothstep(5.0,25.0,uSun.z);
-  illum=mix(vec3(1),uGlowCol,.6*lowSun);
-  illum=mix(illum,illum*vec3(.88,.93,1.14),uLit.z);
-  c=mix(c,illum*mix(lum(c),.92,.6),whiteAmount);
+  if(uWhiten!=0.0){
+    float z=.5*(alt+sqrt(alt*alt+4.0))+1.0;
+    float airMass=1.0/(sin(radians(z))+.15*pow(z+3.885,-1.253));
+    float whiteAmount=1.0-exp(-uWhiten*airMass);
+    float lowSun=1.0-smoothstep(5.0,25.0,uSun.z);
+    vec3 illum=mix(vec3(1),uGlowCol,.6*lowSun);
+    illum=mix(illum,illum*vec3(.88,.93,1.14),uLit.z);
+    c=mix(c,illum*mix(lum(c),.92,.6),whiteAmount);
+  }
   float lowBand=1.0-smoothstep(.02,.52,uv.y);
   float hazeTex=smoothstep(.30,.72,f)-.5;
   c*=1.0+.9*hazeTex*uHaze*lowBand;
@@ -4089,8 +4102,10 @@ void main(){
   float d2=dot(B,B)/(uGlowSize*uGlowSize);
   c=screenRGB(c,uGlowCol*uGlow*(.60*exp(-55.0*d2)+.25*exp(-11.0*d2)));
   vec2 O=.06*(vec2(.5)-uGlowPos)*K,H=B+O;
-  float hr=length(H),patch=.6+.4*noise(.9*A+vec2(12.7,3.9));
+  float patch=0.0;
+  if(uHalo>.001||uDogs.x>.001)patch=.6+.4*noise(.9*A+vec2(12.7,3.9));
   if(uHalo>.001){
+    float hr=length(H);
     float dy=H.y/max(hr,.0001);
     float radius=uHaloLook.x*(1.0+(.5-uGlowPos.y)*.15*dy),width=.070*uHaloLook.z;
     float envelope=smoothstep(radius-.018,radius,hr)*(1.0-smoothstep(radius,radius+1.45*width,hr));
@@ -4144,11 +4159,16 @@ void main(){
     // deep navy overhead, a lighter blue toward the horizon
     vec3 deep=mix(vec3(.075,.105,.175),vec3(.012,.018,.048),smoothstep(0.0,.95,y));
     c=mix(c,deep+.08*c*c,.95*auroraGate);
-    vec2 sg=pixel/(3.2*uDet/300.0);
-    vec2 cell=floor(sg),fp=fract(sg)-.5;
-    float sh=hash(cell),star=step(.982,sh)*smoothstep(.32,0.0,length(fp+.3*(vec2(hash(cell+7.1),hash(cell+3.3))-.5)));
-    float twinkle=.6+.4*sin(t*(1.0+3.0*hash(cell+1.7))+6.28*sh);
-    c+=vec3(.85,.90,1.0)*star*twinkle*(.25+.75*fract(sh*91.0))*.8*smoothstep(.15,.5,y)*auroraGate;
+    if(y>.15){
+      vec2 sg=pixel/(3.2*uDet/300.0),cell=floor(sg);
+      float sh=hash(cell);
+      if(sh>=.982){
+        vec2 fp=fract(sg)-.5;
+        float star=smoothstep(.32,0.0,length(fp+.3*(vec2(hash(cell+7.1),hash(cell+3.3))-.5)));
+        float twinkle=.6+.4*sin(t*(1.0+3.0*hash(cell+1.7))+6.28*sh);
+        c+=vec3(.85,.90,1.0)*star*twinkle*(.25+.75*fract(sh*91.0))*.8*smoothstep(.15,.5,y)*auroraGate;
+      }
+    }
     vec3 acc=vec3(0);
     vec3 green=vec3(.05,1.0,.40),lime=vec3(.55,1.0,.20),teal=vec3(.02,.82,.62),pink=vec3(1.0,.16,.36),coral=vec3(1.0,.38,.36),violet=vec3(.42,.20,1.0),auCyan=vec3(.05,.80,1.0),auBlue=vec3(.14,.38,1.0);
     float S=W/1.6;
@@ -4163,6 +4183,13 @@ void main(){
       float lean=.75*(x0-vp.x)/(.5-vp.y);
       float lo=k==0?.06:k==1?.24:k==2?.26:k==3?.0:.06;
       float hi=k==0?1.15:k==1?.90:k==2?1.3:k==3?1.25:1.1;
+      // The floor offsets are bounded by ±.05 and ±.02. Outside this range the curtain is zero.
+      if(y<=lo-.07||y>=hi+.05)continue;
+      float lo2=lo+.10*(field(vec2(2.0*X+4.0*fk,.008*t))-.5);
+      float h=y-lo2;
+      float env=smoothstep(0.0,.26,h+.04*(noise(vec2(14.0*X,fk))-.5));
+      if(env==0.0)continue;
+      env=pow(env,1.3)*(.55+.45*exp(-max(h,0.0)/.30))*(1.0-smoothstep(hi-.45,hi+.05,y));
       float cx=x0+lean*(y-.5)+(.16+.06*fract(fk*.7))*sin(2.4*y+1.7*fk+.045*t)
         +.30*(field(vec2(.9*y+3.0*fk,.010*t+fk))-.5)
         // folds that travel up the curtain, deeper when the display is active
@@ -4174,13 +4201,12 @@ void main(){
       float prof=(d<0.0?exp(-d*d*2.4):exp(-d*d*.55))+.45*exp(-d*d*7.0);
       float soft=exp(-d*d*.12);
       // rays run along the ribbon, so they curve with it
-      float ax=X-cx;
       // two ray sets sliding opposite ways along the curtain, so the rays shimmer
-      float ray=.62+.38*smoothstep(.2,.8,noise(vec2(70.0*angR-.09*t,.8*y+fk-.02*t)))*(.50+.50*noise(vec2(170.0*angR+3.0+.13*t,1.3*y)));
-      float lo2=lo+.10*(field(vec2(2.0*X+4.0*fk,.008*t))-.5);
-      float h=y-lo2;
-      ray=mix(ray,1.0,smoothstep(.30,.75,h));
-      float env=pow(smoothstep(0.0,.26,h+.04*(noise(vec2(14.0*X,fk))-.5)),1.3)*(.55+.45*exp(-max(h,0.0)/.30))*(1.0-smoothstep(hi-.45,hi+.05,y));
+      float ray=1.0;
+      if(h<.75){
+        ray=.62+.38*smoothstep(.2,.8,noise(vec2(70.0*angR-.09*t,.8*y+fk-.02*t)))*(.50+.50*noise(vec2(170.0*angR+3.0+.13*t,1.3*y)));
+        ray=mix(ray,1.0,smoothstep(.30,.75,h));
+      }
       float hot=.45+.85*smoothstep(.30,.75,field(vec2(1.5*y-.04*t+5.0*fk,.010*t+2.0*fk)));
       float breathe=.72+.28*smoothstep(.2,.8,noise(vec2(.05*t+3.7*fk,fk)));
       // bright knots that climb each curtain, a little faster on each one
@@ -4319,14 +4345,9 @@ function zApplyScene(patch) {
 /* One frame for the current scene. */
 const zFrameAt = () => engineFrameAt()
 
-/* ---- uniform upload: the whole GL surface of the sky ---- */
-function zDrawParams(gl, U, f, opts) {
-  const o = opts || {}
+/* Upload atmospheric uniforms when the CPU evaluator delivers a new frame. */
+function zUploadLook(gl, U, f) {
   const look = f.look || skyState.tuning
-  gl.uniform2f(U.uRes, o.width, o.height)
-  gl.uniform1f(U.uDet, o.det)
-  gl.uniform1f(U.uTime, o.time)
-  gl.uniform1f(U.uAlpha, o.alpha == null ? 1 : o.alpha)
   gl.uniform3f(U.uC0, f.cols[0][0], f.cols[0][1], f.cols[0][2])
   gl.uniform3f(U.uC1, f.cols[1][0], f.cols[1][1], f.cols[1][2])
   gl.uniform3f(U.uC2, f.cols[2][0], f.cols[2][1], f.cols[2][2])
@@ -4339,9 +4360,6 @@ function zDrawParams(gl, U, f, opts) {
   gl.uniform1f(U.uWarp, look.warp)
   gl.uniform1f(U.uGrain, look.grain)
   gl.uniform2f(U.uDrift, f.drift[0], f.drift[1])
-  /* callers that do not integrate fall back to the old drift × time */
-  const off = o.driftOff || [f.drift[0] * o.time, f.drift[1] * o.time]
-  if (U.uDriftOff) gl.uniform2f(U.uDriftOff, off[0], off[1])
   gl.uniform3f(U.uPrecip, f.precip[0], f.precip[1], f.precip[2])
   gl.uniform3f(U.uShaft, look.shaft.strength, look.shaft.coverage, look.shaft.reach)
   gl.uniform1f(U.uFog, f.fog)
@@ -4349,8 +4367,6 @@ function zDrawParams(gl, U, f, opts) {
   gl.uniform1f(U.uDeck, f.deck)
   gl.uniform1f(U.uPuff, f.puff)
   gl.uniform1f(U.uNight, f.night)
-  /* the Zephyr Aurora theme's northern lights; 0 (off) for every other look */
-  if (U.uAurora) gl.uniform1f(U.uAurora, o.aurora || 0)
   gl.uniform1f(U.uHaze, f.haze)
   gl.uniform1f(U.uSquash, f.squash)
   gl.uniform3f(U.uTint, f.tint[0], f.tint[1], f.tint[2])
@@ -4375,7 +4391,6 @@ function zDrawParams(gl, U, f, opts) {
   gl.uniform3f(U.uFloorH, f.floorH[0], f.floorH[1], f.floorH[2])
   gl.uniform3f(U.uDogs, f.dogs[0], f.dogs[1], f.dogs[2])
   gl.uniform3f(U.uCorona, f.corona[0], f.corona[1], f.corona[2])
-  gl.drawArrays(gl.TRIANGLES, 0, 3)
 }
 
 /* The engine's vertex shader names its attribute aPosition; the vendored sky
@@ -4411,7 +4426,7 @@ return {
   cloneScene: zCloneScene,
   applyScene: zApplyScene,
   frameAt: zFrameAt,
-  drawParams: zDrawParams,
+  uploadLook: zUploadLook,
   applyLift: zApplyLift,
   GRADE_BASE: GRADE_BASE,
   detUnit: zDetUnit,
@@ -4446,7 +4461,7 @@ return {
    few frames is the saving that multiplies through the whole app.
 
    Blur happens inside WebGL, not as a CSS filter: the sky renders into a
-   small texture, and a two-pass gaussian (9 linear taps each way) draws it to
+   small texture, and a two-pass gaussian (5 bilinear fetches each way) draws it to
    the canvas. Blurring a few hundred thousand texels is nearly free, edges
    clamp instead of pulling dark in, and a blur change eases over
    BLUR_FADE_MS by re-running ONLY the blur passes on the frame it already has. */
@@ -4488,7 +4503,7 @@ const createSky = (opts = {}) => {
      terms in the FRAG are swapped for the integrated uDriftOff. */
   const DRIFT_SWAPS = [[/-.018\*t\*uDrift/g, '-.018*uDriftOff'], [/-.007\*t\*uDrift/g, '-.007*uDriftOff']]
   const WARP_START = '  vec2 q=vec2(field(A+t*vec2(.010,.006))'
-  const WARP_END = '  float f=mix(field(1.1*A+.8*uWarp*r),.5,.35);\n'
+  const WARP_END = '  float f=mix(field(1.1*A+.8*uWarp*r),.5,.35);'
   let fieldSrc = null
   {
     let frag = HS.FRAG
@@ -4505,7 +4520,7 @@ const createSky = (opts = {}) => {
       const body =
         '#ifdef ZF_FIELD\n' +
         '  A = uFieldOrg + (gl_FragCoord.xy / uFieldRes) * uFieldSize;\n' +
-        warp +
+        warp + '\n' +
         '  float fq = clamp(f, 0.0, 0.999);\n' +
         '  float fhi = floor(fq * 255.0) / 255.0;\n' +   // f as 16 bits: hi + lo/255, linear so bilinear stays exact
         '  gl_FragColor = vec4(fhi, (fq - fhi) * 255.0, clamp(r.y, 0.0, 1.0), 1.0);\n' +
@@ -4561,14 +4576,16 @@ const createSky = (opts = {}) => {
   for (const name of HS.UNIFORM_NAMES) U[name] = gl.getUniformLocation(program, name)
   const UF = {}
   if (fieldProg) {
-    for (const name of HS.UNIFORM_NAMES) UF[name] = gl.getUniformLocation(fieldProg, name)
-    for (const name of ['uFieldOrg', 'uFieldSize', 'uFieldRes']) UF[name] = gl.getUniformLocation(fieldProg, name)
+    for (const name of ['uTime', 'uWarp', 'uFieldOrg', 'uFieldSize', 'uFieldRes']) UF[name] = gl.getUniformLocation(fieldProg, name)
     for (const name of ['uFieldA', 'uFieldB', 'uFieldBoxA', 'uFieldBoxB', 'uFieldMix']) U[name] = gl.getUniformLocation(program, name)
     gl.uniform1i(U.uFieldA, 2)
     gl.uniform1i(U.uFieldB, 3)
-    gl.useProgram(fieldProg)
-    if (UF.uLut) gl.uniform1i(UF.uLut, 1)   // never leave a sampler on unit 0 (feedback-loop guard)
-    gl.useProgram(program)
+    const fieldLut = gl.getUniformLocation(fieldProg, 'uLut')
+    if (fieldLut) {
+      gl.useProgram(fieldProg)
+      gl.uniform1i(fieldLut, 1)   // feedback-loop guard if a driver retains the unused sampler
+      gl.useProgram(program)
+    }
   }
 
   /* The owner-graded 3D LUT is not ported: one white texel, uLutAmt 0. */
@@ -4581,6 +4598,7 @@ const createSky = (opts = {}) => {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
   gl.uniform1i(U.uLut, 1)
+  gl.uniform1f(U.uAlpha, 1)
   gl.activeTexture(gl.TEXTURE0)
 
   const buffer = gl.createBuffer()
@@ -4691,10 +4709,9 @@ const createSky = (opts = {}) => {
     gl.uniform2f(UF.uFieldOrg, t.box[0], t.box[1])
     gl.uniform2f(UF.uFieldSize, w, h)
     gl.uniform2f(UF.uFieldRes, fw, fh)
-    HS.drawParams(gl, UF, run.frame, {
-      width: canvas.width, height: canvas.height, det: sb.det,
-      time: s, driftOff: run.driftOff, alpha: 1,
-    })
+    gl.uniform1f(UF.uTime, s)
+    gl.uniform1f(UF.uWarp, run.frame.look.warp)
+    gl.drawArrays(gl.TRIANGLES, 0, 3)
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
   }
   const covers = (t, s) => {
@@ -4795,15 +4812,12 @@ const createSky = (opts = {}) => {
     run.dirty = false
   }
 
+  let uploadedLook = null
   const drawSky = fb => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, fb)
     gl.viewport(0, 0, canvas.width, canvas.height)
     gl.useProgram(program)
     if (fieldA) {
-      if (fieldStale || fieldA.w === 0) updateField()
-      gl.useProgram(program)
-      gl.viewport(0, 0, canvas.width, canvas.height)
-      gl.bindFramebuffer(gl.FRAMEBUFFER, fb)
       gl.activeTexture(gl.TEXTURE2)
       gl.bindTexture(gl.TEXTURE_2D, fieldA.tex)
       gl.activeTexture(gl.TEXTURE3)
@@ -4813,19 +4827,22 @@ const createSky = (opts = {}) => {
       gl.uniform4f(U.uFieldBoxB, fieldB.box[0], fieldB.box[1], fieldB.box[2], fieldB.box[3])
       gl.uniform1f(U.uFieldMix, clamp((run.slowT - fieldA.t) / Math.max(1e-3, fieldB.t - fieldA.t), 0, 1))
     }
-    HS.drawParams(gl, U, run.frame, {
-      width: canvas.width,
-      height: canvas.height,
-      det: HS.detUnit(canvas.width, canvas.height),
-      time: run.slowT,
-      driftOff: run.driftOff,
-      alpha: 1,
-      aurora: run.aurora || 0,
-    })
+    if (uploadedLook !== run.frame) {
+      HS.uploadLook(gl, U, run.frame)
+      uploadedLook = run.frame
+    }
+    gl.uniform2f(U.uRes, canvas.width, canvas.height)
+    gl.uniform1f(U.uDet, HS.detUnit(canvas.width, canvas.height))
+    gl.uniform1f(U.uTime, run.slowT)
+    gl.uniform2f(U.uDriftOff, run.driftOff[0], run.driftOff[1])
+    gl.uniform1f(U.uAurora, run.aurora || 0)
+    gl.drawArrays(gl.TRIANGLES, 0, 3)
   }
   /* skyFresh: re-run the sky shader; otherwise only the blur passes re-run */
   const paint = (skyFresh = true) => {
-    if (!run.frame) return
+    if (!run.frame || document.hidden) return
+    // Refresh snapshots before turning on the dimming blend for a sharp sky.
+    if (fieldA && fieldStale) updateField()
     const sigma = run.blur * canvas.width / Math.max(1, window.innerWidth) // css px → texels
     if (!blurProg || sigma < 0.35) {
       // no blur: draw straight to the canvas and dim in the blend unit,
@@ -4844,7 +4861,7 @@ const createSky = (opts = {}) => {
     fit(rtMid, canvas.width, canvas.height)
     if (skyFresh || !run.skyInRt) drawSky(rtSky.fb)
     run.skyInRt = true
-    const step = sigma < 0.35 ? 0 : sigma / 2 // 9 taps at ±4 steps reach ±2σ
+    const step = sigma / 2 // the 9-tap kernel reaches about ±2σ
     gl.useProgram(blurProg)
     gl.uniform1i(uTex, 0)
     gl.uniform1f(uDim, 1)
@@ -4905,6 +4922,7 @@ const createSky = (opts = {}) => {
       const skyDue = t - run.lastSky >= 1000 / fps - 4
       const wasFading = fading()
       stepBlur(t)
+      const resized = resize()
       if (skyDue) {
         const dt = clamp((t - run.last) / 1000, 0, 2)
         run.last = t
@@ -4924,17 +4942,14 @@ const createSky = (opts = {}) => {
         if (live.fast || run.dirty || !run.frame || t - run.builtAt > BUILD_TTL_MS) build(t)
         updateField()
       }
-      if (resize()) paint(true)
+      if (resized) paint(true)
       else if (skyDue || wasFading) paint(skyDue)
-    } else {
-      run.last = t
-      run.lastSky = t   // else schedule() waits 0 ms and the timer spins while hidden
     }
     schedule()
   }
 
   const schedule = () => {
-    if (run.timer || !run.on || run.disposed) return
+    if (run.timer || !run.on || run.disposed || document.hidden) return
     const fps = curFps()
     /* a blur fade runs its passes at 30 fps; the sky keeps its own pace */
     const wait = fading() ? 1000 / 30 : Math.max(0, run.lastSky + 1000 / fps - now())
@@ -4942,18 +4957,20 @@ const createSky = (opts = {}) => {
   }
   const reschedule = () => { clearTimeout(run.timer); run.timer = 0; schedule() }
   const onVisible = () => {
-    if (document.hidden || !run.on) return
-    run.last = now()          // no catch-up jump after the window comes back
+    if (!document.hidden) run.last = now()  // no catch-up jump on return
     reschedule()
   }
-  const onResize = () => { if (resize()) paint(true) }
+  const onResize = () => { if (!document.hidden && resize()) paint(true) }
   document.addEventListener('visibilitychange', onVisible)
   window.addEventListener('resize', onResize)
   window.addEventListener('focus', onVisible)
+  window.addEventListener('blur', reschedule)
 
-  resize()
-  build(now())
-  paint(true)
+  if (!opts.deferFirstFrame) {
+    resize()
+    build(now())
+    paint(true)
+  }
 
   return {
     canvas: root,
@@ -4984,17 +5001,21 @@ const createSky = (opts = {}) => {
       // The shared input is the reading column's mean, not the brightest
       // moon/aurora pixel anywhere in the viewport. A positive blur kernel
       // preserves this mean apart from the small crop-edge contribution.
-      const mean = [0, 0, 0]
+      let red = 0, green = 0, blue = 0
       for (let i = 0; i < pixels.length; i += 4) {
-        for (let c = 0; c < 3; c += 1) mean[c] += pixels[i + c] * run.dim / (w * h)
+        red += pixels[i]
+        green += pixels[i + 1]
+        blue += pixels[i + 2]
       }
-      return [mean]
+      const scale = run.dim / (w * h)
+      return [[red * scale, green * scale, blue * scale]]
     },
     start() {
       if (run.disposed) return
       run.on = true
       run.last = now()
-      schedule()
+      if (!run.frame && !run.timer && !document.hidden) frame()
+      else schedule()
     },
     stop() {
       run.on = false
@@ -5009,6 +5030,7 @@ const createSky = (opts = {}) => {
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('resize', onResize)
       window.removeEventListener('focus', onVisible)
+      window.removeEventListener('blur', reschedule)
       root.remove()
       style.remove()
       run.frame = null
@@ -5107,9 +5129,7 @@ const createSky = (opts = {}) => {
 
 // ══ §7 SKY PAINTING, THEMES, SOLAR & WEATHER SYNC ══════════════════════════
 
-// The sky drifts slowly, so it is sampled on a 5-minute grid and the <style> is
-// only rewritten when its text actually changes. Each rewrite forces a full
-// style recalc of the app, so this cuts that cost by ~5x.
+// Quantize slow changes and replace only the CSS sections whose values moved.
 const SKY_STEP_MS = 5 * 60 * 1000
 
 const paintSky = (date, gl = false, opts = {}) => {
@@ -5118,24 +5138,24 @@ const paintSky = (date, gl = false, opts = {}) => {
   const chrome = opts.chrome !== false
   if (!backdrop && !chrome) { clearSky(); return }
 
-  let el = document.getElementById(SKY_STYLE_ID)
-
-  if (!el) {
-    el = document.createElement('style')
-    el.id = SKY_STYLE_ID
-    document.head.appendChild(el)
-  }
-
   const quantized = new Date(Math.floor(date.getTime() / SKY_STEP_MS) * SKY_STEP_MS)
-  const next = skyStyleFor(quantized, gl, { backdrop, chrome })
-  if (el.textContent !== next) el.textContent = next
+  const sections = skyStyleFor(quantized, gl, { backdrop, chrome, split: true })
+  SKY_STYLE_IDS.forEach((id, i) => {
+    const existing = document.getElementById(id)
+    if (existing) {
+      if (existing.textContent !== sections[i]) existing.textContent = sections[i]
+    } else {
+      const el = document.createElement('style')
+      el.id = id
+      el.textContent = sections[i]
+      document.head.appendChild(el)
+    }
+  })
 }
 
 const clearSky = () => {
   if (typeof document === 'undefined') return
-  const el = document.getElementById(SKY_STYLE_ID)
-
-  if (el) el.remove()
+  for (const id of SKY_STYLE_IDS) document.getElementById(id)?.remove()
 }
 
 const phaseThemeName = phase => `zephyr-${phase}`
@@ -5894,7 +5914,7 @@ export default {
     // Our own leftovers from an instance that died before registering its
     // disposer: the GL container is a full-screen opaque layer at z-index -1,
     // so a stale one sits on top of the CSS sky.
-    for (const staleId of ['zephyr-gl-sky', 'zephyr-gl-sky-style', 'zephyr-sky-style', 'zephyr-aurora-stars']) {
+    for (const staleId of ['zephyr-gl-sky', 'zephyr-gl-sky-style', ...SKY_STYLE_IDS, 'zephyr-aurora-stars']) {
       let stale = document.getElementById(staleId)
       while (stale) {
         if (stale.parentNode) stale.parentNode.removeChild(stale)
@@ -6197,19 +6217,27 @@ export default {
           }
         }
       })
-      const scanTabs = () => {
-        for (const tab of document.querySelectorAll("[data-slot='pane-tab']")) {
-          if (seenTabs.has(tab)) continue
-          seenTabs.add(tab)
-          railObs.observe(tab)
-        }
+      const paneTab = "[data-slot='pane-tab']"
+      const observeTab = tab => {
+        if (!tab.isConnected || seenTabs.has(tab)) return
+        seenTabs.add(tab)
+        railObs.observe(tab)
       }
-      scanTabs()
-      let scanQueued = false
-      const tabObserver = new MutationObserver(() => {
-        if (scanQueued) return
-        scanQueued = true
-        requestAnimationFrame(() => { scanQueued = false; scanTabs() })
+      const unobserveTab = tab => {
+        if (tab.isConnected || !seenTabs.delete(tab)) return
+        railObs.unobserve(tab)
+      }
+      const visitTabs = (node, visit) => {
+        if (node.nodeType !== 1) return
+        if (node.matches(paneTab)) visit(node)
+        node.querySelectorAll(paneTab).forEach(visit)
+      }
+      document.querySelectorAll(paneTab).forEach(observeTab)
+      const tabObserver = new MutationObserver(records => {
+        for (const record of records) {
+          record.addedNodes.forEach(node => visitTabs(node, observeTab))
+          record.removedNodes.forEach(node => visitTabs(node, unobserveTab))
+        }
       })
       tabObserver.observe(document.documentElement, { childList: true, subtree: true })
       ctx.onDispose?.(() => {
@@ -8196,14 +8224,12 @@ export default {
       return t
     }
 
-    const isStreamingRoot = root => Boolean(
-      root.querySelector?.("[data-message-streaming='true']") ||
-      root.querySelector?.("[data-slot='aui_message-streaming-marker'][data-message-streaming]") ||
-      root.querySelector?.("[data-slot='aui_response-loading']") ||
-      root.querySelector?.("[data-slot='aui_turn-activity'][data-state='active']") ||
-      root.querySelector?.(".shimmer") ||
-      root.querySelector?.("[aria-label='Running'], [data-slot='glyph-spinner']")
-    )
+    const streamingMarkers = [
+      "[data-message-streaming='true']", "[data-slot='aui_message-streaming-marker'][data-message-streaming]",
+      "[data-slot='aui_response-loading']", "[data-slot='aui_turn-activity'][data-state='active']",
+      ".shimmer", "[aria-label='Running']", "[data-slot='glyph-spinner']"
+    ].join(', ')
+    const isStreamingRoot = root => Boolean(root.querySelector?.(streamingMarkers))
 
     const setToggleExpanded = (toggle, contentEls, expanded) => {
       for (const contentEl of contentEls) {
@@ -8314,17 +8340,20 @@ export default {
       }
     }
 
+    const ASSISTANT_ROOT = "[data-slot='aui_assistant-message-root']"
+    const RESPONSE_GROUP = "[data-slot='aui_response-group']"
+    const TURN_PAIR = "[data-slot='aui_turn-pair']"
     const contentOf = root => root?.querySelector?.("[data-slot='aui_assistant-message-content']") || null
     const groupContainerOf = root =>
-      root?.closest?.("[data-slot='aui_response-group']") ||
-      root?.closest?.("[data-slot='aui_turn-pair']") ||
+      root?.closest?.(RESPONSE_GROUP) ||
+      root?.closest?.(TURN_PAIR) ||
       root ||
       null
     const partsOf = container => {
       if (!container?.querySelectorAll) return []
       const roots = container.getAttribute?.('data-slot') === 'aui_assistant-message-root'
         ? [container]
-        : Array.from(container.querySelectorAll("[data-slot='aui_assistant-message-root']"))
+        : Array.from(container.querySelectorAll(ASSISTANT_ROOT))
       return roots.map(root => ({ root, content: contentOf(root) })).filter(part => part.content)
     }
 
@@ -8513,7 +8542,7 @@ export default {
       if (typeof document === 'undefined') return
       const isEnabled = collapseWork.get()
       const seen = new Set()
-      const messages = document.querySelectorAll?.("[data-slot='aui_assistant-message-root']") || []
+      const messages = document.querySelectorAll?.(ASSISTANT_ROOT) || []
       for (const root of messages) {
         const group = groupContainerOf(root)
         if (!group || seen.has(group)) continue
@@ -8522,15 +8551,22 @@ export default {
       }
     }
 
-    // The shared body for both scheduling paths below: fold the transcript,
-    // re-measure the pinned wordmark, and re-fit the composer column. The
-    // fold pass is skipped entirely while the feature is off (the off-switch
-    // already ran one cleanup pass), so a long history is not re-walked on
-    // every mutation for nothing.
-    const runScanWork = () => {
-      if (collapseWork.get()) scanWorkProgress()
-      pinWordmark()
-      fitColumn()
+    const dirtyTurns = new Set()
+    let fullWorkScan = false
+    let workLayout = false
+    const runScanWork = (full = false) => {
+      if (collapseWork.get()) {
+        if (full || fullWorkScan) scanWorkProgress()
+        else for (const group of dirtyTurns) {
+          if (group.isConnected) processTurn(group, true)
+        }
+      }
+      dirtyTurns.clear()
+      if (full || fullWorkScan || workLayout) {
+        pinWordmark()
+        fitColumn()
+      }
+      fullWorkScan = workLayout = false
     }
 
     const hasRaf = typeof requestAnimationFrame === 'function'
@@ -8540,14 +8576,15 @@ export default {
       workFrame = null
       runScanWork()
     }
-    const scheduleScanWork = () => {
+    const scheduleScanWork = (full = false) => {
+      fullWorkScan ||= full
+      if (workFrame !== null) return
       // While core holds the session-switch curtain on the chat surface the
       // transcript is invisible, so the 60ms throttle only delays the fold
       // toward the reveal. Coalesce to the next frame instead; normal
       // streaming keeps the throttle below. A throttle already pending from
       // just before the switch is dropped, so the frame is the only run.
       if (typeof document !== 'undefined' && hasRaf && document.querySelector?.('[data-chat-surface][data-session-switching]')) {
-        if (workFrame !== null) return
         if (workThrottle) {
           clearTimeout(workThrottle)
           workThrottle = null
@@ -8582,15 +8619,25 @@ export default {
     // curtain (see the [motion:switch] CSS and the scan scheduling below).
     // The old JS slide was retired: it raced this window and animated a
     // transcript the user was not looking at yet.
-    // Only clicks inside the chat surface can change what the scan measures
-    // (expanding a fold, a new message); a click in the sidebar must not walk
-    // the transcript.
-    const onDocClick = event => {
-      const target = event?.target
-      if (target?.nodeType === 1 && target.closest?.('[data-chat-surface]')) scheduleScanWork()
+    const queueGroup = root => dirtyTurns.add(groupContainerOf(root))
+    const queueTurn = node => {
+      const part = node.closest?.(ASSISTANT_ROOT)
+      if (collapseWork.get()) {
+        const turn = part || node.closest?.(RESPONSE_GROUP)
+        if (turn) queueGroup(turn)
+        else node.closest?.(TURN_PAIR)?.querySelectorAll(ASSISTANT_ROOT).forEach(queueGroup)
+      }
+      return part
     }
 
-    const onNavChange = () => { scheduleScanWork(); runRescanHooks() }
+    const onDocClick = event => {
+      const target = event?.target
+      if (target?.nodeType !== 1 || !target.closest?.('[data-chat-surface]')) return
+      if (!queueTurn(target)) workLayout = true
+      scheduleScanWork()
+    }
+
+    const onNavChange = () => { scheduleScanWork(true); runRescanHooks() }
 
     // Core lifts data-session-switching once the new transcript's rows are
     // placed and the scroll has settled. Attribute MutationObserver callbacks
@@ -8717,7 +8764,11 @@ export default {
         cancelAnimationFrame?.(workFrame)
         workFrame = null
       }
-      runScanWork()
+      if (workThrottle) {
+        clearTimeout(workThrottle)
+        workThrottle = null
+      }
+      runScanWork(true)
       if (atBottom) viewport.scrollTop = viewport.scrollHeight
       // The curtain keeps the transcript hidden past the fold until the late
       // work lands; its lift re-pins a bottom-anchored viewport again.
@@ -8740,7 +8791,6 @@ export default {
       // so its removal is caught pre-paint and settled in that same frame.
       chatObserver = new MutationObserver(mutations => {
         let settled = false
-        let relevant = false
         // One batch can carry the removal record once per observed holder;
         // settling a surface twice in the same batch is wasted work.
         const settledSurfaces = new Set()
@@ -8756,23 +8806,27 @@ export default {
               settleSwitch(surface)
               runRescanHooks()
             } else if (name === 'data-message-streaming') {
-              relevant = true
+              queueTurn(mutation.target)
             }
             continue
           }
-          if (mutation?.type !== 'childList' || relevant) continue
-          // The history list is virtualized: scrolling mounts and unmounts a
-          // row at a time, and a scan per row would walk the whole transcript
-          // for a change none of it cares about. Only churn inside the chat
-          // surface (or a body-level portal mount, e.g. the composer popout)
-          // can change what the scan measures.
+          if (mutation?.type !== 'childList') continue
           const target = mutation.target
-          if (target === document.body) relevant = true
-          else if (target?.nodeType === 1 && target.closest?.('[data-chat-surface]')) relevant = true
+          if (target.nodeType !== 1 || target.closest?.('.zephyr-work-summary')) continue
+          // Streamed children can affect any part of their response group,
+          // but leave the composer and other turns alone.
+          if (queueTurn(target)) continue
+          if (target === document.body || target.closest?.('[data-chat-surface]')) workLayout = true
+          if (!collapseWork.get()) continue
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType !== 1 || !node.isConnected) continue
+            if (node.matches(ASSISTANT_ROOT)) queueGroup(node)
+            else node.querySelectorAll(ASSISTANT_ROOT).forEach(queueGroup)
+          }
         }
         // settleSwitch ran the pass synchronously for this frame; everything
         // else inside the transcript still gets the throttled one.
-        if (!settled && relevant) scheduleScanWork()
+        if (!settled && (workLayout || dirtyTurns.size)) scheduleScanWork()
       })
       const observeTarget = document.body || document.documentElement
       if (observeTarget) {
@@ -9122,6 +9176,7 @@ export default {
       if (glSky || glFailed) return glSky
       const skyOpts = {
         quality: quality.get(),
+        deferFirstFrame: true,
         lat: liveSolar?.lat ?? getApproxCoords()[0],
         lng: liveSolar?.lng ?? getApproxCoords()[1],
         onError: err => console.warn?.('[zephyr]', err)
@@ -9135,8 +9190,9 @@ export default {
       applyFpsCap()
       applyWeather(true)
       glSky.setAurora(AURORA_LOOK)
-      glSky.start()
+      glSky.setHold(heldMoment())
       startBlurWatch()
+      glSky.start()
       return glSky
     }
 
@@ -10743,10 +10799,11 @@ export default {
         queued = true
         requestAnimationFrame(() => { queued = false; sync() })
       }
-      const railObs = new MutationObserver(schedule)
-      // Scoped like the page marks: the rail is measured off the sidebar column,
-      // so the transcript does not need to wake it. Re-attached on a session
-      // switch or a route change, when the column can be a new node.
+      const railObs = new MutationObserver(records => {
+        if (records.some(({ target }) => !target.closest?.("[data-slot='aui_thread-content']"))) schedule()
+      })
+      // The wrapper also owns the transcript. Its content must not wake the
+      // sidebar measurement, but the wrapper still sees sidebar remounts.
       const attachRailObs = () => {
         railObs.disconnect()
         railObs.observe(document.querySelector("[data-slot='sidebar-wrapper']") || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-selected', 'data-state', 'hidden'] })
@@ -10852,7 +10909,8 @@ export default {
       unpinWordmark()
       if (typeof window !== 'undefined') window.removeEventListener?.('resize', onResize)
       if (workThrottle) clearTimeout(workThrottle)
-      if (workFrame) cancelAnimationFrame?.(workFrame)
+      if (workFrame !== null) cancelAnimationFrame?.(workFrame)
+      dirtyTurns.clear()
       if (typeof document !== 'undefined' && document.documentElement) {
         document.documentElement.style.removeProperty('--zephyr-sun')
         if (document.documentElement.dataset) {

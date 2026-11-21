@@ -48,3 +48,10 @@ test('the snippet card and the status dock keep their own riding rules', () => {
   assert.ok(css.includes('#zephyr-snips'))
   assert.ok(css.includes('#zephyr-statusdock-head'))
 })
+
+test('mode button starts past the macOS traffic lights, not under them', () => {
+  const body = ruleFor('[data-zf-arc-col] > #zf-mode-btn')
+  assert.match(body, /left: max\(10px, calc\(var\(--titlebar-controls-left, 20px\) - 10px\)\) !important/,
+    'the column sits 10px in, so the host clearance minus that inset is the first clear x')
+  assert.doesNotMatch(body, /left: 10px !important/, 'a fixed 10px inset lands inside the lights (x 12-70)')
+})

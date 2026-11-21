@@ -36,6 +36,8 @@ The status-bar picker shows your current look, such as “Sky · Live” or “A
 
 *The Backwater* (C. W. Wyllie, 1903) behind tinted glass, dressed from gruvbox's own element table: cream text, green glass, amber accent.
 
+Settings > Zephyr > Gruvbox has one **Tint** slider: 0 keeps this painting and its original styling; higher values reveal more of the desktop through flat panels. **Choose wallpaper…** matches the colours and supplies a blurred wallpaper backdrop. Without a wallpaper or native window glass, the ground stays solid. Existing Glass settings migrate to Gruvbox with their colours and transparency preserved.
+
 <p align="center">
   <img src="assets/app-gruvbox.jpg" alt="Zephyr Gruvbox: a painting behind glass, on the home screen" width="100%">
 </p>
@@ -97,7 +99,7 @@ Hermes Appearance contains one stable **Zephyr** entry; the selection stays the 
 
 ## Performance
 
-The sky scrolls and blends two cached cloud textures, refreshing a snapshot about every 1.6 seconds of animation. It renders at 8 fps by default, normally slows to 1 fps when the window loses focus, and cancels its frame timer while hidden. Low and High select 4 and 16 fps, and reduced motion caps the sky at 0.25 fps. Blur runs inside WebGL so large panels can use the same softened backdrop.
+The sky scrolls and blends two cached cloud textures, refreshing a snapshot about every 1.6 seconds of animation. It renders at 8 fps by default and pauses animation while the window is hidden or unfocused. Low and High select 4 and 16 fps, and reduced motion caps the sky at 0.25 fps. Blur runs inside WebGL so large panels can use the same softened backdrop.
 
 While replies stream, Zephyr updates the affected response groups and leaves other turns out of the fold pass. Theme refreshes replace only the stylesheet sections whose values changed. See the [rendering performance audit](docs/performance-audit.md#19-november-2026-update) for the pipelines, benchmarks, and reproduction steps.
 

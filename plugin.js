@@ -810,15 +810,35 @@ const polishCss = (gruv = false) => [
   "[data-slot='aui_thread-content'] :is(p, li, td, th, h1, h2, h3, h4, blockquote) {",
   '  overflow-wrap: anywhere;',
   '}',
-  "[data-slot='aui_thread-content'] p { margin-block: 0.7em !important; }",
-  "[data-slot='aui_thread-content'] :is(h1, h2, h3, h4) {",
+  // Markdown ONLY. These rules used to match every paragraph and list under
+  // `aui_thread-content`, which includes the body of an expanded tool card —
+  // and a tool card sets its own geometry. A web-search card's hit list is an
+  // `<ol>` the app declares as `m-0 p-0`, so it inherited the 2.4em list indent
+  // on top of the card's own inset, and each hit snippet (a `<p class="m-0">`)
+  // picked up 0.7em of block margin. The card read as over-indented and airy
+  // against its own header. `.aui-md` is the app's markdown renderer, so scoping
+  // here keeps the prose rhythm and leaves tool cards to the host.
+  "[data-slot='aui_thread-content'] .aui-md p { margin-block: 0.7em !important; }",
+  "[data-slot='aui_thread-content'] .aui-md :is(h1, h2, h3, h4) {",
   '  letter-spacing: -0.011em;',
   '  margin-block: 1.15em 0.5em;',
   '  line-height: 1.3;',
   '}',
-  "[data-slot='aui_thread-content'] :is(ul, ol) { padding-inline-start: 2.4em; margin-block: 0.6em; }",
-  "[data-slot='aui_thread-content'] li { margin-block: 0.22em !important; }",
-  "[data-slot='aui_thread-content'] li::marker { color: var(--zf-ink-3, #a89984); }",
+  "[data-slot='aui_thread-content'] .aui-md :is(ul, ol) { padding-inline-start: 2.4em; margin-block: 0.6em; }",
+  "[data-slot='aui_thread-content'] .aui-md li { margin-block: 0.22em !important; }",
+  "[data-slot='aui_thread-content'] .aui-md li::marker { color: var(--zf-ink-3, #a89984); }",
+  // Tool cards from here down: their own geometry. The app insets an expanded
+  // card body by 6px and its header by 8px, which reads cramped against the
+  // card's border and leaves the header glyph 2px off the body's text edge.
+  // One 10px inset, header and body together, for every expanded card.
+  "[data-slot='aui_thread-content'] [data-slot='tool-block'][data-tool-open] > div:first-child { padding-inline: 10px; }",
+  "[data-slot='aui_thread-content'] [data-slot='tool-block'] > div:last-child:not(:first-child) { padding: 10px; }",
+  // Web-search hits only (`ol`/`li > p` exist in no other tool card): more air
+  // between hits, a 5px step from a title to its snippet, and the snippet
+  // indented 12px so a hit reads as title-over-detail instead of one text mass.
+  "[data-slot='aui_thread-content'] [data-slot='tool-block'] ol { row-gap: 16px; }",
+  "[data-slot='aui_thread-content'] [data-slot='tool-block'] li { row-gap: 5px; }",
+  "[data-slot='aui_thread-content'] [data-slot='tool-block'] li > p { margin-inline: 12px; }",
   "[data-slot='aui_thread-content'] hr {",
   '  border: 0; border-top: 1px solid var(--zf-hair); margin-block: 1.4em;',
   '}',

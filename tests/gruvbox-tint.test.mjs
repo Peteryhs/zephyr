@@ -52,10 +52,11 @@ const css = run => [...run.dom.head]
 const theme = run => run.registered.filter(c => c.id === 'theme.sky').at(-1).data.colors
 const cssSet = () => [false, true].flatMap(gl => [false, true].flatMap(backdrop => [false, true].map(chrome => mod.skyStyleFor(new Date('2026-10-15T16:00:00Z'), gl, { backdrop, chrome }))))
 // SHA-256 of all eight CSS outputs. It moves whenever the sheet gains a rule:
-// the thread-list indent and the rule that hides the app sidebar toggle in a
-// pinned window are on top of cd14ca8, so this is the value they produce.
+// the thread-list indent, the rule that hides the app sidebar toggle in a pinned
+// window, and the markdown-only scoping of the prose rules plus the tool-card
+// insets are on top of cd14ca8, so this is the value they produce.
 const cssHash = () => createHash('sha256').update(JSON.stringify(cssSet())).digest('hex')
-const OPAQUE_HASH = '68d08c0d44d11c33b697739253af89689a2cab3b6b8dabf650acce8977753c37'
+const OPAQUE_HASH = '952371228a246309beb898a06c89c7979f81796aff5799ad5451db3f0db23a1d'
 // The legacy body layers, host tokens and skin remain identical after migration.
 const legacyHash = () => createHash('sha256').update(JSON.stringify([mod.glassLayers(), mod.glassGrounds(), mod.glassSkin()])).digest('hex')
 const GLASS_HASH = 'dbec21d46c0162553d381db721f85aafea6b746259a1ee00931349afe8e773f0'

@@ -25,7 +25,7 @@ export function bodyColor(e,aod) {
 export function palette(e,aod,moonAlt=-90,illumination=0,grade=GRADE_BASE) {
   const effective=e>=0?e:e/(1+1.2*grade.duskStretch);
   let linear=sampleSky(effective,aod);
-  if(moonAlt>-18&&illumination>0) {
+  if(moonAlt>-18&&illumination>0&&grade.moonBoost>0) {
     const moon=sampleSky(moonAlt,aod),boost=illumination*grade.moonBoost/440000;
     linear=linear.map((c,i)=>c.map((v,j)=>v+moon[i][j]*boost));
   }

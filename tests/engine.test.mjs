@@ -158,3 +158,13 @@ test('fixed snapshots repeat and all weather/hour/season frames remain finite',(
   assert.deepEqual(noon(),noon());
   for(const date of ['2026-01-15','2026-06-21','2026-10-15'])for(const code of [0,1,2,3,45,53,63,73,95])for(const hour of [0,4.5,8,12,18.7,23])assert.ok(allFinite(evaluate({hourly:false,hour,date,code},epoch)),`${date} ${code} ${hour}`);
 });
+test('night palette stays muted greyish-blue regardless of moon or late twilight',()=>{
+  near(GRADE_BASE.scotopic,0);near(GRADE_BASE.moonBoost,0);
+  const moonUp=evaluate({hourly:false,hour:23,date:'2026-11-26',code:0,cloud:7,lift:LIFT_BASE},epoch);
+  const moonDown=evaluate({hourly:false,hour:23,date:'2026-11-10',code:0,cloud:7,lift:LIFT_BASE},epoch);
+  assert.ok(moonUp.diagnostics.moonAltitude>30&&moonUp.diagnostics.moonIllumination>.9);
+  assert.ok(moonDown.diagnostics.moonAltitude<-30);
+  assert.deepEqual(moonUp.cols,moonDown.cols);
+  const lateTwilight=evaluate({hourly:false,hour:eveningHour(-20,'2026-11-26'),date:'2026-11-26',code:0,cloud:7,lift:LIFT_BASE},epoch);
+  assert.ok(lateTwilight.cols[0][2]-lateTwilight.cols[0][0]<.25,`expected muted zenith chroma: ${lateTwilight.cols[0]}`);
+});

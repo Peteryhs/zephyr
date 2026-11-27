@@ -3806,7 +3806,8 @@ function monthlyDust(date, latitude, longitude) {
 }
 
 /* ── sky/grade.js ────────────────────────────────────────────────────── */
-const GRADE_BASE = Object.freeze({ exposure: .777664168999131, adaptation: .24676937284934922, gradientContrast: 1.2, shoulder: .85, saturation: 1.38, vibrance: .46, scotopic: .6, twilightHue: 0, twilightChroma: 0, purple: .59, duskStretch: .7, moonBoost: .0105, horizonBloom: .35, textureVibrancy: 1, blueHue: -12, sunsetPink: .8 });
+// Keep scotopic and moonBoost at 0 so moonlight and late twilight do not push night skies into saturated deep blue under LIFT_BASE.
+const GRADE_BASE = Object.freeze({ exposure: .777664168999131, adaptation: .24676937284934922, gradientContrast: 1.2, shoulder: .85, saturation: 1.38, vibrance: .46, scotopic: 0, twilightHue: 0, twilightChroma: 0, purple: .59, duskStretch: .7, moonBoost: 0, horizonBloom: .35, textureVibrancy: 1, blueHue: -12, sunsetPink: .8 });
 const LIFT_BASE = Object.freeze({exposure:1.2,saturation:1.6,vibrance:1.33});
 function liftedGrade(lift, grade = GRADE_BASE) {
   const result = {...grade};
@@ -3900,7 +3901,7 @@ function bodyColor(e,aod) {
 function palette(e,aod,moonAlt=-90,illumination=0,grade=GRADE_BASE) {
   const effective=e>=0?e:e/(1+1.2*grade.duskStretch);
   let linear=sampleSky(effective,aod);
-  if(moonAlt>-18&&illumination>0) {
+  if(moonAlt>-18&&illumination>0&&grade.moonBoost>0) {
     const moon=sampleSky(moonAlt,aod),boost=illumination*grade.moonBoost/440000;
     linear=linear.map((c,i)=>c.map((v,j)=>v+moon[i][j]*boost));
   }

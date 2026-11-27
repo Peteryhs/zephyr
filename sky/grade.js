@@ -1,5 +1,6 @@
 import { clamp, smooth, mix, blend, linearY, gaussian, rad } from './math.js';
-export const GRADE_BASE = Object.freeze({ exposure: .777664168999131, adaptation: .24676937284934922, gradientContrast: 1.2, shoulder: .85, saturation: 1.38, vibrance: .46, scotopic: .6, twilightHue: 0, twilightChroma: 0, purple: .59, duskStretch: .7, moonBoost: .0105, horizonBloom: .35, textureVibrancy: 1, blueHue: -12, sunsetPink: .8 });
+// Keep scotopic and moonBoost at 0 so moonlight and late twilight do not push night skies into saturated deep blue under LIFT_BASE.
+export const GRADE_BASE = Object.freeze({ exposure: .777664168999131, adaptation: .24676937284934922, gradientContrast: 1.2, shoulder: .85, saturation: 1.38, vibrance: .46, scotopic: 0, twilightHue: 0, twilightChroma: 0, purple: .59, duskStretch: .7, moonBoost: 0, horizonBloom: .35, textureVibrancy: 1, blueHue: -12, sunsetPink: .8 });
 export const LIFT_BASE = Object.freeze({exposure:1.2,saturation:1.6,vibrance:1.33});
 export function liftedGrade(lift, grade = GRADE_BASE) {
   const result = {...grade};

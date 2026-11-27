@@ -39,7 +39,7 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 const THEMES_AREA = 'themes'
 const DIRECTIVE_AREA = 'transcript.directives'
 
-const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', chrome: 'chrome', replyGround: 'replyGround', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin', home: 'home', homeCard: 'homeCard', recents: 'recents' }
+const STORE_KEYS = { auto: 'auto', pins: 'pins', tint: 'tint', sky: 'sky', chrome: 'chrome', replyGround: 'replyGround', look: 'look', margins: 'margins', collapseWork: 'collapseWork', motion: 'motion', glSky: 'glSky', weather: 'weather', quality: 'quality', statusDock: 'statusDock', statusDockOpen: 'statusDockOpen', statusPin: 'statusPin', shelf: 'shelf', library: 'library', libraryOpen: 'libraryOpen', skin: 'skin', skinImage: 'skinImage', phasePin: 'phasePin', home: 'home', homeCard: 'homeCard', recents: 'recents', agentLight: 'agentLight' }
 const REPO_URL = 'https://github.com/Peteryhs/zephyr'
 
 // write an attribute only when its value changes: an identical write still queues a
@@ -3301,6 +3301,68 @@ const MOTION_CSS = [
   "html:not([data-zephyr-collapse-work='on']) .zephyr-work-summary {",
   '  display: none !important;',
   '}',
+  // ── Ambient agent-state lighting (composer + session tabs) ──────────────
+  // Opacity transitions + one-shot completion sweep only: no continuous keyframe
+  // loop so Blink never re-composites the translucent sky window at 120 Hz.
+  "html[data-zf-agent-light='on'] [data-chat-surface] [data-slot='composer-surface'] {",
+  '  position: relative;',
+  '}',
+  "html[data-zf-agent-light='on'] [data-chat-surface] [data-slot='composer-surface']::after {",
+  "  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 3;",
+  '  opacity: 0; transition: opacity var(--zf-t-3) var(--zf-ease);',
+  '}',
+  "html[data-zf-agent-light='on'] [data-chat-surface][data-zf-agent='working'] [data-slot='composer-surface']::after {",
+  '  opacity: var(--zf-work-breath, 0.9);',
+  '  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--zf-accent, #93c5fd) 55%, white), inset 0 0 0 1px color-mix(in srgb, var(--zf-accent, #93c5fd) 34%, transparent), inset 0 18px 30px -22px color-mix(in srgb, var(--zf-accent, #93c5fd) 42%, transparent), 0 -6px 26px -10px color-mix(in srgb, var(--zf-accent, #93c5fd) 32%, transparent);',
+  '}',
+  "html[data-zf-agent-light='on'] [data-chat-surface][data-zf-agent='attention'] [data-slot='composer-surface']::after {",
+  '  opacity: 1;',
+  '  box-shadow: inset 0 1px 0 rgba(253, 224, 71, 0.65), inset 0 0 0 1px rgba(234, 179, 8, 0.48), inset 0 18px 30px -22px rgba(234, 179, 8, 0.34), 0 -6px 26px -10px rgba(234, 179, 8, 0.32);',
+  '}',
+  '@keyframes zf-agent-settle {',
+  '  0% { opacity: 0; transform: scaleX(0.35); }',
+  '  35% { opacity: 0.95; transform: scaleX(0.85); }',
+  '  100% { opacity: 0; transform: scaleX(1); }',
+  '}',
+  "html[data-zf-agent-light='on']:not([data-zephyr-motion='off']) [data-chat-surface][data-zf-agent-settled='true'] [data-slot='composer-surface']::after {",
+  '  background: linear-gradient(90deg, transparent 10%, color-mix(in srgb, var(--zf-accent, #93c5fd) 65%, white) 50%, transparent 90%) no-repeat 0 0 / 100% 1.5px;',
+  '  transform-origin: 50% 0;',
+  '  animation: zf-agent-settle var(--zf-t-3) var(--zf-ease-out) 1 both;',
+  '}',
+  '@media (prefers-reduced-motion: reduce) {',
+  "  html[data-zf-agent-light='on'] [data-chat-surface][data-zf-agent-settled='true'] [data-slot='composer-surface']::after { animation-name: none !important; }",
+  '}',
+  "html[data-zf-agent-light='on'] [role='tab'][data-tree-tab]:not([data-zf-arc-col] *)[data-zf-tab-state]::after {",
+  "  content: ''; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 2px; border-radius: 9999px; pointer-events: none;",
+  '  opacity: 0; transition: opacity var(--zf-t-2) var(--zf-ease);',
+  '}',
+  "html[data-zf-agent-light='on'] [role='tab'][data-tree-tab]:not([data-zf-arc-col] *)[data-zf-tab-state='working']::after {",
+  '  opacity: var(--zf-work-breath, 0.8); background: var(--zf-accent, #60a5fa);',
+  '}',
+  "html[data-zf-agent-light='on'] [role='tab'][data-tree-tab]:not([data-zf-arc-col] *)[data-zf-tab-state='attention']::after {",
+  '  opacity: 0.95; background: #eab308;',
+  '}',
+  "html[data-zf-agent-light='on'] [role='tab'][data-tree-tab]:not([data-zf-arc-col] *)[data-zf-tab-state='attention'] {",
+  '  background: rgba(234, 179, 8, 0.10) !important;',
+  '}',
+  "html[data-zf-agent-light='on'] [role='tab'][data-tree-tab]:not([data-zf-arc-col] *)[data-zf-tab-state='done']::after {",
+  '  opacity: 0.85; background: #34d399;',
+  '}',
+  // ── Focus / reading mode (Cmd/Ctrl+.) ───────────────────────────────────
+  "html[data-zf-focus='on'] :is([data-zf-arc-col], [data-slot='sidebar'], #zf-arc-hot, #zf-arc-mode, div.fixed[data-zf-sbbtn]) { display: none !important; }",
+  "html[data-zf-focus='on'] [role='tablist']:has([role='tab'][data-tree-tab]) { display: none !important; }",
+  "html[data-zf-focus='on'] :is(footer[data-slot='statusbar'], #zephyr-statusdock-tab) { display: none !important; }",
+  '#zf-focus-pill {',
+  '  display: none; position: fixed; top: 10px; right: 14px; z-index: 60;',
+  '  align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px;',
+  '  font-size: 11px; font-weight: 500; line-height: 1.4; cursor: pointer;',
+  '  color: var(--zf-ink-1, var(--ui-text-secondary));',
+  '  background: var(--zf-glass-strong, rgba(16, 18, 26, 0.78));',
+  '  border: 1px solid var(--zf-edge, rgba(255, 255, 255, 0.14));',
+  '  opacity: 0.28; transition: opacity var(--zf-t-2) var(--zf-ease), background-color var(--zf-t-2) var(--zf-ease);',
+  '}',
+  "html[data-zf-focus='on'] #zf-focus-pill { display: inline-flex; }",
+  '#zf-focus-pill:hover { opacity: 0.95; }',
   // ── [motion:switch] ─────────────────────────────────────────────────────
   // Session switch: core holds data-session-switching on [data-chat-surface]
   // until rows are placed and scroll is restored. The transcript stays
@@ -6364,6 +6426,61 @@ export default {
       ctx.onDispose?.(() => window.removeEventListener('keydown', onTabChord, true))
     }
 
+    // ── Focus / reading mode (Cmd/Ctrl+.) ───────────────────────────────────
+    let syncFocusLayout = () => {}
+    const focusMode = atom(false)
+    const applyFocusMode = on => {
+      if (typeof document === 'undefined' || !document.documentElement) return
+      if (!document.documentElement.dataset) document.documentElement.dataset = {}
+      if (on) {
+        document.documentElement.dataset.zfFocus = 'on'
+        let pill = document.getElementById('zf-focus-pill')
+        if (!pill && document.body) {
+          pill = document.createElement('button')
+          pill.id = 'zf-focus-pill'
+          pill.type = 'button'
+          const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform || '')
+          pill.textContent = isMac ? 'Focus · ⌘.' : 'Focus · Ctrl+.'
+          pill.title = 'Exit focus mode'
+          pill.setAttribute('aria-label', 'Exit focus mode')
+          pill.addEventListener('click', () => { focusMode.set(false); applyFocusMode(false) })
+          document.body.appendChild(pill)
+        }
+      } else {
+        delete document.documentElement.dataset.zfFocus
+        document.getElementById('zf-focus-pill')?.remove()
+      }
+      syncFocusLayout()
+    }
+    const toggleFocusMode = () => {
+      const next = !focusMode.get()
+      focusMode.set(next)
+      applyFocusMode(next)
+      return true
+    }
+    if (typeof window !== 'undefined') {
+      let lastFocusKeybind = 0
+      ctx.register({
+        id: 'zephyr.focusMode',
+        area: 'keybinds',
+        data: { id: 'zephyr.focusMode', category: 'view', defaults: ['mod+.'], label: 'Toggle focus mode', run: () => { lastFocusKeybind = Date.now(); return toggleFocusMode() } }
+      })
+      const onFocusChord = event => {
+        if (Date.now() - lastFocusKeybind < 250) return
+        if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.isComposing) return
+        if (event.key !== '.') return
+        if (!toggleFocusMode()) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+      }
+      window.addEventListener('keydown', onFocusChord, true)
+      ctx.onDispose?.(() => {
+        window.removeEventListener('keydown', onFocusChord, true)
+        focusMode.set(false)
+        applyFocusMode(false)
+      })
+    }
+
     // A collapsed pane collapses to a sliver; the app clips rather than hides its
     // tab labels, which leaves a word stacked one letter per line. Measure the
     // tabs, mark the narrow ones, and let this sheet drop the word.
@@ -6492,6 +6609,7 @@ export default {
     const margins = atom(stored(STORE_KEYS.margins) === true)
     const collapseWork = atom(stored(STORE_KEYS.collapseWork) !== false)
     const motion = atom(stored(STORE_KEYS.motion) !== false)
+    const agentLight = atom(stored(STORE_KEYS.agentLight) !== false)
     const phase = atom(phaseAt(new Date()))
     const glOn = atom(stored(STORE_KEYS.glSky) !== false)
     const weatherMode = atom(Object.hasOwn(WEATHER_LABEL, stored(STORE_KEYS.weather)) ? stored(STORE_KEYS.weather) : 'live')
@@ -6514,6 +6632,7 @@ export default {
       ctx.storage.set(STORE_KEYS.margins, margins.get())
       ctx.storage.set(STORE_KEYS.collapseWork, collapseWork.get())
       ctx.storage.set(STORE_KEYS.motion, motion.get())
+      ctx.storage.set(STORE_KEYS.agentLight, agentLight.get())
       ctx.storage.set(STORE_KEYS.glSky, glOn.get())
       ctx.storage.set(STORE_KEYS.weather, weatherMode.get())
       ctx.storage.set(STORE_KEYS.quality, quality.get())
@@ -8273,14 +8392,15 @@ export default {
       return v && typeof v === 'object' ? v : {}
     })()
     let turnTimesTimer = 0
+    const flushTurnTimes = () => {
+      if (turnTimesTimer) { clearTimeout(turnTimesTimer); turnTimesTimer = 0 }
+      const keys = Object.keys(turnTimes)
+      for (let i = 0; i < keys.length - TURN_TIMES_MAX; i++) delete turnTimes[keys[i]]
+      try { ctx.storage.set(TURN_TIMES_KEY, turnTimes) } catch {}
+    }
     const saveTurnTimes = () => {
       if (turnTimesTimer) return
-      turnTimesTimer = setTimeout(() => {
-        turnTimesTimer = 0
-        const keys = Object.keys(turnTimes)
-        for (let i = 0; i < keys.length - TURN_TIMES_MAX; i++) delete turnTimes[keys[i]]
-        try { ctx.storage.set(TURN_TIMES_KEY, turnTimes) } catch {}
-      }, 1500)
+      turnTimesTimer = setTimeout(flushTurnTimes, 1500)
     }
     /* The reply's prose (not the work scaffolds, whose text changes between a
        live turn and a reloaded one), whitespace-folded, FNV-1a hashed. */
@@ -8373,7 +8493,9 @@ export default {
     // prompt typed again later starts a new count.
     const LIVE_STARTS_KEY = 'liveStarts'
     const LIVE_START_TTL = 12 * 3600 * 1000
-    const LIVE_DONE_GRACE = 90 * 1000
+    const LIVE_DONE_GRACE = 10 * 60 * 1000
+    const LIVE_GAP_MS = 2500
+    const LIVE_PROMPT_TTL = 10 * 60 * 1000
     const savedStarts = (() => {
       const v = ctx.storage.get(LIVE_STARTS_KEY, null)
       if (!v || typeof v !== 'object') return {}
@@ -8381,61 +8503,102 @@ export default {
       return v
     })()
     let savedStartsTimer = 0
+    const flushSavedStarts = () => {
+      if (savedStartsTimer) { clearTimeout(savedStartsTimer); savedStartsTimer = 0 }
+      const now = Date.now()
+      for (const k of Object.keys(savedStarts)) if (!savedStarts[k] || now - savedStarts[k].t > LIVE_START_TTL) delete savedStarts[k]
+      const keys = Object.keys(savedStarts)
+      for (let i = 0; i < keys.length - 60; i++) delete savedStarts[keys[i]]
+      try { ctx.storage.set(LIVE_STARTS_KEY, savedStarts) } catch {}
+    }
     const saveStarts = () => {
       if (savedStartsTimer) return
-      savedStartsTimer = setTimeout(() => {
-        savedStartsTimer = 0
-        const now = Date.now()
-        for (const k of Object.keys(savedStarts)) if (!savedStarts[k] || now - savedStarts[k].t > LIVE_START_TTL) delete savedStarts[k]
-        const keys = Object.keys(savedStarts)
-        for (let i = 0; i < keys.length - 60; i++) delete savedStarts[keys[i]]
-        try { ctx.storage.set(LIVE_STARTS_KEY, savedStarts) } catch {}
-      }, 1000)
+      savedStartsTimer = setTimeout(flushSavedStarts, 1000)
     }
-    const liveKey = root => {
-      const pair = root.closest?.("[data-slot='aui_turn-pair']")
+    const flushAllWork = () => {
+      if (turnTimesTimer) flushTurnTimes()
+      if (savedStartsTimer) flushSavedStarts()
+    }
+    const onHideFlush = () => { if (typeof document !== 'undefined' && document.hidden) flushAllWork() }
+    if (typeof document !== 'undefined') document.addEventListener?.('visibilitychange', onHideFlush)
+    if (typeof window !== 'undefined') window.addEventListener?.('pagehide', flushAllWork)
+    const livePromptInfo = root => {
+      const pair = root?.getAttribute?.('data-slot') === 'aui_turn-pair' ? root : root?.closest?.("[data-slot='aui_turn-pair']")
       const user = pair?.querySelector?.("[data-slot='aui_user-message-root']")
       if (!user) return null
       const text = (user.textContent || '').replace(/\s*\d{1,2}:\d{2}\s?[AP]M\s*$/i, '').replace(/\s+/g, ' ').trim().slice(0, 400)
-      if (!text) return user.getAttribute('data-message-id')
+      if (!text) return { id: user.getAttribute('data-message-id') || null, hash: null }
       let h = 0x811c9dc5
       for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
+      return { id: null, hash: `${h.toString(36)}.${text.length}` }
+    }
+    const liveKeys = root => {
+      const info = livePromptInfo(root)
+      if (!info) return { key: null, promptKey: null }
+      if (!info.hash) return { key: info.id, promptKey: null }
       const session = typeof location !== 'undefined' ? String(location.hash || '').replace(/^#\/?/, '').split(/[?/#]/)[0] : ''
-      return `${session}|${h.toString(36)}.${text.length}`
+      return { key: `${session}|${info.hash}`, promptKey: `*|${info.hash}` }
     }
     // the start for a key, unless that turn finished a while ago (a repeat prompt)
-    const savedStart = key => {
-      const e = key ? savedStarts[key] : null
-      if (!e) return undefined
+    const savedStart = (key, promptKey) => {
       const now = Date.now()
-      if (now - e.t > LIVE_START_TTL) return undefined
-      if (e.d && now - e.d > LIVE_DONE_GRACE) return undefined
-      return e.t
+      const e = key ? savedStarts[key] : null
+      if (e && now - e.t <= LIVE_START_TTL && (!e.d || now - e.d <= LIVE_DONE_GRACE)) return e.t
+      const pe = promptKey ? savedStarts[promptKey] : null
+      if (pe && now - pe.t <= LIVE_PROMPT_TTL && (!pe.d || now - pe.d <= 15_000)) {
+        if (key) { savedStarts[key] = { t: pe.t }; saveStarts() }
+        return pe.t
+      }
+      return undefined
     }
-    const rememberStart = (key, t) => { savedStarts[key] = { t }; saveStarts() }
-    const markLive = root => {
-      const e = savedStarts[liveKey(root)]
-      if (e && e.d) { delete e.d; saveStarts() }
+    const rememberStart = (key, promptKey, t) => {
+      if (key) savedStarts[key] = { t }
+      if (promptKey) savedStarts[promptKey] = { t }
+      saveStarts()
     }
-    const markDone = root => {
-      const e = savedStarts[liveKey(root)]
-      if (e && !e.d) { e.d = Date.now(); saveStarts() }
+    const markLive = container => {
+      const { key, promptKey } = liveKeys(container)
+      let changed = false
+      for (const k of [key, promptKey]) {
+        const e = k ? savedStarts[k] : null
+        if (e && e.d) { delete e.d; changed = true }
+      }
+      if (changed) saveStarts()
     }
-    const startOf = root => {
-      if (root.dataset.zfStart) return Number(root.dataset.zfStart)
-      const key = liveKey(root)
-      let t = savedStart(key)
+    const markDone = container => {
+      const { key, promptKey } = liveKeys(container)
+      const now = Date.now()
+      let changed = false
+      for (const k of [key, promptKey]) {
+        const e = k ? savedStarts[k] : null
+        if (e && !e.d) { e.d = now; changed = true }
+      }
+      if (changed) saveStarts()
+    }
+    const startOf = (container, liveRoot) => {
+      if (container?.dataset?.zfStart) return Number(container.dataset.zfStart)
+      if (liveRoot?.dataset?.zfStart) {
+        const existing = Number(liveRoot.dataset.zfStart)
+        if (container) putData(container, 'zfStart', String(existing))
+        return existing
+      }
+      const { key, promptKey } = liveKeys(container || liveRoot)
+      let t = savedStart(key, promptKey)
       if (t === undefined) {
         // Hermes's own pre-first-token timer counts from the turn's start
-        const timer = root.querySelector?.("[data-slot='aui_response-loading']")
+        const timer = (container || liveRoot)?.querySelector?.("[data-slot='aui_response-loading']")
         const m = (timer?.textContent || '').match(/(?:(\d+):)?(\d+)(?::(\d{2})|s)/)
         const ago = m ? (m[3] ? (parseInt(m[1] || '0', 10) * 60 + parseInt(m[2], 10)) * 60 + parseInt(m[3], 10) : parseInt(m[2], 10)) : 0
         t = Date.now() - ago * 1000
-        if (key) rememberStart(key, t)
+        if (key || promptKey) rememberStart(key, promptKey, t)
       }
-      root.dataset.zfStart = String(t)
+      if (container) putData(container, 'zfStart', String(t))
+      if (liveRoot) putData(liveRoot, 'zfStart', String(t))
       return t
     }
+
+    const WAITING_MARKERS = "[data-slot='tool-approval-card'], [data-slot='clarify-inline']"
+    const isWaitingTurn = container => Boolean(container?.querySelector?.(WAITING_MARKERS))
 
     const streamingMarkers = [
       "[data-message-streaming='true']", "[data-slot='aui_message-streaming-marker'][data-message-streaming]",
@@ -8695,19 +8858,28 @@ export default {
       }
 
       const livePart = info.find(part => part.live) || null
-      if (livePart) {
+      const waiting = !livePart && isWaitingTurn(container)
+      const badge = readBadgeSecs(container)
+      const inGap = !livePart && !waiting && badge === null &&
+        toggle.getAttribute('data-live') === 'true' &&
+        Boolean(container.dataset?.zfLiveAt) &&
+        (Date.now() - Number(container.dataset.zfLiveAt)) < LIVE_GAP_MS
+      if (livePart || waiting || inGap) {
+        if (livePart || waiting) putData(container, 'zfLiveAt', String(Date.now()))
         put(toggle, 'data-live', 'true')
         const { verbs, icons, detail } = classifyWork(scaffolds)
-        const secs = (Date.now() - startOf(livePart.root)) / 1000
-        markLive(livePart.root)
-        paintToggle(toggle, icons, `${joinVerbs(verbs)} for ${formatDuration(secs)}`, detail)
+        const secs = (Date.now() - startOf(container, (livePart || owner).root)) / 1000
+        markLive(container)
+        const prefix = waiting ? 'Waiting for input' : joinVerbs(verbs)
+        paintToggle(toggle, icons, `${prefix} for ${formatDuration(secs)}`, detail)
         return
       }
 
       // Just finished: if Hermes stamped no badge, keep the time we counted.
-      const started = info.map(part => part.root.dataset.zfStart).find(Boolean)
+      const started = container.dataset?.zfStart || info.map(part => part.root.dataset?.zfStart).find(Boolean)
       const counted = toggle.getAttribute('data-live') === 'true' && started
         ? (Date.now() - Number(started)) / 1000 : null
+      if (container.dataset) delete container.dataset.zfLiveAt
       toggle.removeAttribute('data-live')
       // The model stopped talking: fold the work the running turn kept open.
       // Anything he clicked during the turn cleared the marker and stays as he
@@ -8719,31 +8891,41 @@ export default {
         if (typeof requestAnimationFrame === 'function') requestAnimationFrame(settleFold)
         else setTimeout(settleFold, 0)
       }
-      if (counted !== null) markDone(info[0].root)
+      if (counted !== null) markDone(container)
 
       // Finished turns don't change: once summarised with the same scaffold
       // count, skip the text heuristics entirely.
-      const badge = readBadgeSecs(container)
       const scaffoldKey = `${scaffolds.length}|${badge}`
       if (toggle.dataset.scaffolds === scaffoldKey && toggle.dataset.signature && counted === null) return
       putData(toggle, 'scaffolds', scaffoldKey)
 
       const { verbs, icons, detail } = classifyWork(scaffolds)
-      const key = turnKey(owner.content)
+      let replyKey = ''
+      for (let i = info.length - 1; i >= 0 && !replyKey; i--) replyKey = turnKey(info[i].content)
+      const { key: promptKey } = liveKeys(container)
+      const promptTimeKey = promptKey ? `p:${promptKey}` : ''
+      const timeKeys = [replyKey, promptTimeKey].filter(Boolean)
       let secs = badge
       if (secs === null && counted !== null && counted >= 1) secs = Math.round(counted)
       if (secs !== null) {
-        if (key && turnTimes[key] !== secs) { turnTimes[key] = secs; saveTurnTimes() }
-      } else if (key && typeof turnTimes[key] === 'number') {
-        secs = turnTimes[key]                  // remembered from when it ran
-      } else {
-        // last resort: the reasoning blocks' own "Thought for 12s"
-        let total = 0
-        for (const el of scaffolds) {
-          const m = (el.textContent || '').match(/thought for (\d+(?:\.\d+)?)\s*s/i)
-          if (m) total += parseFloat(m[1])
+        let dirty = false
+        for (const k of timeKeys) {
+          if (turnTimes[k] !== secs) { turnTimes[k] = secs; dirty = true }
         }
-        if (total > 0) secs = total
+        if (dirty) saveTurnTimes()
+      } else {
+        for (const k of timeKeys) {
+          if (typeof turnTimes[k] === 'number') { secs = turnTimes[k]; break }
+        }
+        if (secs === null) {
+          // last resort: the reasoning blocks' own "Thought for 12s"
+          let total = 0
+          for (const el of scaffolds) {
+            const m = (el.textContent || '').match(/thought for (\d+(?:\.\d+)?)\s*s/i)
+            if (m) total += parseFloat(m[1])
+          }
+          if (total > 0) secs = total
+        }
       }
       const verbText = verbs.length ? joinVerbs(verbs) : 'Worked'
       paintToggle(toggle, icons, secs !== null ? `${verbText} for ${formatDuration(secs)}` : verbText, detail)
@@ -8802,6 +8984,7 @@ export default {
         fitColumn()
       }
       fullWorkScan = workLayout = false
+      syncAgentState()
     }
 
     const hasRaf = typeof requestAnimationFrame === 'function'
@@ -8872,7 +9055,7 @@ export default {
       scheduleScanWork()
     }
 
-    const onNavChange = () => { scheduleScanWork(true); runRescanHooks() }
+    const onNavChange = () => { scheduleScanWork(true); runRescanHooks(); syncAgentState() }
 
     // Core lifts data-session-switching once the new transcript's rows are
     // placed and the scroll has settled. Attribute MutationObserver callbacks
@@ -9580,29 +9763,173 @@ export default {
       flareStyle.textContent = STACK_FLARE_CSS
       document.head.appendChild(flareStyle)
     }
+    // ── Ambient agent-state lighting (composer + session tabs) ──────────────
+    const prevSurfaceState = new WeakMap()
+    const settleTimers = new WeakMap()
+    const activeSettleTimers = new Set()
+    const tabWasActive = new Set()
+    const tabDone = new Set()
+    let breathWorking = false
+    let breathSet = false
+    const normTabLabel = el => (el?.textContent || '').replace(/\s+/g, ' ').trim()
+    const clearAgentAttrs = () => {
+      if (typeof document === 'undefined') return
+      document.querySelectorAll?.('[data-chat-surface]').forEach(el => {
+        el.removeAttribute?.('data-zf-agent')
+        el.removeAttribute?.('data-zf-agent-settled')
+      })
+      document.querySelectorAll?.("[role='tab'][data-tree-tab]").forEach(el => {
+        el.removeAttribute?.('data-zf-tab-state')
+      })
+      if (breathSet) {
+        document.documentElement?.style?.removeProperty?.('--zf-work-breath')
+        breathSet = false
+      }
+      breathWorking = false
+    }
+    const applyAgentLight = on => {
+      if (typeof document === 'undefined' || !document.documentElement) return
+      if (!document.documentElement.dataset) document.documentElement.dataset = {}
+      if (on) document.documentElement.dataset.zfAgentLight = 'on'
+      else {
+        delete document.documentElement.dataset.zfAgentLight
+        clearAgentAttrs()
+      }
+    }
+    const surfaceStateOf = surface => {
+      const roots = surface?.querySelectorAll?.(ASSISTANT_ROOT) || []
+      const last = roots.length ? roots[roots.length - 1] : null
+      const group = last ? groupContainerOf(last) : null
+      if (!group) return 'idle'
+      if (isWaitingTurn(group)) return 'attention'
+      if (Boolean(group.querySelector?.(".zephyr-work-summary[data-live='true']")) || partsOf(group).some(p => isStreamingRoot(p.root))) return 'working'
+      return 'idle'
+    }
+    function syncAgentState() {
+      if (!agentLight.get() || typeof document === 'undefined') return
+      let anyWorking = false
+      let primaryState = 'idle'
+      const surfaces = Array.from(document.querySelectorAll?.('[data-chat-surface]') || [])
+      for (const surface of surfaces) {
+        const next = surfaceStateOf(surface)
+        const prev = prevSurfaceState.get(surface) || 'idle'
+        prevSurfaceState.set(surface, next)
+        if (next === 'working') anyWorking = true
+        if (next === 'attention' || (next === 'working' && primaryState === 'idle')) primaryState = next
+        if (next === 'idle') {
+          if (surface.hasAttribute?.('data-zf-agent')) surface.removeAttribute('data-zf-agent')
+          if (prev === 'working' || prev === 'attention') {
+            put(surface, 'data-zf-agent-settled', 'true')
+            const oldTimer = settleTimers.get(surface)
+            if (oldTimer) { clearTimeout(oldTimer); activeSettleTimers.delete(oldTimer) }
+            const t = setTimeout(() => {
+              activeSettleTimers.delete(t)
+              surface.removeAttribute?.('data-zf-agent-settled')
+            }, 950)
+            settleTimers.set(surface, t)
+            activeSettleTimers.add(t)
+          }
+        } else {
+          if (surface.hasAttribute?.('data-zf-agent-settled')) surface.removeAttribute('data-zf-agent-settled')
+          put(surface, 'data-zf-agent', next)
+        }
+      }
+
+      const runningLabels = new Set()
+      const attentionLabels = new Set()
+      const dotQuery = ":is([data-sessions-mode], [data-tour='sessions-sidebar'], [data-slot='sidebar-content']) span[role='status']"
+      for (const dot of document.querySelectorAll?.(dotQuery) || []) {
+        const cls = String(dot.className || '')
+        const aria = String(dot.getAttribute?.('aria-label') || '')
+        const title = String(dot.getAttribute?.('title') || '')
+        const row = dot.closest?.('button, a, [role="treeitem"], [data-slot="sidebar-menu-item"], li, div')
+        const label = normTabLabel(row?.querySelector?.('.truncate') || row)
+        if (!label) continue
+        if (/amber/i.test(cls) || /input|answer/i.test(aria + ' ' + title)) attentionLabels.add(label)
+        else if (/ui-accent/i.test(cls) || /session running/i.test(aria)) runningLabels.add(label)
+      }
+
+      for (const tab of document.querySelectorAll?.("[role='tab'][data-tree-tab]") || []) {
+        if (tab.dataset?.slot === 'pane-tab' || tab.closest?.('[data-zf-arc-col]')) continue
+        const key = tab.dataset?.treeTab || normTabLabel(tab)
+        const label = normTabLabel(tab.querySelector?.('.truncate') || tab)
+        const selected = tab.getAttribute?.('aria-selected') === 'true'
+        if (selected) {
+          if (key) tabDone.delete(key)
+          if (primaryState === 'idle') {
+            if (tab.hasAttribute?.('data-zf-tab-state')) tab.removeAttribute('data-zf-tab-state')
+          } else {
+            if (key && primaryState === 'working') tabWasActive.add(key)
+            put(tab, 'data-zf-tab-state', primaryState)
+          }
+          continue
+        }
+        if (label && attentionLabels.has(label)) {
+          if (key) { tabWasActive.add(key); tabDone.delete(key) }
+          put(tab, 'data-zf-tab-state', 'attention')
+        } else if (label && runningLabels.has(label)) {
+          anyWorking = true
+          if (key) { tabWasActive.add(key); tabDone.delete(key) }
+          put(tab, 'data-zf-tab-state', 'working')
+        } else if (key && tabWasActive.has(key)) {
+          tabWasActive.delete(key)
+          tabDone.add(key)
+          put(tab, 'data-zf-tab-state', 'done')
+        } else if (key && tabDone.has(key)) {
+          put(tab, 'data-zf-tab-state', 'done')
+        } else if (tab.hasAttribute?.('data-zf-tab-state')) {
+          tab.removeAttribute('data-zf-tab-state')
+        }
+      }
+
+      breathWorking = anyWorking
+      if (!anyWorking && breathSet) {
+        document.documentElement?.style?.removeProperty?.('--zf-work-breath')
+        breathSet = false
+      }
+    }
+    const stepBreath = () => {
+      if (typeof document === 'undefined') return
+      if (!agentLight.get() || !breathWorking || !motion.get() || reducedMotion()) {
+        if (breathSet) {
+          document.documentElement?.style?.removeProperty?.('--zf-work-breath')
+          breathSet = false
+        }
+        return
+      }
+      const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      const v = 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(nowMs * 0.0022))
+      document.documentElement?.style?.setProperty?.('--zf-work-breath', v.toFixed(3))
+      breathSet = true
+    }
+    skyFrameHooks.add(stepBreath)
+    applyAgentLight(agentLight.get())
+
     // Live work tiles count up once a second. Only the turns that are still
     // running (and the newest reply, which may have just started) are touched.
-    // The newest reply is the last thing in the transcript, so walk down its
-    // last-child chain: scanning every message root in the document, once a
-    // second for the whole session, was the one thing here that grew with the
-    // length of the conversation.
-    const newestMessageRoot = () => {
-      let el = document.querySelector?.("[data-slot='aui_thread-content']")
-      for (let depth = 0; el && depth < 6; depth += 1) {
-        if (el.matches?.("[data-slot='aui_assistant-message-root']")) return el
-        el = el.lastElementChild
-      }
-      return null
-    }
+    // Walking every [data-slot='aui_thread-content'] and picking its last
+    // assistant root handles split panes and trailing cards/spacers alike.
+    const newestMessageRoots = () =>
+      Array.from(document.querySelectorAll?.("[data-slot='aui_thread-content']") || [])
+        .map(t => {
+          const roots = t.querySelectorAll?.(ASSISTANT_ROOT) || []
+          return roots.length ? roots[roots.length - 1] : null
+        })
+        .filter(Boolean)
     const liveTimer = setInterval(() => {
-      if (typeof document === 'undefined' || document.hidden || !collapseWork.get() || !scrollSettled()) return
-      const groups = new Set()
-      document.querySelectorAll?.(".zephyr-work-summary[data-live]").forEach(el => {
-        const g = groupContainerOf(el.closest?.("[data-slot='aui_assistant-message-root']")); if (g) groups.add(g)
-      })
-      const newest = newestMessageRoot()
-      if (newest) { const g = groupContainerOf(newest); if (g) groups.add(g) }
-      groups.forEach(g => processTurn(g, true))
+      if (typeof document === 'undefined' || document.hidden || !scrollSettled()) return
+      if (collapseWork.get()) {
+        const groups = new Set()
+        document.querySelectorAll?.(".zephyr-work-summary[data-live]").forEach(el => {
+          const g = groupContainerOf(el.closest?.("[data-slot='aui_assistant-message-root']")); if (g) groups.add(g)
+        })
+        for (const newest of newestMessageRoots()) {
+          const g = groupContainerOf(newest)
+          if (g) groups.add(g)
+        }
+        groups.forEach(g => processTurn(g, true))
+      }
+      syncAgentState()
     }, 1000)
     const flareTimer = setInterval(() => { if (typeof document !== 'undefined' && !document.hidden && scrollSettled()) fitStatusStack() }, 1000)
     apply(nowAt())
@@ -10736,6 +11063,8 @@ export default {
         const isHomeCard = useValue(homeCard)
         const isCollapseWork = useValue(collapseWork)
         const isMotion = useValue(motion)
+        const isAgentLight = useValue(agentLight)
+        const isFocusMode = useValue(focusMode)
         const isStatusDock = useValue(statusDock)
         const isLibrary = useValue(library)
         const isGl = useValue(glOn)
@@ -11038,6 +11367,26 @@ export default {
               motion.set(on)
               persist()
               applyMotion(on)
+            }
+          }),
+          jsx(ToggleRow, {
+            checked: isAgentLight,
+            description: 'Softly light the composer and session tabs while an agent is working, waiting for approval, or finished in a background tab.',
+            label: 'Ambient agent lighting',
+            onChange: on => {
+              agentLight.set(on)
+              persist()
+              applyAgentLight(on)
+              if (on) syncAgentState()
+            }
+          }),
+          jsx(ToggleRow, {
+            checked: isFocusMode,
+            description: 'Hide the sidebar, tab strip and status bar over the blurred sky (⌘. / Ctrl+.).',
+            label: 'Focus mode',
+            onChange: on => {
+              focusMode.set(on)
+              applyFocusMode(on)
             }
           }),
           jsx(ToggleRow, {
@@ -11357,6 +11706,11 @@ export default {
         for (const k of ['zfArc', 'zfArcOpen', 'zfArcReady', 'zfArcSeen', 'zfMorph']) delete root.dataset[k]
         document.querySelectorAll('[data-zf-arc-col]').forEach(el => { delete el.dataset.zfArcCol })
       })
+      syncFocusLayout = () => {
+        fitColumn()
+        layoutShelf()
+        homeApi.layout?.()
+      }
     } catch (err) {
       console.error('[zf-rail] failed: ' + (err && err.stack || err))
     }
@@ -11364,6 +11718,16 @@ export default {
     // A plugin is a guest: leave the host as we found it when it unloads.
     ctx.onDispose?.(() => {
       zfDisposed = true
+      skyFrameHooks.delete(stepBreath)
+      for (const t of activeSettleTimers) clearTimeout(t)
+      activeSettleTimers.clear()
+      clearAgentAttrs()
+      if (typeof document !== 'undefined') {
+        delete document.documentElement?.dataset?.zfAgentLight
+        document.removeEventListener?.('visibilitychange', onHideFlush)
+      }
+      if (typeof window !== 'undefined') window.removeEventListener?.('pagehide', flushAllWork)
+      flushAllWork()
       themeObs?.disconnect()
       stopPreviewMeasure?.()
       clearInterval(configTimer)
